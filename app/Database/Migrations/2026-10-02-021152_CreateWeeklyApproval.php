@@ -42,20 +42,22 @@ class CreateWeeklyApproval extends Migration
             ],
         ]);
         $this->forge->addKey('id', true);
-        $this->forge->createTable('weekly_approvals');
+        $this->forge->createTable('weekly_approvals', TRUE);
 
         // 2. Menambahkan kolom weekly_id pada tabel startup
-        $fields = [
-            'weekly_id' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'unsigned'   => true,
-                'null'       => true,
-                'after'      => 'status' // Ditempatkan setelah kolom status
-            ],
-        ];
-        $this->forge->addColumn('startup', $fields);
-    }
+        if (! $this->db->fieldExists('weekly_id', 'startup')) {
+            $fields = [
+                'weekly_id' => [
+                    'type'       => 'INT',
+                    'constraint' => 11,
+                    'unsigned'   => true,
+                    'null'       => true,
+                    'after'      => 'status' 
+                ],
+            ];
+            $this->forge->addColumn('startup', $fields);
+        }
+    } // <--- Nah, kurung ini nih yang tadi kehapus Bang!
 
     public function down()
     {

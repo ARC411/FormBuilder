@@ -383,6 +383,7 @@ function updateInput() {
         var form_input = document.getElementById('form-input');
         $('#submit').hide();
         form_input.innerHTML = "";
+        document.getElementById('revisi-txt').value = ""; // Kosongkan revisi
         return;
     }
 
@@ -393,19 +394,16 @@ function updateInput() {
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
         typeProcess="production";
-        if (revField) revField.value = "6";
     }
     else if(process.split("-")[1] == 'f'){
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
         typeProcess="foregoing";
-        if (revField) revField.value = "6";
     }
     else{
         document.getElementById('model-txt').disabled = true;
         document.getElementById('lotno-txt').disabled = true;
         typeProcess="startup";
-        if (revField) revField.value = "4";
     }
 
     document.getElementById("form-action").action = "/checkseet/" + typeProcess;
@@ -414,6 +412,40 @@ function updateInput() {
     let submit_button = document.getElementById("submit");
     submit_button.disabled = false;
     cnt_error.value = 0;
+
+    // --- TARIK NILAI REVISI DINAMIS DARI DATABASE ---
+    // Karena kita sudah punya fungsi getAll() di ProcessModel, kita bisa memanfaatkannya
+    // Atau bisa menggunakan endpoint API yang sudah Abang siapkan untuk Process
+    $.ajax({
+        url: "<?php echo base_url();?>process/detail?process_code=" + process, 
+        // Catatan: Pastikan endpoint 'process/detail' ada di controller Process Abang
+        // Jika tidak ada, kita bisa gunakan trik sederhana dengan mengambil nilai dari dropdown text
+        dataType: 'JSON',
+        success: function(res) {
+            if(res && res.revisi) {
+                if (revField) revField.value = res.revisi;
+            } else {
+                if (revField) revField.value = "-"; // Default jika kosong
+            }
+        },
+        error: function() {
+            // JURUS ALTERNATIF: Ambil revisi dari ujung string DocNo di dropdown!
+            // Mengingat Abang tadi bilang "angka revisi itu ditunjukan sama angka setelah tanda '-' terakhir di kolom docno"
+            var processValue = document.getElementById("process-txt");
+            if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+                var text = processValue.options[processValue.selectedIndex].text; // Cth: FF-D1-004-18 (Nama Proses)
+                var docno = text.split(" ")[0]; // Mengambil FF-D1-004-18
+                var parts = docno.split("-");
+                if (parts.length > 1) {
+                    var lastPart = parts[parts.length - 1]; // Mengambil 18
+                    if (revField) revField.value = lastPart;
+                } else {
+                    if (revField) revField.value = "-";
+                }
+            }
+        }
+    });
+    // ------------------------------------------------
 
     updateSetting(process);
 

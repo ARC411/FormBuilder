@@ -10,7 +10,7 @@ class ForegoingModel extends Model {
     protected $useTimestamps = true;
     protected $allowedFields = ['number','idcsheet', 'device', 'process', 'lotno', 'model', 'machno', 'empid', 'group', 'shift','par000', 'par001', 'par002', 'par003', 'par004', 'par005', 'par006', 'par007', 'par008',
     'par009', 'par010', 'par011', 'par012', 'par013', 'par014', 'par015', 'par016', 'par017', 'par018', 'par019', 'par020', 'par021', 'par022', 'par023', 'par024', 'par025', 'par026', 'par027', 'par028', 'par029',
-    'par030', 'par031','par032', 'par033', 'par034', 'par035', 'par036', 'par037', 'par038', 'par039', 'par040','par041','par042'];
+    'par030', 'par031','par032', 'par033', 'par034', 'par035', 'par036', 'par037', 'par038', 'par039', 'par040','par041','par042', 'docno', 'revisi'];
 
     public function getAllData()
     {
@@ -24,15 +24,20 @@ class ForegoingModel extends Model {
     }
 
     public function addProses($data)
-    {
-        // --- TAMBAHAN BARU: SNAPSHOT REVISI & BERLAKU ---
-        $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
-        
-        if ($prosesMaster) {
-            $data['par041'] =$prosesMaster['revisi'];
-            $data['par042'] =$prosesMaster['berlaku'];
-        }
-        // ------------------------------------------------
+{
+    // --- TAMBAHAN BARU: SNAPSHOT REVISI & BERLAKU ---
+    $db = \Config\Database::connect();
+    $prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+
+    if ($prosesMaster) {
+        $data['par041'] =$prosesMaster['revisi'];
+        $data['par042'] =$prosesMaster['berlaku'];
+
+        // --- TAMBAHAN BARU: Stempel Otomatis ---
+        $data['docno']  = $prosesMaster['docno'];
+        $data['revisi'] = $prosesMaster['revisi'];
+        // --------------------------------------
+    }
 
         $query = 'SELECT * FROM foregoing  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
         $result=$this->query($query)->getRow();

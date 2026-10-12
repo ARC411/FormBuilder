@@ -17,7 +17,7 @@ class ProductionModel extends Model
         'par022', 'par023', 'par024', 'par025', 'par026', 'par027', 'par028',
         'par029', 'par030', 'par031', 'par032', 'par033', 'par034', 'par035',
         'par036', 'par037', 'par038', 'par039', 'par040', 'par041', 'par042',
-        'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor',
+        'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor', 'docno', 'revisi'
     ];
 
     public function getCsheet($slug = false)
@@ -156,17 +156,22 @@ class ProductionModel extends Model
     }
 
     public function addProses($data)
-    {
-        // Snapshot revisi & berlaku dari master proses
-        $prosesMaster = $this->db->table('proses')
-            ->where('process_code', $data['process'])
-            ->get()
-            ->getRowArray();
+{
+    // Snapshot revisi & berlaku dari master proses
+    $prosesMaster = $this->db->table('proses')
+        ->where('process_code', $data['process'])
+        ->get()
+        ->getRowArray();
 
-        if ($prosesMaster) {
-            $data['par041'] = $prosesMaster['revisi'];
-            $data['par042'] = $prosesMaster['berlaku'];
-        }
+    if ($prosesMaster) {
+        $data['par041'] = $prosesMaster['revisi'];
+        $data['par042'] = $prosesMaster['berlaku'];
+
+        // --- TAMBAHAN BARU: Stempel Otomatis ---
+        $data['docno']  = $prosesMaster['docno'];
+        $data['revisi'] = $prosesMaster['revisi'];
+        // --------------------------------------
+    }
 
         $result = $this->query(
             "SELECT * FROM production WHERE `number` = ? AND `par001` = ?",

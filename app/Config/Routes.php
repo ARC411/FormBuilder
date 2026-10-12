@@ -138,3 +138,15 @@ $routes->get('/test2/([a-zA-Z0-9]+)/([a-zA-Z0-9]+)','Test::testStartup/$1/$2');
 // ==========================================================
 $routes->get('/cleansing', 'Cleansing::index');
 $routes->post('/cleansing/execute', 'Cleansing::execute');
+
+// ==========================================================
+// 13. FORM BUILDER (DYNAMIC PARAMETER)
+// ==========================================================
+$routes->get('form-builder', 'FormBuilder::index');
+$routes->get('form-builder/get-processes', 'FormBuilder::getProcesses');
+$routes->post('form-builder/load', 'FormBuilder::loadForm');
+$routes->post('form-builder/save', 'FormBuilder::saveParam');
+$routes->post('form-builder/delete', 'FormBuilder::deleteParam');
+$routes->post('form-builder/up-revisi', 'FormBuilder::upRevisi');
+
+$routes->get('/run-migration', 'FormBuilder::eksekusiMigrasi');

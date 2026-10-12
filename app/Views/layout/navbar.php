@@ -81,8 +81,13 @@
             </li>';
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url('machine').'"><i class="fas fa-server"></i> Machine</a>
+            </li>';
+            
+            // --- MENU BARU: FORM BUILDER ---
+            echo '<li class="nav-item">
+              <a class="nav-link text-warning" href="'.base_url('form-builder').'"><i class="fas fa-hammer"></i> Form Builder</a>
             </li>';       
-            }
+        }
 
           if($session->get('empid')){
             echo '<li class="nav-item">
