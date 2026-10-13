@@ -4,7 +4,7 @@
   <table class="table table-bordered table-hover" id="table1">
     <thead align="center">
       <tr>
-        <th colspan="34" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
+        <th colspan="35" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
       </tr>
       <tr>
         <th rowspan="4" >No.</th>   
@@ -20,7 +20,7 @@
         <th rowspan="4">Yield (%)</th>
         <th colspan="2">Time</th>
         <th colspan="6" scope="col">Foregoing Result (40 pcs/lot)</th>
-        <th colspan="2">@ Die Bond Strength</th>
+        <th colspan="3">@ Die Bond Strength</th>
         <th colspan="2" rowspan="2" >* Check Mark 2Pcs/shift</th>
         <th colspan="2"># Check of Ag Paste</th>
         <th colspan="2"># Check ketebalan Ag Paste (nilai h)</th>
@@ -36,7 +36,7 @@
         <th rowspan="3">OUT</th>
         <th colspan="2" scope="col">SM chip</th>
         <th colspan="4" scope="col">LD chip</th>
-        <th colspan="2" scope="col">(2pcs/shift)</th>
+        <th colspan="3" scope="col">(2pcs/shift)</th>
         <th colspan="2" scope="col">(2pcs/Lot)</th>
         <th colspan="2" scope="col">(2pcs/Lot)</th>
       </tr>
@@ -47,7 +47,7 @@
         <th rowspan="2">Miss LD chip</th>
         <th rowspan="2">Crack</th>
         <th rowspan="2">Chipping</th>
-        <th colspan="2" scope="col">> 5N</th>
+        <th rowspan="2">Std (Min)</th>
         <th colspan="2" scope="col">OK:✓ <br> NG:X</th>
         <th colspan="2" scope="col">OK:✓ <br> NG:X</th>
         <th colspan="2" scope="col">OK:✓ <br> NG:X</th>
@@ -115,6 +115,7 @@
         <td rowspan="1" ><?= (string)$alldata[$i]['par038']; ?></td>
         <td rowspan="1" ><?= (string)$alldata[$i]['par039']; ?></td>
         <td rowspan="1" ><?= (string)$alldata[$i]['par040']; ?></td>
+        <td rowspan="1" ><?= !empty($alldata[$i]['std_die_bond']) ? $alldata[$i]['std_die_bond'] . ' N' : '-'; ?></td>
         <td rowspan="1" ><?= (string)$alldata[$i]['par017']; ?></td>
         <td rowspan="1" ><?= (string)$alldata[$i]['par018']; ?></td>
         <td rowspan="1" ><?= (string)$alldata[$i]['par041']; ?></td>

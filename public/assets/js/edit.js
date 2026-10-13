@@ -131,7 +131,7 @@ function injectForm()
             if (xhr.status === 200) {
                 var modal = document.getElementById('modal');
                 if(modal){
-                    modal.innerHTML = xhr.responseText;
+                    $('#modal').html(xhr.responseText);
                     $('#submit').show();
                 }
             } else {

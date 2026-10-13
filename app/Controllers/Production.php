@@ -248,6 +248,7 @@ class Production extends BaseController
             'group2'  => $req->getVar('group2-txt') ?: ($req->getVar('group-txt') ?: ""),
             'shift2'  => $req->getVar('shift2-txt') ?: ($req->getVar('shift-txt') ?: ""),
             'name2'   => $req->getVar('name2-txt') ?: ($req->getVar('name-txt') ?: ""),
+            'std_die_bond' => $req->getVar('std_die_bond') ?: null,
         ];
 
         // Blok A sampai E (par001 = 1 sampai 5)

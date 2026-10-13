@@ -456,7 +456,7 @@ function updateInput() {
             var form_input = document.getElementById('form-input');
             if (xhr.status === 200 && xhr.responseText.trim() !== "") {
                 $('#submit').show();
-                form_input.innerHTML = xhr.responseText;
+                $('#form-input').html(xhr.responseText);
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
                 if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){

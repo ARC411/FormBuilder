@@ -41,6 +41,7 @@ $routes->post('/startup', 'Startup::createStartup');
 $routes->get('/startup/edit/form','Startup::formEdit');
 $routes->get('/startup/edit/(:num)','Startup::edit/$1');
 $routes->get('/startup/history/(:num)', 'Startup::startupByNumber/$1');
+$routes->get('/startup/startupByNumber/(:num)', 'Startup::startupByNumber/$1');
 $routes->delete('/startup/(:num)','Startup::deleteStartup/$1');
 $routes->post('/startup/update', 'Startup::updateStartup'); // Jika pakai route biasa
 $routes->post('/startup/update/(:num)', 'Startup::updateStartup/$1'); // Jika pakai ID di URL

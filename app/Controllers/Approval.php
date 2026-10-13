@@ -90,7 +90,8 @@ class Approval extends BaseController
         $data = [
             'title' => 'Weekly Approval | Startup Management',
             'weekly_data' => $weeklyModel->getWeeklyList(),
-            'user_role' => $this->session->get('role') // Asumsi: session role menyimpan 'qc' atau 'production'
+            'user_role' => $this->session->get('role'),
+            'is_admin' => $this->session->get('isadmin') // Asumsi: session role menyimpan 'qc' atau 'production'
         ];
 
         return view('weekly_approval', $data);
