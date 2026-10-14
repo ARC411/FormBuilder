@@ -1,8 +1,7 @@
 <div class="table-responsive" id="fldb1a">
 <?= csrf_field(); ?>
 <input type="hidden" id="number-edit" name="number-edit" value=<?php if(isset($alldata)){echo $number;} ?>>
-    <table class="table table-striped-columns" 
-    >
+    <table class="table table-striped-columns">
     <thead align="center">
         <tr>
         <th colspan="19" scope="col"><?php echo nl2br("LD DIE BONDING 2 MACHINE")?></th>
@@ -59,14 +58,22 @@
             <td rowspan="2" colspan="2">* Collet Cleaning <br> (Bersihkan dengan Cotton Bud yang dibasahi dengan Alkohol)</td>
             <td >D/B Collet</td>
             <td >
-                <input class="form-control" type="text" id="par005" name="par005" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par005'];} ?>>
+                <select class="form-control text-center" id="par005" name="par005" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par005'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par005'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
         <tr>
             <td >Middle Collet</td>
             <td >
-                <input class="form-control" type="text" id="par006" name="par006" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par006'];} ?>>
+                <select class="form-control text-center" id="par006" name="par006" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par006'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par006'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -74,7 +81,11 @@
             <td >6</td>
             <td colspan="3">* Checking contact probe (Check jika patah atau bengkok ganti yang baru)</td>
             <td >
-                <input class="form-control" type="text" id="par007" name="par007" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par007'];} ?>>
+                <select class="form-control text-center" id="par007" name="par007" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par007'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par007'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -91,7 +102,11 @@
             <td >8</td>
             <td colspan="3">* Pengecekan posisi die bonding di monitor</td>
             <td >
-                <input class="form-control" type="text" id="par009" name="par009" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par009'];} ?>>
+                <select class="form-control text-center" id="par009" name="par009" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par009'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par009'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -124,14 +139,22 @@
             <td rowspan="2" colspan="2">* Check kondisi Ag Paste di monitor</td>
             <td >Posisi</td>
             <td >
-              <input class="form-control" type="text" id="par013" name="par013" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par013'];} ?>>
+                <select class="form-control text-center" id="par013" name="par013" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par013'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par013'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
         <tr>
             <td >Quantity</td>
             <td >
-              <input class="form-control" type="text" id="par014" name="par014" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par014'];} ?>>
+                <select class="form-control text-center" id="par014" name="par014" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par014'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par014'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -140,14 +163,22 @@
             <td rowspan="2" colspan="2">* Check arah Ion Blower Fan</td>
             <td >Posisi blower</td>
             <td >
-              <input class="form-control" type="text" id="par015" name="par015" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par015'];} ?>>
+                <select class="form-control text-center" id="par015" name="par015" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par015'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par015'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
         <tr>
             <td >Putaran blower</td>
             <td >
-              <input class="form-control" type="text" id="par016" name="par016" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par016'];} ?>>
+                <select class="form-control text-center" id="par016" name="par016" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par016'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par016'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -156,7 +187,11 @@
             <td colspan="2">* Cleaning Machine</td>
             <td >Bersihkan mesin dan sekitarnya dari debu dan kotoran</td>
             <td >
-              <input class="form-control" type="text" id="par017" name="par017" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <select class="form-control text-center" id="par017" name="par017" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par017'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par017'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -165,7 +200,11 @@
             <td colspan="2">* Pemeriksaan grounding <br> (Baut pengunci di conductive mat, banana plug, koneksi kabel grounding)</td>
             <td>Terpasang bagus/tidak longgar, lepas, putus</td>
             <td >
-              <input class="form-control" type="text" id="par018" name="par018" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
+                <select class="form-control text-center" id="par018" name="par018" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par018'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par018'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -174,7 +213,11 @@
             <td colspan="2">* Cek Kondisi Collet</td>
             <td >Jika terjadi kerusakan atau diluar standard, <br> lakukan pergantian dengan yang baru. <br> Jika OK lanjutkan proses </td>
             <td >
-              <input class="form-control" type="text" id="par019" name="par019" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
+                <select class="form-control text-center" id="par019" name="par019" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par019'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par019'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -183,7 +226,11 @@
             <td colspan="2">* Cek Kondisi Mesin terhadap Pick Up Miss Chip</td>
             <td >Berdasarkan Sensor</td>
             <td >
-              <input class="form-control" type="text" id="par020" name="par020" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+                <select class="form-control text-center" id="par020" name="par020" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par020'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par020'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -192,14 +239,22 @@
             <td rowspan="2" colspan="2">Collet Bonding Arm Check (gunakan jari untuk mengecek <br> pergerakan bonding collet)</td>
             <td >Arah depan-belakang (fix tidak bergerak)</td>
             <td >
-              <input class="form-control" type="text" id="par021" name="par021" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par021'];} ?>>
+                <select class="form-control text-center" id="par021" name="par021" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par021'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par021'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
         <tr>
             <td >Arah atas-bawah</td>
             <td >
-              <input class="form-control" type="text" id="par022" name="par022" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par022'];} ?>>
+                <select class="form-control text-center" id="par022" name="par022" required>
+                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par022'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par022'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 

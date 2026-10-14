@@ -310,7 +310,7 @@
             <td colspan="4">Operator</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
                 <?php
-                    if((string)$alldata[$i]['role']){
+                    $roleKey = (string)$alldata[$i]['role']; if($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey])){
                         echo '<td colspan="col">'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
                     } 
                     else{

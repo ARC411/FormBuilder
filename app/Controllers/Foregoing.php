@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\ForegoingModel;
+use App\Models\LogActivityModel;
 use CodeIgniter\CodeIgniter;
 
 class Foregoing extends BaseController

@@ -27,7 +27,7 @@
 
       <div class="card-body">
         <div class="container-fluid collapse show" id="menu">
-          
+
           <div class="mb-3 row">
             <label for="date" class="col-sm-1 col-form-label">Date Range</label>
             <div class="col-sm-3">
@@ -129,6 +129,10 @@
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <script>
+    // Request tabel yang sedang berjalan (agar bisa dibatalkan) dan timer debounce
+    var currentTableXhr = null;
+    var updateTimer = null;
+
     $(document).ready(function() {
       // Inisiasi Select2
       $('#machno').select2({
@@ -137,7 +141,6 @@
 
       var start = moment().subtract(29, 'days');
       var end = moment();
-      changeDevice()
 
       function cb(start, end) {
         $('#daterange span').html(start.format('D MMMM YYYY') + ' - ' + end.format('D MMMM YYYY'));
@@ -164,12 +167,13 @@
 
       $('#fldb1, #slcs, #submit').hide();
 
-      $('#ModelName,#lotNo,#machno, #process,#type-process').change(function() {
+      // #type-process tidak ikut di sini: perubahan Doc. Type ditangani changeDevice()
+      $('#ModelName,#lotNo,#machno,#process').change(function() {
         updateTable()
         updateDocNo()
       })
 
-      $('#type-process, #process').change(function() {
+      $('#process').change(function() {
         updateMachine()
       })
     });
@@ -178,7 +182,7 @@
       var processCode = document.getElementById("process").value;
       var machineSelect = $('#machno');
 
-      // Kosongkan dropdown, langsung siap diisi mesin asli
+      // Kosongkan dropdown
       machineSelect.empty();
 
       if (!processCode || processCode === '' || processCode === '-' || processCode === 'null') {
@@ -190,7 +194,7 @@
       var lookupProcessCode = processCode;
       var parts = lookupProcessCode.split('-');
       if (parts.length >= 3) {
-          parts[1] = 'p'; 
+          parts[1] = 'p';
           lookupProcessCode = parts.join('-');
       }
 
@@ -199,11 +203,15 @@
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
+
+          // Masukkan kembali opsi "Semua Mesin" ke urutan paling atas dengan value kosong ("")
+          machineSelect.append(new Option("-- Semua Mesin (Tidak Dipilih) --", "", true, true));
+
           for (let i = 0; i < data.length; i++) {
-            // Langsung masukkan nama mesin dari database
             machineSelect.append(new Option(data[i].machine_name, data[i].machine_name, false, false));
           }
-          // Otomatis men-trigger tabel untuk update berdasarkan mesin pertama di list
+
+          // Otomatis men-trigger tabel untuk update
           machineSelect.trigger('change');
         },
         error: function(data) {
@@ -213,7 +221,15 @@
       });
     }
 
+    // Wrapper debounce: beberapa pemanggilan beruntun hanya menghasilkan SATU request
     function updateTable() {
+      clearTimeout(updateTimer);
+      updateTimer = setTimeout(function() { doUpdateTable(0); }, 400);
+    }
+
+    function doUpdateTable(retryCount) {
+      retryCount = retryCount || 0;
+
       var checkProcess = document.getElementById("process").value;
       if (!checkProcess || checkProcess === "") {
         return;
@@ -223,14 +239,14 @@
       let process = document.getElementById("process").value;
       let model = $('#ModelName').val();
       let lotNo = $('#lotNo').val();
-      
+
       let machno = $('#machno').val();
       if(!machno || machno === 'null') { machno = ""; }
       machno = encodeURIComponent(machno);
 
       let device = "";
-      
-      // PERBAIKAN FATAL: Tipe proses diambil murni dari dropdown, bukan ditebak dari string
+
+      // Tipe proses diambil murni dari dropdown
       let typeProcess = document.getElementById("type-process").value;
 
       if (process != null && process !== "") {
@@ -241,16 +257,42 @@
         return;
       }
 
+      // PENGAMAN: huruf tengah kode proses harus cocok dengan tipe dokumen
+      // (p = production, s = startup, f = foregoing)
+      var seg = (process.split("-")[1] || "").toLowerCase();
+      var expected = { production: 'p', startup: 's', foregoing: 'f' }[typeProcess];
+      if (seg.charAt(0) !== expected) {
+        return;
+      }
+
+      // Batalkan request sebelumnya supaya hasil lama tidak menimpa hasil baru
+      if (currentTableXhr) {
+        currentTableXhr.abort();
+      }
+
       const xhr = new XMLHttpRequest();
+      currentTableXhr = xhr;
       xhr.open("GET", "<?php echo base_url();?>" + typeProcess + "/data?dateStart=" + resDate.dateStart + " 00:00:00" + "&dateEnd=" + resDate.dateEnd + " 23:59:59" + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device, true);
       xhr.onload = (e) => {
         if (xhr.readyState === 4 && xhr.status === 200) {
           $('#submit').show();
           document.getElementById('table').innerHTML = xhr.responseText;
         } else if (xhr.readyState === 4) {
+          // Error sesaat: coba ulang otomatis 1x sebelum menampilkan pesan gagal
+          if (retryCount < 1) {
+            setTimeout(function() { doUpdateTable(retryCount + 1); }, 800);
+            return;
+          }
           $('#submit').show();
           document.getElementById('table').innerHTML = "<div class='alert alert-danger'>Gagal menarik data dari server.</div>";
         }
+      };
+      xhr.onerror = () => {
+        if (retryCount < 1) {
+          setTimeout(function() { doUpdateTable(retryCount + 1); }, 800);
+          return;
+        }
+        document.getElementById('table').innerHTML = "<div class='alert alert-danger'>Gagal menarik data dari server.</div>";
       };
       xhr.send(null);
     }
@@ -277,6 +319,16 @@
     function changeDevice() {
       var docType = document.getElementById('type-process').value;
       var device = document.getElementById("device").value;
+
+      // Jangan kirim AJAX kalau Doc Type atau Device masih kosong
+      if (!docType || docType === "" || !device || device === "") {
+          $('#process').empty().append('<option value="">-- Pilih Device & Doc Type --</option>');
+          updateMachine();
+          return;
+      }
+
+      // Kosongkan process lama lebih dulu agar tidak ada request dengan process basi
+      $('#process').empty();
 
       $.ajax({
         url: "<?php echo base_url(); ?>process/list?device=" + device + "&type=" + docType,
@@ -329,7 +381,7 @@
       let process = document.getElementById("process").value;
       let model = $('#ModelName').val();
       let lotNo = $('#lotNo').val();
-      
+
       let machno = $('#machno').val();
       if (!machno || machno === 'null') { machno = ""; }
       machno = encodeURIComponent(machno);
@@ -357,7 +409,7 @@
       let process = document.getElementById("process").value;
       let model = $('#ModelName').val();
       let lotNo = $('#lotNo').val();
-      
+
       let machno = $('#machno').val();
       if(!machno || machno === 'null') { machno = ""; }
       machno = encodeURIComponent(machno);
@@ -386,27 +438,44 @@
 
   <script>
     $(document).ready(function() {
+      // AMBIL DATA DEVICE TERLEBIH DAHULU SAAT HALAMAN DIBUKA
       $.ajax({
         url: "<?php echo base_url(); ?>device/list",
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
-          var deviceValue = document.getElementById("device")
-          var deviceValueLen = deviceValue.length
-          for (let i = 0; i < deviceValueLen; i++) {
-            deviceValue.remove(0);
+          var deviceValue = $('#device');
+          deviceValue.empty();
+
+          if(data && data.length > 0) {
+              for (let i = 0; i < data.length; i++) {
+                deviceValue.append(new Option(data[i].name, data[i].code));
+              }
+          } else {
+              deviceValue.append(new Option("-- Device Kosong --", ""));
           }
-          for (let i = 0; i < data.length; i++) {
-            var option = document.createElement("option");
-            option.text = data[i].name
-            option.value = data[i].code
-            if (deviceValue.length == 0) {
-              deviceValue.add(option, deviceValue[0]);
-            } else {
-              deviceValue.add(option, deviceValue[deviceValue.length]);
-            }
-          }
+
+          // SETELAH DEVICE BERHASIL DIISI, BARU JALANKAN RANTAI DROPDOWN-NYA
+          changeDevice();
         },
+        error: function(xhr) {
+          // Paksa baca data device (abaikan Error 500)
+          if (xhr.responseText) {
+            try {
+              var data = JSON.parse(xhr.responseText);
+              if(data && data.length > 0) {
+                var deviceValue = $('#device');
+                deviceValue.empty();
+                for (let i = 0; i < data.length; i++) {
+                  deviceValue.append(new Option(data[i].name, data[i].code));
+                }
+                changeDevice();
+                return;
+              }
+            } catch(e) {}
+          }
+          console.log("Gagal memuat Device: ", xhr.responseText);
+        }
       });
     });
   </script>

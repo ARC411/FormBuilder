@@ -1,4 +1,4 @@
-"<?= $this->extend('layout/templ-home'); ?>
+<?= $this->extend('layout/templ-home'); ?>
 
 <?= $this->section('content'); ?>
 <main>
@@ -46,7 +46,7 @@
                                 </td>
                                 <td><?= $alldata[$i]['empid']; ?></td>
                                 <td>
-                                    <a href="/startup/edit/<?= $alldata[$i]['number']; ?>" class="btn btn-primary">Edit</a>
+                                    <!-- Tag <a> edit ganda sudah dihapus agar tidak duplikat dengan icon -->
                                     <button type="button" class="btn btn-primary edit-button" data-number="<?= $alldata[$i]['number']; ?>">
                                         <i class="fa-regular fa-pen-to-square"></i>
                                     </button>
@@ -87,6 +87,9 @@
 <script src="assets/js/dataTables.bootstrap4.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
+        // Cek apakah user adalah admin berdasarkan session
+        var isAdmin = <?= session()->get('isadmin') ? 'true' : 'false'; ?>;
+
         new DataTable('#table-approval');
 
         $('#exampleModal').on('show.bs.modal', function (event) {
@@ -101,7 +104,7 @@
             loading.show();
 
             $.ajax({
-                url: "/startup/history/" + number,
+                url: "<?= base_url('startup/history'); ?>/" + number,
                 dataType: 'html',
                 success: function(data) {
                     loading.hide();
@@ -115,16 +118,26 @@
             });
         });
 
-        $('#table-approval').on('click', '.edit-button', function() {
+        $('#table-approval').on('click', '.edit-button', function(e) {
+            if (!isAdmin) {
+                e.preventDefault();
+                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
+                return false;
+            }
             var number = $(this).data('number');
-            window.open("/startup/edit/" + number, '_blank');
+            window.open("<?= base_url('startup/edit'); ?>/" + number, '_blank');
         });
 
-        $('#table-approval').on('click', '.delete-button', function() {
+        $('#table-approval').on('click', '.delete-button', function(e) {
+            if (!isAdmin) {
+                e.preventDefault();
+                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
+                return false;
+            }
             var number = $(this).data('number');
             if (confirm('Apakah kamu yakin? you want to delete this device?')) {
                 $.ajax({
-                    url: '/startup/' + number,
+                    url: "<?= base_url('startup'); ?>/" + number,
                     type: 'DELETE',
                     success: function(result) {
                         alert('Berhasil menghapus')
@@ -141,4 +154,3 @@
 </script>
 
 <?= $this->endSection(); ?>
-"

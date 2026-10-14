@@ -17,20 +17,47 @@ class PdfGenerator
         libxml_clear_errors();
         
         $xpath = new \DOMXPath($doc); 
+        
+        // Coba cari table dengan id table1 dulu
         $table = $xpath->query("//table[@id='table1']")->item(0);
         
-        if ($table === null) die("Error: <table id=\"table1\"> tidak ditemukan di view!");
-
-        if ($typeProcess === 'startup') {
-            $this->injectApprover($doc, $table, $namaApprover, $alldata ?? []);
+        // Jika tidak ada, ambil saja table HTML pertama (indeks 0) yang ditemukan di view
+        if ($table === null) {
+            $table = $xpath->query("//table")->item(0);
         }
+        
+        if ($table === null) {
+            die("Error: Tidak ada elemen <table> sama sekali yang ditemukan di view untuk dijadikan PDF!");
+        }
+
+        if (isset($typeProcess) && $typeProcess === 'startup') {
+            $namaApp = isset($namaApprover) ? $namaApprover : '';
+            $allD = isset($alldata) ? $alldata : [];
+            $this->injectApprover($doc, $table, $namaApp, $allD);
+        }
+
+        $dataColsCount = count($alldata ?? []);
+        $maxExistingCols = 0;
+        $trs = iterator_to_array($table->getElementsByTagName('tr'));
+        foreach ($trs as $tr) {
+            $cols = 0;
+            foreach ($tr->childNodes as $td) {
+                if ($td instanceof \DOMElement && in_array(strtolower($td->tagName), ['td','th'])) {
+                    $colspan = $td->getAttribute('colspan');
+                    $cols += $colspan ? (int)$colspan : 1;
+                }
+            }
+            if ($cols > $maxExistingCols) {
+                $maxExistingCols = $cols;
+            }
+        }
+        $identityColCount = max(1, $maxExistingCols - $dataColsCount);
 
         $grid = $this->buildGrid($table);
         $headerRowCount = $this->countHeaderRows($grid);
-        $identityColCount = ($typeProcess === 'startup') ? 3 : $this->countIdentityColumns($grid, $headerRowCount);
 
         $colChunks = [];
-        if ($typeProcess === 'startup') {
+        if (isset($typeProcess) && $typeProcess === 'startup') {
             $totalDataCols = $grid['totalCols'] - $identityColCount; 
             $start = $identityColCount + 1;
             $endTotal = $grid['totalCols'];
@@ -44,20 +71,29 @@ class PdfGenerator
             $colChunks = [[$identityColCount + 1, $grid['totalCols']]];
         }
 
-        $kopSuratHtml = $this->buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+        $kopSuratHtml = $this->buildKopSuratHtml(
+            $namaProduk ?? '', 
+            $judulProses ?? '', 
+            $noDok ?? '', 
+            $machNo ?? '', 
+            $tglBerlaku ?? '', 
+            $namaApprover ?? '', 
+            $revisi ?? '', 
+            $typeProcess ?? ''
+        );
 
         $pagesHtml = '';
         $chunkCount = 0;
         
         foreach ($colChunks as $cRange) {
             $pageBreakStyle = ($chunkCount > 0) ? ' style="page-break-before: always;"' : '';
-            $tableHtml = $this->build2DChunkTableHtml($grid, $identityColCount, $cRange, $headerRowCount, $typeProcess);
+            $tableHtml = $this->build2DChunkTableHtml($grid, $identityColCount, $cRange, $headerRowCount, $typeProcess ?? '');
             $pagesHtml .= "<div{$pageBreakStyle}>\n{$tableHtml}\n</div>";
             $chunkCount++;
         }
 
-        // FIX PDF VERTICAL: Font dikecilkan ke 5.5px, padding dipress jadi 1px agar tabel tidak tumpah ke page 2
-        $cssScale = ($typeProcess === 'startup') ? '
+        $isStartup = (isset($typeProcess) && $typeProcess === 'startup');
+        $cssScale = $isStartup ? '
             @page { size: A4 landscape; margin-top: 130px; margin-bottom: 10px; margin-left: 15px; margin-right: 15px; }
             body { font-family: Arial, Helvetica, sans-serif; font-size: 6.5px; }
             header { position: fixed; top: -115px; left: 0px; right: 0px; height: 105px; }
@@ -88,7 +124,8 @@ class PdfGenerator
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
-        $fileName = 'Report_' . strtoupper($process) . '_' . date('Ymd_Hi') . '.pdf';
+        $procName = isset($process) ? strtoupper($process) : 'REPORT';
+        $fileName = 'Report_' . $procName . '_' . date('Ymd_Hi') . '.pdf';
         $dompdf->stream($fileName, ["Attachment" => true]);
         exit();
     }
@@ -116,9 +153,13 @@ class PdfGenerator
         if ($noteTr) {
             $getVal = function($item, $keys) {
                 if (is_array($item)) {
-                    foreach($keys as $k) if (isset($item[$k]) && $item[$k] !== '') return $item[$k];
+                    foreach($keys as $k) {
+                        if (isset($item[$k]) && $item[$k] !== '') return $item[$k];
+                    }
                 } elseif (is_object($item)) {
-                    foreach($keys as $k) if (isset($item->$k) && $item->$k !== '') return $item->$k;
+                    foreach($keys as $k) {
+                        if (isset($item->$k) && $item->$k !== '') return $item->$k;
+                    }
                 }
                 return '-';
             };
@@ -129,7 +170,7 @@ class PdfGenerator
 
             $opTr = $doc->createElement('tr');
             $tdOpLbl = $doc->createElement('td', 'Operator');
-            $tdOpLbl->setAttribute('colspan', '3');
+            
             $opTr->appendChild($tdOpLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {
@@ -146,7 +187,6 @@ class PdfGenerator
             $appTr = $doc->createElement('tr');
             $approverText = ($namaApprover !== '' && $namaApprover !== '-') ? $namaApprover : '-';
             $tdAppLbl = $doc->createElement('td', htmlspecialchars("Approved by: " . $approverText));
-            $tdAppLbl->setAttribute('colspan', '3');
             $appTr->appendChild($tdAppLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {
@@ -168,6 +208,7 @@ class PdfGenerator
         $occupied = []; $origins = []; $currentRow = 1; $maxCol = 0;
         foreach ($table->getElementsByTagName('tr') as $tr) {
             $col = 1;
+            $inThead = strtolower($tr->parentNode->tagName) === 'thead';
             foreach ($tr->childNodes as $cell) {
                 if (!($cell instanceof \DOMElement)) continue;
                 $tag = strtolower($cell->tagName);
@@ -175,7 +216,12 @@ class PdfGenerator
                 while (!empty($occupied[$currentRow][$col])) $col++;
                 $colspan = max(1, (int) ($cell->getAttribute('colspan') ?: 1));
                 $rowspan = max(1, (int) ($cell->getAttribute('rowspan') ?: 1));
-                $origins[$currentRow][$col] = ['value' => $cell->textContent, 'isHeader' => $tag === 'th', 'colspan' => $colspan, 'rowspan' => $rowspan];
+                
+                $isHeader = ($tag === 'th' || $inThead);
+                
+                $textContent = trim(preg_replace('/\s+/', ' ', $cell->textContent));
+                
+                $origins[$currentRow][$col] = ['value' => $textContent, 'isHeader' => $isHeader, 'colspan' => $colspan, 'rowspan' => $rowspan];
                 for ($r = $currentRow; $r < $currentRow + $rowspan; $r++) {
                     for ($c = $col; $c < $col + $colspan; $c++) { $occupied[$r][$c] = true; }
                 }
@@ -198,15 +244,6 @@ class PdfGenerator
         return 1;
     }
 
-    private function countIdentityColumns(array $grid, int $headerRowCount): int {
-        for ($r = 1; $r <= $headerRowCount; $r++) {
-            $rowOrigins = $grid['origins'][$r] ?? [];
-            if (count($rowOrigins) === 1 && reset($rowOrigins)['colspan'] === $grid['totalCols']) continue;
-            return $r;
-        }
-        return 1;
-    }
-
     private function build2DChunkTableHtml(array $grid, int $identityColCount, array $colRange, int $headerRowCount, string $typeProcess): string {
         [$startCol, $endCol] = $colRange;
         
@@ -217,14 +254,15 @@ class PdfGenerator
         $colgroup = '<colgroup>';
         for ($c = 1; $c <= $identityColCount; $c++) {
             if ($typeProcess === 'startup') {
-                if ($c === 1) $w = '3%'; elseif ($c === 2) $w = '24%'; else $w = '13%'; 
+                if ($c === 1) $w = '4%'; elseif ($c === 2) $w = '16%'; elseif ($c === 3) $w = '8%'; else $w = '8%'; 
             } else {
-                if ($c === 1) $w = '3%'; else $w = '11%';
+                if ($c === 1) $w = '4%'; else $w = '12%';
             }
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         for ($c = $startCol; $c <= $endCol; $c++) {
-            $w = ($typeProcess === 'startup') ? '4%' : '6%'; 
+            // FIX: Operator ternary disempurnakan dengan dua hasil (true : false)
+            $w = ($typeProcess === 'startup') ? '4%' : '12%'; 
             $colgroup .= '<col style="width: ' . $w . ';">';
         }
         $colgroup .= '</colgroup>';
@@ -244,8 +282,12 @@ class PdfGenerator
                     
                     if ($actualColspan > 0) {
                         $tag = $origin['isHeader'] ? 'th' : 'td';
+                        if(strtolower(trim($origin['value'])) == "operator" || strpos(strtolower(trim($origin['value'])), "approved by") !== false) {
+                            $colspanAttr = ' colspan="' . $identityColCount . '"';
+                        } else {
+                            $colspanAttr = $actualColspan > 1 ? ' colspan="' . $actualColspan . '"' : '';
+                        }
                         $rowspanAttr = $origin['rowspan'] > 1 ? ' rowspan="' . $origin['rowspan'] . '"' : '';
-                        $colspanAttr = $actualColspan > 1 ? ' colspan="' . $actualColspan . '"' : '';
                         $value = htmlspecialchars($origin['value'], ENT_QUOTES, 'UTF-8');
                         $html .= "<{$tag}{$rowspanAttr}{$colspanAttr}>{$value}</{$tag}>";
                     }
@@ -295,7 +337,6 @@ class PdfGenerator
                 <td style="width: 25%; text-align: right; vertical-align: top; border: none; padding: 0;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 8px;" border="1">
                         <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok / No.</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>
-                        <tr><td style="text-align: left; padding: 2px;">Revisi</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($revisi) . '</td></tr>
                         <tr><td style="text-align: left; padding: 2px;">Berlaku</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($tglBerlaku) . '</td></tr>
                         ' . $kotakTtdHtml . '
                     </table>

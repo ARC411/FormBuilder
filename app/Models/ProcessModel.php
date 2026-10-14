@@ -87,5 +87,3 @@ class ProcessModel extends Model {
         }
     }
 }
-
-?>

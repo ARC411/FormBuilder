@@ -14,17 +14,28 @@ class Machine extends BaseController
         $this->session = \Config\Services::session();
     }
 
-    // Fungsi AJAX untuk form input & history (Jangan sampai terhapus)
+    // Ubah nama method dari getList menjadi list agar sesuai dengan URL AJAX
+    // Ganti nama menjadi getList agar aman dari error PHP
     public function getList()
     {
+        error_reporting(0);
         $processCode = $this->request->getGet('process'); 
-        $machineModel = new MachineModel();
-        $mesin = $machineModel->where('process_code', $processCode)->findAll();
         
-        return $this->response->setJSON($mesin);
+        if (empty($processCode) || $processCode === '-' || $processCode === 'null') {
+            return $this->response->setJSON([]);
+        }
+
+        try {
+            $machineModel = new \App\Models\MachineModel();
+            // Menggunakan fungsi pintar dari model Anda
+            $mesin = $machineModel->getMachineByProcess($processCode);
+            return $this->response->setJSON($mesin);
+        } catch (\Throwable $th) {
+            return $this->response->setJSON([]);
+        }
     }
 
-    // Halaman utama menampilkan tabel DataTables & Modal
+    // ... (Fungsi index, getProcessesByDevice, save, dll TETAP SAMA SEPERTI SEBELUMNYA) ...
     public function index()
     {
         if (!$this->session->get('isadmin')) {
@@ -104,7 +115,6 @@ class Machine extends BaseController
         return $this->response->setJSON(['status' => 'success']);
     }
 
-    // Menampilkan form edit ke dalam modal
     public function editMachineForm($id)
     {
         if (!$this->session->get('isadmin')) {
@@ -119,7 +129,6 @@ class Machine extends BaseController
         return view('layout/edit-machine', $data);
     }
 
-    // Memproses update data ke database
     public function updateMachine()
     {
         if (!$this->session->get('isadmin')) {

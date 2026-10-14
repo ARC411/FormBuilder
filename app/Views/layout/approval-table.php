@@ -28,7 +28,7 @@
                     <td></td>
                 <?php } ?>
                 <td>
-                    <form action="/approve" method="post">
+                <form action="<?= base_url('approve') ?>" method="post">
                         <?= csrf_field() ?>
                         <?php
                         $session = \Config\Services::session();

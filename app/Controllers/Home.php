@@ -12,6 +12,9 @@ class Home extends BaseController
 {
     protected $session;
     protected $InputModel;
+    protected $ProductionModel;
+    protected $EmpModel;
+
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
@@ -39,6 +42,7 @@ class Home extends BaseController
         ];
         return view("/layout/" . $device . "/input/production/" . $process, $data);
     }
+
     public function formStartup($device, $process): string
     {
         $data = [
@@ -60,6 +64,7 @@ class Home extends BaseController
         ];
         return view('approval', $data);
     }
+
     public function approval(): string
     {
         $data = [
@@ -71,31 +76,36 @@ class Home extends BaseController
     }
 
     public function ajaxAutofill()
-    {
-        if ($this->request->isAJAX()) {
-            $empid = $_GET['empid-txt'] ?? '';
+{
+    $empid = trim((string) $this->request->getGet('empid-txt'));
 
-            try {
-                $q = $this->EmpModel->getEmp($empid);
-            } catch (\Throwable $e) {
-                log_message('error', 'ajaxAutofill gagal konek ke database employee: ' . $e->getMessage());
-                return $this->response->setStatusCode(404)->setJSON(['message' => 'Data tidak ditemukan']);
-            }
-
-            if (empty($q)) {
-                return $this->response->setStatusCode(404)->setJSON(['message' => 'Employee ID tidak ditemukan']);
-            }
-
-            $data = [
-                'empid'   => $q->empid,
-                'groupid' => $q->groupid,
-                'acc'     => $q->acc,
-                'name'    => $q->name
-            ];
-
-            return $this->response->setJSON($data);
-        }
+    if ($empid === '') {
+        return $this->response->setJSON(['found' => false]);
     }
+
+    try {
+        $q = $this->EmpModel->getEmp($empid);
+    } catch (\Throwable $e) {
+        log_message('error', 'ajaxAutofill gagal: ' . $e->getMessage());
+        return $this->response->setStatusCode(500)->setJSON([
+            'found'   => false,
+            'message' => 'DB error',
+            'debug'   => $e->getMessage()   // HAPUS baris ini setelah masalah selesai
+        ]);
+    }
+
+    if (!$q) {
+        return $this->response->setJSON(['found' => false]);
+    }
+
+    return $this->response->setJSON([
+        'found'   => true,
+        'empid'   => $q->empid,
+        'name'    => $q->name,
+        'groupid' => $q->groupid ?? '',
+        'acc'     => $q->acc ?? '',
+    ]);
+}
 
     public function data()
     {
@@ -105,7 +115,6 @@ class Home extends BaseController
         ];
 
         return view("/layout/" . $_GET['device'] . "/history/production/" . $_GET['process'], $data);
-        // return view("/layout/history/production/".$_GET['process'],$data);
     }
 
     public function history(): string
@@ -123,6 +132,5 @@ class Home extends BaseController
             'alldata' => $this->ProductionModel->getLotHistory($_GET['dateStart'], $_GET['dateEnd'], $_GET['process'], $_GET['model'], $_GET['lotno'], $_GET['machno'], $_GET['device'])
         ];
         return view('data', $data);
-        // return view("/layout/form/flcsa",$data);
     }
 }

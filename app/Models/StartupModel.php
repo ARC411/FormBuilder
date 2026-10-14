@@ -16,7 +16,7 @@ class StartupModel extends Model
         'par021','par022','par023','par024','par025','par026','par027','par028',
         'par029','par030','par031','par032','par033','par034','par035','par036',
         'par037','par038','par039','par040','par041','par042','par043','par044',
-        'status','role','foreman','leader','supervisor','name'
+        'status','role','foreman','leader','supervisor','name', 'docno', 'revisi'
     ];
 
     public function getCsheet($slug = false)
@@ -86,13 +86,19 @@ class StartupModel extends Model
     }
 
     public function addProses($data)
-    {
-        $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
-        
-        if ($prosesMaster) {
-            $data['par041'] =$prosesMaster['revisi'];
-            $data['par042'] =$prosesMaster['berlaku'];
-        }
+{
+    $db = \Config\Database::connect();
+    $prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+
+    if ($prosesMaster) {
+        $data['par041'] =$prosesMaster['revisi'];
+        $data['par042'] =$prosesMaster['berlaku'];
+
+        // --- TAMBAHAN BARU: Stempel Otomatis ---
+        $data['docno']  = $prosesMaster['docno'];
+        $data['revisi'] = $prosesMaster['revisi'];
+        // --------------------------------------
+    }
 
         $query = 'SELECT * FROM startup  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
         $result = $this->query($query)->getRow();
@@ -104,6 +110,19 @@ class StartupModel extends Model
             $this->update($result->id,$data);
             return "Update Startup";
         }
+    }
+
+    // Fungsi untuk mengambil data startup berdasarkan ID Mingguan
+    public function getByWeeklyId($weekly_id)
+    {
+        $sql = "SELECT DISTINCT s.id, `number`, s.created_at, `process`, d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `status`, `role`, `foreman`, `leader`, `supervisor`, p.name
+        FROM `startup` as s
+        INNER JOIN `proses` as p ON s.process=p.process_code 
+        INNER JOIN `device` as d ON p.device=d.code
+        WHERE s.weekly_id = '$weekly_id' AND s.par000='1'
+        ORDER BY s.created_at ASC";
+        
+        return $this->query($sql)->getResultArray();
     }
 
     public function getLatestId()
@@ -134,7 +153,7 @@ class StartupModel extends Model
         if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'"; }
         if ($machno !== '' && $machno !== 'ALL') {$sql .= " AND s.machno = '$machno'"; }
 
-        $sql .= " ORDER BY s.id";
+        $sql .= " ORDER BY s.created_at ASC";
         
         return $this->query($sql)->getResultArray();
     }
@@ -178,13 +197,14 @@ class StartupModel extends Model
 
     public function getByNumber($number)
     {
-        $query = "SELECT *
-        FROM startup as s
-        INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code
-        WHERE 
-        `number` = $number 
-        ORDER BY `par000`";
+        // PERBAIKAN: Tambahkan JOIN ke tabel proses dan device untuk mendapatkan nama yang benar
+        $query = "SELECT s.*, p.name as process_name, d.name as device_name, p.docno 
+                  FROM startup as s
+                  LEFT JOIN proses as p ON s.process = p.process_code
+                  LEFT JOIN device as d ON p.device = d.code
+                  WHERE s.`number` = ? 
+                  ORDER BY s.`par000` ASC";
         
-        return $this->query($query)->getResultArray();
+        return $this->query($query, [$number])->getResultArray();
     }
 }

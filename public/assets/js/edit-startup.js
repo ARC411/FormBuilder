@@ -1,18 +1,25 @@
 $(document).ready(function()
 {
+    // Memanggil form saat load pertama kali
+    injectForm();
 
     $('#submit').hide();
-    if($('#msgsuccess').html()!="Kosong"){
+    if($('#msgsuccess').html() && $('#msgsuccess').html() != "Kosong"){
         alert($('#msgsuccess').html());
     }
     $('#process-txt').change(function(){
         updateDocNo()
-    })
+    });
     $('#process-txt,#device-txt').change(function()
     {
         updateInput()
         updateDocNo()
-    })
+    });
+    
+    // Autofill data diri jika emp-id sudah ada isinya
+    if ($('#empid-txt').length > 0 && $('#empid-txt').val() !== '') {
+        empAuto();
+    }
 });
 
 function empAuto()
@@ -22,8 +29,7 @@ function empAuto()
     {
     $.ajax(
     {
-        url: "/Home/ajaxAutofill",
-        // type:'POST',
+        url: "/checkseet/home/ajaxAutofill",
         dataType:'JSON',
         headers: {'X-Requested-With': 'XMLHttpRequest'},
         data:"empid-txt=" + empid,
@@ -32,57 +38,79 @@ function empAuto()
             $('#shift-txt').val(data.acc);
             $('#empid-txt').val(data.empid);            
             $('#group-txt').val(data.groupid); 
-            $('#name-operator').val(data.name); 
+            
+            // PERBAIKAN: Menyesuaikan dengan ID baru untuk mengisi Nama dan Posisi
+            $('#name-txt').val(data.name); 
+            if(data.position) {
+                $('#position-txt').val(data.position);
+            }
+
             const element = document.getElementById("empid-lbl");  
-            element.classList.remove("visible"); 
-            element.classList.add("invisible"); 
-            // document.getElementById("empid-lbl").style.visibility = "hidden";
-            console.log("sukses")
-            // document.getElementById("empid-lbl").style.visibility = "hidden";
+            if(element){
+                element.classList.remove("visible"); 
+                element.classList.add("invisible"); 
+            }
+            console.log("sukses autofill")
         },
         error: function(data)
         {
             const element = document.getElementById("empid-lbl");  
-            element.classList.remove("invisible"); 
-            element.classList.add("visible"); 
-            // document.getElementById("empid-lbl").style.visibility = "visible";
+            if(element){
+                element.classList.remove("invisible"); 
+                element.classList.add("visible"); 
+            }
             $('#shift-txt').val('');            
             $('#group-txt').val('');
-            console.log("gagal")
-            // document.getElementById("empid-lbl").style.display = "flex";
-            // document.getElementById("empid-lbl").style.visibility = "visible";
+            $('#name-txt').val('');
+            $('#position-txt').val('');
+            console.log("gagal autofill")
         },
     });
     }
     else
     {
-    console.log("error 2")
-    $('#shift-txt').val('');
-    $('#group-txt').val('');
-    // document.getElementById("empid-lbl").style.display = "none";
+        $('#shift-txt').val('');
+        $('#group-txt').val('');
+        $('#name-txt').val('');
+        $('#position-txt').val('');
     }
 }
 
 function injectForm()
 {
+    var processVal = document.getElementById('process-form') ? document.getElementById('process-form').value : '';
+    var numberVal = document.getElementById('number-edit') ? document.getElementById('number-edit').value : '';
+
+    if(numberVal === ''){
+        console.error("Gagal load form: ID (number) kosong!");
+        return;
+    }
+
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", "/startup/edit/form?number="+document.getElementById('number-edit').value, true);
+    // Perbaikan: Tambahkan base folder /checkseet
+    var urlTarget = "/checkseet/startup/edit/form?number=" + numberVal;
+    
+    xhr.open("GET", urlTarget, true);
     xhr.onload = (e) => {
         if (xhr.readyState === 4) {
-        if (xhr.status === 200) {
-            var modal = document.getElementById('modal')
-            $('#submit').show();
-            modal.innerHTML=xhr.responseText;
-        } else {
-            var modal = document.getElementById('modal')
-            $('#submit').hide();
-            modal.innerHTML="";
-            console.error(xhr.statusText);
-        }
+            if (xhr.status === 200) {
+                var modal = document.getElementById('modal')
+                if(modal){
+                    modal.innerHTML=xhr.responseText;
+                    $('#submit').show();
+                }
+            } else {
+                var modal = document.getElementById('modal')
+                if(modal){
+                    modal.innerHTML="<div class='alert alert-danger'>Gagal memuat form checklist (" + xhr.status + ").</div>";
+                }
+                $('#submit').hide();
+                console.error("AJAX Error: ", xhr.statusText);
+            }
         }
     };
     xhr.onerror = (e) => {
-        console.error(xhr.statusText);
+        console.error("Request gagal dieksekusi", xhr.statusText);
     };
     xhr.send(null);
 }

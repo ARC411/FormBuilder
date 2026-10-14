@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="assets/css/global.css">
     <style>
         .lotno-link:hover {
-            text-decoration : underline;
+            text-decoration: underline;
             color: #007bff;
             cursor: pointer;
         }
@@ -19,12 +19,12 @@
                 <h3 class="m-0 font-weight-bold">Production </h3>
             </div>
             <div class="card-body">
-                <p >Klik Lotno untuk melihat data</p>
-                <table class="table table-striped-columns table-responsive mt-3" id="table-approval">
+                <p>Klik Lotno untuk melihat data</p>
+                <table class="table table-striped-columns table-responsive mt-3" id="table-approval" style="width:100%">
                     <thead align="center">
                         <tr>
                             <th>No.</th>
-                            <th>Date</th>         
+                            <th>Date</th>
                             <th>Device</th>
                             <th>Process</th>
                             <th>Lot No</th>
@@ -33,32 +33,8 @@
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php for($i = 0; $i < count($alldata); $i++) { ?>
-                            <tr>
-                                <td><?= $i+1; ?></td>
-                                <td><?= $alldata[$i]['created_at']; ?></td>
-                                <td><?= $alldata[$i]['device']; ?></td>
-                                <td><?= $alldata[$i]['name']; ?></td>
-                                <td>
-                                    <a class="lotno-link" data-bs-toggle="modal" data-bs-target="#exampleModal" data-lotno="<?= $alldata[$i]['lotno']; ?>" data-number="<?= $alldata[$i]['number']; ?>" data-process="<?= $alldata[$i]['name']?>">
-                                        <?= $alldata[$i]['lotno']; ?>
-                                    </a>
-                                </td>
-                                <td><?= $alldata[$i]['empid']; ?></td>
-                                <td><?= $alldata[$i]['empid2']; ?></td>
-                                <td>
-                                    <button type="button" class="btn btn-primary edit-button" data-number="<?= $alldata[$i]['number']; ?>">
-                                        <i class="fa-regular fa-pen-to-square"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-danger delete-button" data-number="<?= $alldata[$i]['number']; ?>">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        <?php } ?>
-                    </tbody>
-                </table> 
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -73,7 +49,6 @@
                 </div>
                 <div class="modal-body" id="modal-body-content">
                     <div id="loading">Loading...</div>
-                    <!-- Lot No will be displayed here -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -88,7 +63,53 @@
 <script src="assets/js/dataTables.bootstrap4.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
-        new DataTable('#table-approval');
+        // Cek apakah user adalah admin berdasarkan session
+        var isAdmin = <?= session()->get('isadmin') ? 'true' : 'false'; ?>;
+
+        // Escape HTML agar data aman ditampilkan
+        function esc(v) {
+            return $('<div>').text(v == null ? '' : v).html();
+        }
+
+        new DataTable('#table-approval', {
+            processing: true,
+            serverSide: true,
+            ajax: "<?= base_url('production/datatable'); ?>",
+            order: [[1, 'desc']],
+            columns: [
+                {
+                    data: null,
+                    orderable: false,
+                    render: function(d, t, r, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    }
+                },
+                { data: 'created_at' },
+                { data: 'device', render: esc },
+                { data: 'name', render: esc },
+                {
+                    data: 'lotno',
+                    render: function(d, t, r) {
+                        return '<a class="lotno-link" data-bs-toggle="modal" data-bs-target="#exampleModal"'
+                            + ' data-lotno="' + esc(d) + '"'
+                            + ' data-number="' + esc(r.number) + '"'
+                            + ' data-process="' + esc(r.name) + '">' + esc(d) + '</a>';
+                    }
+                },
+                { data: 'empid', render: esc },
+                { data: 'empid2', render: esc },
+                {
+                    data: 'number',
+                    orderable: false,
+                    render: function(d) {
+                        return '<button type="button" class="btn btn-primary edit-button" data-number="' + esc(d) + '">'
+                            + '<i class="fa-regular fa-pen-to-square"></i></button> '
+                            + '<button type="button" class="btn btn-danger delete-button" data-number="' + esc(d) + '">'
+                            + '<i class="fa-solid fa-trash"></i></button>';
+                    }
+                }
+            ]
+        });
 
         $('#exampleModal').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
@@ -96,40 +117,47 @@
             var lotno = button.data('lotno');
             var process = button.data('process');
             var modal = $(this);
-            var loading = $('#loading');
-            $('#modalTitle').text(process+' - '+lotno)
 
-            loading.show();
+            $('#modalTitle').text(process + ' - ' + lotno);
+            modal.find('.modal-body').html('<div id="loading">Loading...</div>');
 
             $.ajax({
-                url: "/productions/history/" + number,
+                url: "<?= base_url('productions/history'); ?>/" + number,
                 dataType: 'html',
                 success: function(data) {
-                    loading.hide();
                     modal.find('.modal-body').html(data);
                 },
                 error: function(data) {
-                    loading.hide();
                     modal.find('.modal-body').html('<p>Error loading data</p>');
                     console.log(data);
-                },
+                }
             });
         });
 
-        $('#table-approval').on('click', '.edit-button', function() {
+        $('#table-approval').on('click', '.edit-button', function(e) {
+            if (!isAdmin) {
+                e.preventDefault();
+                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
+                return false;
+            }
             var number = $(this).data('number');
-            window.open("<?php echo base_url();?>production/edit/"+number,'_blank')
+            window.open("<?= base_url('production/edit'); ?>/" + number, '_blank');
         });
 
-        $('#table-approval').on('click', '.delete-button', function() {
+        $('#table-approval').on('click', '.delete-button', function(e) {
+            if (!isAdmin) {
+                e.preventDefault();
+                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
+                return false;
+            }
             var number = $(this).data('number');
             if (confirm('Apakah kamu yakin?')) {
                 $.ajax({
-                    url: '/production/' + number,
+                    url: "<?= base_url('production'); ?>/" + number,
                     type: 'DELETE',
                     success: function(result) {
-                        alert('Berhasil menghapus')
-                        location.reload();
+                        alert('Berhasil menghapus');
+                        $('#table-approval').DataTable().ajax.reload(null, false);
                     },
                     error: function(err) {
                         console.log(err);
@@ -139,7 +167,6 @@
             }
         });
     });
-    
 </script>
 
 <?= $this->endSection(); ?>

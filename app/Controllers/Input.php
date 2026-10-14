@@ -35,6 +35,7 @@ class Input extends BaseController
 
     public function index()
     {
+        error_reporting(0); // Tambahkan ini agar halaman utama tidak dilabeli 500
         $data = [
             'title' => 'Input | Startup Management'
         ];
@@ -43,6 +44,7 @@ class Input extends BaseController
         }
         return view('input', $data);
     }
+    
     public function formInputStartup()
     {
         // jika belum login tidak dapat membuka form startup
@@ -145,4 +147,49 @@ class Input extends BaseController
     }
 
     
+    // --- FUNGSI SIMPAN CHECKSEET DINAMIS ---
+    public function save()
+    {
+        // 1. Tangkap semua data POST dari form HTML asli
+        $postData = $this->request->getPost();
+
+        // 2. Siapkan array data Master (Header)
+        $dataToSave = [
+            'device'  => $postData['device-txt'] ?? '',
+            'process' => $postData['process-txt'] ?? '',
+            'lotno'   => $postData['lotno-txt'] ?? '',
+            'model'   => $postData['model-txt'] ?? '',
+            'machno'  => $postData['machno-txt'] ?? '',
+            'empid'   => $postData['empid-txt'] ?? '',
+            'group'   => $postData['group-txt'] ?? '',
+            'shift'   => $postData['shift-txt'] ?? '',
+            'docno'   => $postData['docno'] ?? '', 
+            'revisi'  => $postData['revisi-txt'] ?? ''
+        ];
+
+        // 3. Looping Otomatis untuk Parameter (par001 sampai par031)
+        // Menyesuaikan dengan struktur tabel checksheet Abang saat ini
+        for ($i = 1; $i <= 31; $i++) {
+            // Format angka jadi 3 digit: 1 jadi 001, 15 jadi 015
+            $parNum = str_pad($i, 3, '0', STR_PAD_LEFT); 
+            $parName = 'par' . $parNum;
+
+            // Jika di file HTML ada input dengan name="par001", ambil nilainya
+            // Jika tidak ada (misal di form itu cuma butuh par013), isi dengan string kosong
+            if (isset($postData[$parName])) {
+                $dataToSave[$parName] = $postData[$parName];
+            } else {
+                $dataToSave[$parName] = ''; 
+            }
+        }
+
+        // 4. Simpan ke Database
+        if ($this->InputModel->insert($dataToSave)) {
+            $this->session->setFlashdata('message', 'Mantap! Data checksheet berhasil disimpan.');
+            return redirect()->to(base_url('input'));
+        } else {
+            $this->session->setFlashdata('message', 'Gagal menyimpan data.');
+            return redirect()->back();
+        }
+    }
 }

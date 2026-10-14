@@ -35,7 +35,7 @@
                 <td colspan="col"><?= (string)$alldata[$i]['par003']; ?></td>
                 <td colspan="col"><?= (string)$alldata[$i]['status']; ?></td>
                 <?php
-                    if((string)$alldata[$i]['role']){
+                    $roleKey = (string)$alldata[$i]['role']; if($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey])){
                         echo '<td colspan="col">'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
                     } 
                     else{

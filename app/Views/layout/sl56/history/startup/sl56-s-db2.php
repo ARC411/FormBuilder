@@ -10,15 +10,25 @@
     </thead>
     <thead align="center">
         <tr>
-            <th scope="col" rowspan="2">No</th>
-            <th colspan="2" rowspan="2" scope="col">Start up Check Item</th>
-            <th scope="col" rowspan="2">Standard</th>
-            <th scope="col" colspan=<?= $lenData ?>>Hasil Start Up Check</th>
+            <th scope="col" rowspan="3">No</th>
+            <th colspan="2" rowspan="3" scope="col">Start up Check Item</th>
+            <th scope="col" rowspan="3">Standard</th>
+            <th scope="col" colspan="<?= $lenData ?>">Hasil Start Up Check</th>
         </tr>
 
+        <!-- BARIS BARU UNTUK MENAMPILKAN NAMA MESIN -->
         <tr>
-            <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= date('d/m/Y', strtotime((string)$alldata[$i]['created_at'])); ?></td>
+            <?php for($i = 0; $i < $lenData; $i++) { ?>
+                <td style="font-weight: bold; background-color: #f8f9fa;">
+                    <?= (string)$alldata[$i]['machno']; ?>
+                </td>
+            <?php } ?>
+        </tr>
+
+        <!-- BARIS TANGGAL -->
+        <tr>
+            <?php for($i = 0; $i < $lenData; $i++) { ?>
+                <td><?= date('d/m/Y', strtotime((string)$alldata[$i]['created_at'])); ?></td>
             <?php } ?>
         </tr>
     </thead>

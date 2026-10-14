@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\StartupModel;
+use App\Models\LogActivityModel;
 use CodeIgniter\CodeIgniter;
 
 class Startup extends BaseController
@@ -243,16 +244,13 @@ class Startup extends BaseController
             ]
         );
 
-        if($cnt_input==1){
-            if ($resulta)
-            {
+        if($cnt_input == 1){ 
+            if ($resulta) {
                 session()->setFlashdata('message', 'Input Berhasil');
-            }
-            else
-            {
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'startup');
+            return redirect()->to(base_url('input'));
         }
 
         $par001b = $this->request->getVar('par001b')!==null ? $this->request->getVar('par001b') : null;
@@ -329,16 +327,13 @@ class Startup extends BaseController
             ]
         );
 
-        if($cnt_input==2){
-            if ($resultb)
-            {
-                session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+        if($cnt_input == 2){ 
+            if ($resultb) {
+                session()->setFlashdata('message', 'Input Berhasil');
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'startup');
+            return redirect()->to(base_url('input'));
         }
 
         $par001c = $this->request->getVar('par001c')!==null ? $this->request->getVar('par001c') : null;
@@ -414,16 +409,13 @@ class Startup extends BaseController
             ]
         );
 
-        if($cnt_input==3){
-            if ($resultc)
-            {
-                session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+        if($cnt_input == 3){ 
+            if ($resultc) {
+                session()->setFlashdata('message', 'Input Berhasil');
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'startup');
+            return redirect()->to(base_url('input'));
         }
 
         $par001d = $this->request->getVar('par001d')!==null ? $this->request->getVar('par001d') : null;
@@ -500,16 +492,13 @@ class Startup extends BaseController
             ]
         );
 
-        if($cnt_input==4){
-            if ($resultd)
-            {
-                session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+        if($cnt_input == 4){ 
+            if ($resultd) {
+                session()->setFlashdata('message', 'Input Berhasil');
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'startup');
+            return redirect()->to(base_url('input'));
         }
 
         $par001e = $this->request->getVar('par001e')!==null ? $this->request->getVar('par001e') : null;
@@ -586,16 +575,13 @@ class Startup extends BaseController
             ]
         );
 
-        if($cnt_input==5){
-            if ($resulte)
-            {
-                session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+        if($cnt_input == 5){ 
+            if ($resulte) {
+                session()->setFlashdata('message', 'Input Berhasil');
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
-            return redirect()->to(base_url().'startup'); // Diperbaiki dari statrtup
+            return redirect()->to(base_url('input'));
         }
     }
 }

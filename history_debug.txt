@@ -1,0 +1,1153 @@
+
+========================================
+FILE: app\Controllers\History.php
+========================================
+<?php
+
+namespace App\Controllers;
+
+use App\Controllers\BaseController;
+use App\Models\InputModel;
+use App\Models\StartupModel;
+use App\Models\ProductionModel;
+use App\Models\ForegoingModel;
+use App\Models\EmpModel;
+use App\Libraries\PdfGenerator;
+use App\Libraries\ExcelGenerator;
+
+class History extends BaseController
+{
+    protected $session;
+    protected $InputModel;
+    protected $ProductionModel;
+    protected $StartupModel;
+    protected $ForegoingModel;
+    protected $EmpModel;
+
+    public function __construct()
+    {
+        date_default_timezone_set('Asia/Jakarta');
+        $this->InputModel = new InputModel();
+        $this->ProductionModel = new ProductionModel();
+        $this->StartupModel = new StartupModel();
+        $this->ForegoingModel = new ForegoingModel();
+        $this->EmpModel = new EmpModel();
+        $this->session = \Config\Services::session();
+        $this->session->start();
+    }
+
+    public function index(): string
+    {
+        error_reporting(0);
+        $data = ['title' => 'History | Startup Management'];
+        return view('history', $data);
+    }
+
+    public function dataForegoing()
+    {
+        $data = [
+            'title' => 'History | Startup Management',
+            'alldata' => $this->ForegoingModel->getAll($_GET['dateStart'], $_GET['dateEnd'], $_GET['device'], $_GET['process'])
+        ];
+        return view("/layout/" . $_GET['device'] . "/history/foregoing/" . $_GET['process'], $data);
+    }
+
+    public function foregoingByNumber($number)
+    {
+        $data = ['alldata' => $this->ForegoingModel->getByNumber($number)];
+        return view("/layout/" . $data['alldata'][0]['device'] . "/history/foregoing/" . $data['alldata'][0]['process'], $data);
+    }
+
+    // =========================================================================
+    // DAPUR DATA: RESOLVER UNTUK GENERATOR EXPORT (KOP SURAT & CLEANER)
+    // =========================================================================
+
+    private function getProsesInfo(string $processCode): array
+    {
+        $db = \Config\Database::connect();
+        $row = $db->table('proses')->where('process_code', $processCode)->get()->getRowArray();
+        return $row ?: [];
+    }
+
+    private function getDeviceInfo(string $deviceCode): array
+    {
+        $db = \Config\Database::connect();
+        $row = $db->table('device')->where('code', $deviceCode)->get()->getRowArray();
+        return $row ?: [];
+    }
+
+    private function resolveExportContext(string $typeProcess, string $process, string $device, string $dateStart, string $dateEnd, string $model = '', string $lotno = '', string $machno = ''): array
+    {
+        // 1. Tarik Data Mentah
+        $alldata = [];
+        if ($typeProcess === 'production') {
+            $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process, $model, $lotno, $machno);
+        } elseif ($typeProcess === 'foregoing') {
+            $alldata = $this->ForegoingModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
+        } else {
+            $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
+        }
+
+        // 2. PROSES LOGIKA KOP SURAT & DATA CLEANER
+        $latestDate = 0;
+        $namaApprover = '';
+
+        foreach ($alldata as &$row) {
+            // A. Cari Tanggal Terbaru (Dinamis Berlaku)
+            $rowDate = 0;
+            if (!empty($row['created_at'])) {
+                $rowDate = strtotime($row['created_at']);
+            } elseif (!empty($row['date'])) {
+                $rowDate = strtotime($row['date']);
+            }
+            
+            if ($rowDate > $latestDate) {
+                $latestDate = $rowDate;
+            }
+
+            // B. Cari Nama Approver (Prioritas tertinggi ke rendah) - DIUBAH DENGAN FORMAT JABATAN
+            if ($namaApprover === '') {
+                if (!empty($row['supervisor']) && $row['supervisor'] !== '-') { 
+                    $namaApprover = trim($row['supervisor']) . "\n(Supervisor)"; 
+                }
+                elseif (!empty($row['leader']) && $row['leader'] !== '-') { 
+                    $namaApprover = trim($row['leader']) . "\n(Leader)"; 
+                }
+                elseif (!empty($row['foreman']) && $row['foreman'] !== '-') { 
+                    $namaApprover = trim($row['foreman']) . "\n(Foreman)"; 
+                }
+            }
+
+            // C. Data Cleaner (Sapu bersih data kosong/null menjadi "-")
+            foreach ($row as $key => $value) {
+                if ($value === null || trim((string)$value) === '') {
+                    $row[$key] = '-';
+                }
+            }
+        }
+        unset($row);
+
+        // 3. Olah Format Kop Surat
+        $prosesInfo = $this->getProsesInfo($process);
+        $deviceInfo = $this->getDeviceInfo($device);
+
+        $namaProduk = $deviceInfo['name'] ?? strtoupper($device);
+        $namaProsesRaw = $prosesInfo['name'] ?? strtoupper($process);
+
+        if ($typeProcess === 'production') {
+            $cleanName = trim(preg_replace('/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i', '', $namaProsesRaw));
+            $judulProses = 'Production Process Control Sheet ' . $cleanName;
+        } elseif ($typeProcess === 'startup') {
+            $cleanName = trim(preg_replace('/\s*Start\s*Up\s*Check\s*Sheet.*$/i', '', $namaProsesRaw));
+            $judulProses = $cleanName . ' Start Up Check Sheet';
+        } else {
+            $judulProses = $namaProsesRaw;
+        }
+
+        $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
+        $revisi = str_pad(!empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0, 2, '0', STR_PAD_LEFT);
+        
+        // --- PERBAIKAN LOGIKA NAMA MESIN DI SINI ---
+        // Jika parameter machno dikirimkan dan bukan string kosong/'null'/'ALL', tampilkan nama mesin tersebut.
+        // Jika kosong, berarti user ingin melihat semua mesin, maka tampilkan "ALL MACHINES".
+        $machNo = ($machno !== '' && $machno !== 'null' && $machno !== 'ALL') ? strtoupper($machno) : 'ALL MACHINES';
+        
+        // Definisikan juga variabel $nama_mesin agar pasti nyambung dengan kop_surat.php
+        $nama_mesin = $machNo;
+
+        $tglBerlaku = '-';
+        if ($latestDate > 0) {
+            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $tglBerlaku = date('d', $latestDate) . ' ' . $bulanIndo[date('n', $latestDate) - 1] . ' ' . date('Y', $latestDate);
+        } elseif (!empty($prosesInfo['berlaku']) && $prosesInfo['berlaku'] !== '0000-00-00') {
+            $ts = strtotime($prosesInfo['berlaku']);
+            $bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
+        }
+
+        // --- Variabel $nama_mesin ditambahkan ke return compact ---
+        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
+    }
+
+    // =========================================================================
+    // EXPORT METHOD INTI
+    // =========================================================================
+
+    public function exportExcel()
+    {
+        $typeProcess = $this->request->getGet('typeProcess');
+        $process     = $this->request->getGet('process');
+        $device      = $this->request->getGet('device');
+
+        $rawStart = $this->request->getGet('dateStart');
+        $rawEnd   = $this->request->getGet('dateEnd');
+        $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) . ' 00:00:00' : '';
+        $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) . ' 23:59:59' : '';
+
+        $model = $this->request->getGet('model') ?? '';
+        $lotno = $this->request->getGet('lotno') ?? '';
+        $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
+
+        $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
+
+        $_SERVER['REQUEST_URI'] = 'exportExcel';
+        $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+        try { 
+            $htmlString = view($viewPath, ['alldata' => $context['alldata']]); 
+        } catch (\Exception $e) { 
+            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
+        }
+
+        $excelGen = new ExcelGenerator();
+        $excelGen->generate($htmlString, $context);
+    }
+
+    public function exportPDF()
+    {
+        $typeProcess = $this->request->getGet('typeProcess');
+        $process     = $this->request->getGet('process');
+        $device      = $this->request->getGet('device');
+
+        $rawStart = $this->request->getGet('dateStart');
+        $rawEnd   = $this->request->getGet('dateEnd');
+        $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) . ' 00:00:00' : '';
+        $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) . ' 23:59:59' : '';
+
+        $model = $this->request->getGet('model') ?? '';
+        $lotno = $this->request->getGet('lotno') ?? '';
+        $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
+
+        $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
+
+        $_SERVER['REQUEST_URI'] = 'exportPDF';
+        $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+        try {
+            $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
+        } catch (\Exception $e) {
+            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
+        }
+
+        $pdfGen = new PdfGenerator();
+        $pdfGen->generate($htmlString, $context);
+    }
+}
+
+========================================
+FILE: app\Models\ProductionModel.php
+========================================
+<?php
+
+namespace App\Models;
+
+use CodeIgniter\Model;
+
+class ProductionModel extends Model
+{
+    protected $table = 'production';
+    protected $useTimestamps = true;
+    protected $allowedFields = [
+        'id', 'number', 'device', 'process', 'model', 'lotno', 'machno',
+        'empid', 'group', 'shift', 'name', 'empid2', 'group2', 'shift2', 'name2',
+        'par001', 'par002', 'par003', 'par004', 'par005', 'par006', 'par007',
+        'par008', 'par009', 'par010', 'par011', 'par012', 'par013', 'par014',
+        'par015', 'par016', 'par017', 'par018', 'par019', 'par020', 'par021',
+        'par022', 'par023', 'par024', 'par025', 'par026', 'par027', 'par028',
+        'par029', 'par030', 'par031', 'par032', 'par033', 'par034', 'par035',
+        'par036', 'par037', 'par038', 'par039', 'par040', 'par041', 'par042',
+        'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor',
+    ];
+
+    public function getCsheet($slug = false)
+    {
+        if ($slug == false) {
+            return $this->findAll();
+        }
+        return $this->where(['slug' => $slug])->first();
+    }
+
+    /**
+     * Data untuk halaman index (versi terbatas, hanya kolom yang dipakai).
+     */
+    public function getAllData($limit = 1000)
+    {
+        return $this->db->table('production')
+            ->select('number, created_at, device, name, lotno, empid, empid2')
+            ->where('par001', 1)
+            ->orderBy('created_at', 'DESC')
+            ->limit((int) $limit)
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
+     * Data untuk DataTables server-side.
+     */
+    public function getDatatable($start, $length, $search, $orderCol, $orderDir)
+    {
+        $cols     = ['number', 'created_at', 'device', 'name', 'lotno', 'empid', 'empid2'];
+        $orderCol = $cols[$orderCol] ?? 'created_at';
+        $orderDir = strtolower($orderDir) === 'asc' ? 'ASC' : 'DESC';
+
+        $builder = $this->db->table('production')->where('par001', 1);
+        $total   = $builder->countAllResults(false);
+
+        if ($search !== '') {
+            $builder->groupStart()
+                ->like('lotno', $search)
+                ->orLike('device', $search)
+                ->orLike('name', $search)
+                ->orLike('empid', $search)
+                ->orLike('empid2', $search)
+                ->groupEnd();
+        }
+        $filtered = $builder->countAllResults(false);
+
+        $rows = $builder->select(implode(',', $cols))
+            ->orderBy($orderCol, $orderDir)
+            ->limit($length, $start)
+            ->get()
+            ->getResultArray();
+
+        return ['total' => $total, 'filtered' => $filtered, 'rows' => $rows];
+    }
+
+    public function getAll($dateStart = '1970-1-1', $dateEnd = '2070-1-1', $process = '', $model = '', $lotno = '', $machno = '')
+    {
+        $builder = $this->db->table('production')
+            ->where('created_at >=', $dateStart)
+            ->where('created_at <=', $dateEnd)
+            ->where('process', $process);
+
+        if ($model !== '' && $model !== null) {
+            $builder->like('model', $model);
+        }
+        if ($lotno !== '' && $lotno !== null) {
+            $builder->like('lotno', $lotno);
+        }
+        if (!in_array($machno, ['', 'ALL', null], true)) {
+            $builder->where('machno', $machno);
+        }
+
+        return $builder->orderBy('machno', 'ASC')
+            ->orderBy('created_at', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    public function getLatestId()
+    {
+        $result = $this->query("SELECT `number` FROM production ORDER BY `number` DESC LIMIT 1");
+        if ($result == null) {
+            return 0;
+        }
+        return $result->getRow()->number ?? 0;
+    }
+
+    public function getByNumber($number)
+    {
+        return $this->query("SELECT * FROM production WHERE `number` = ?", [$number])->getResultArray();
+    }
+
+    public function getApprovalData($status = "PENDING")
+    {
+        $query = "SELECT DISTINCT `number`, `created_at`, `process`, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `par044`, `foreman`, `leader`, `supervisor`
+                  FROM production
+                  WHERE `par001` <= 1";
+        return $this->query($query)->getResultArray();
+    }
+
+    public function getLotHistory($dateStart = '1970-1-1', $dateEnd = '2070-1-1', $process = '', $model = '', $lotno = '', $machno = '', $device = '', $status = 'Process Start')
+    {
+        $query = "SELECT DISTINCT `number`, p.name AS name, d.name AS device_name, cs.created_at, `process`, cs.device, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `par009`, `par045`
+                  FROM production AS cs
+                  INNER JOIN proses AS p ON cs.process = p.process_code
+                  INNER JOIN device AS d ON p.device = d.code
+                  WHERE `par001` <= 1
+                    AND cs.created_at >= ?
+                    AND cs.created_at <= ?
+                    AND `process` LIKE ?
+                    AND cs.device LIKE ?
+                    AND `model` LIKE ?
+                    AND `lotno` LIKE ?
+                    AND `machno` LIKE ?
+                    AND `par045` = ?
+                  ORDER BY created_at DESC";
+
+        return $this->query($query, [
+            $dateStart,
+            $dateEnd,
+            "%$process%",
+            "%$device%",
+            "%$model%",
+            "%$lotno%",
+            "%$machno%",
+            $status,
+        ])->getResultArray();
+    }
+
+    public function addProses($data)
+    {
+        // Snapshot revisi & berlaku dari master proses
+        $prosesMaster = $this->db->table('proses')
+            ->where('process_code', $data['process'])
+            ->get()
+            ->getRowArray();
+
+        if ($prosesMaster) {
+            $data['par041'] = $prosesMaster['revisi'];
+            $data['par042'] = $prosesMaster['berlaku'];
+        }
+
+        $result = $this->query(
+            "SELECT * FROM production WHERE `number` = ? AND `par001` = ?",
+            [$data['number'], $data['par001']]
+        )->getRow();
+
+        if ($result == null) {
+            $data['empid2']  = null;
+            $data['group2']  = null;
+            $data['shift2']  = null;
+            $data['name2']   = null;
+            $data['par009']  = null;
+            $data['par045']  = 'Process Start';
+            $this->insert($data);
+            return 'Add Production (Process Start)';
+        }
+
+        if ($result->par045 == 'Process Complete') {
+            $this->update($result->id, $data);
+            return 'Update Production';
+        }
+
+        $data['empid']  = $result->empid;
+        $data['group']  = $result->group;
+        $data['shift']  = $result->shift;
+        $data['name']   = $result->name;
+        $data['par008'] = $result->par008;
+        $data['par045'] = 'Process Complete';
+        $this->update($result->id, $data);
+        return 'Add Production (Process Complete)';
+    }
+
+    public function deleteByNumber($number)
+    {
+        $result = $this->query("DELETE FROM `production` WHERE `number` = ?", [$number]);
+        return $result ? "Berhasil" : "Gagal";
+    }
+
+    public function testProses($number, $par)
+    {
+        $result = $this->query(
+            "SELECT * FROM production WHERE `number` = ? AND `par001` = ?",
+            [$number, $par]
+        );
+        return $result->getRow()->id;
+    }
+}
+
+========================================
+FILE: app\Views\history.php
+========================================
+<?= $this->extend('layout/templ-home'); ?>
+
+<?= $this->section('content'); ?>
+<main>
+
+  <?= $this->include('layout/navbar'); ?>
+
+  <link rel="stylesheet" href="assets/css/daterangepicker.css">
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+  <style>
+    @media print {
+      .card-header, #menu, .btn, nav, header, footer { display: none !important; }
+      .card { border: none !important; box-shadow: none !important; }
+      .card-body, .container-fluid { padding: 0 !important; margin: 0 !important; }
+    }
+  </style>
+
+  <div class="container-fluid">
+
+    <div class="card shadow mb-5">
+
+      <div class="card-header py-3">
+        <h3 class="m-0 font-weight-bold">History Checksheet</h3>
+      </div>
+
+      <div class="card-body">
+        <div class="container-fluid collapse show" id="menu">
+          
+          <div class="mb-3 row">
+            <label for="date" class="col-sm-1 col-form-label">Date Range</label>
+            <div class="col-sm-3">
+              <div id="daterange" class="form-control" style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
+                <i class="fa fa-calendar"></i>&nbsp;
+                <span></span> <i class="fa fa-caret-down"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3 row">
+            <label for="device" class="col-sm-1 col-form-label">Device</label>
+            <div class="col-sm-3">
+              <select class="form-control" id="device" name="device" onchange=changeDevice() required>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3 row">
+            <label for="type-process" class="col-sm-1 col-form-label">Doc. Type</label>
+            <div class="col-sm-3">
+              <select class="form-control" id="type-process" name="type-process" onchange=changeDevice() required>
+                <option class="dropdown-item" value="">choose type document</option>
+                <option value="production">Production Control Sheet</option>
+                <option value="startup">Startup Control Sheet</option>
+                <option value="foregoing">Foregoing Control Sheet</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3 row">
+            <label for="process" class="col-sm-1 col-form-label">Process</label>
+            <div class="col-sm-3">
+              <select class="form-control" id="process">
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3 row">
+            <label for="ModelName" class="col-sm-1 col-form-label">Model Name</label>
+            <div class="col-sm-3">
+              <input type="text" class="form-control" id="ModelName">
+            </div>
+          </div>
+
+          <div class="mb-3 row">
+            <label for="lotNo" class="col-sm-1 col-form-label">Lot Number</label>
+            <div class="col-sm-3">
+              <input type="text" class="form-control" id="lotNo">
+            </div>
+          </div>
+
+          <!-- Select2 Dropdown -->
+          <div class="mb-3 row">
+            <label for="machno" class="col-sm-1 col-form-label">Machine Number</label>
+            <div class="col-sm-3">
+              <select class="form-control" id="machno" name="machno">
+                <option value="">-- Semua Mesin (Tidak Dipilih) --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3 row">
+            <label for="docno" class="col-sm-1 col-form-label">Doc. No</label>
+            <div class="col-sm-6">
+              <input type="text" class="form-control-plaintext" id="docno" value="-" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="container-fluid">
+          <button class="btn btn-secondary" id="menu-show" type="button" data-toggle="collapse" data-target="#menu" aria-expanded="false" aria-controls="menu">
+            <i class="fa-solid fa-square-caret-down"></i>
+            Menu Display ON/OFF
+          </button>
+          <button class="btn btn-success" onclick="download_table_as_excel();">
+            <i class="fa-solid fa-file-arrow-down"></i>
+            Download Table as excel file
+          </button>
+          <button type="button" class="btn btn-danger" onclick="download_table_as_pdf();" style="margin-left: 5px;">
+            <i class="fas fa-file-pdf"></i> Download as PDF
+          </button>
+          <button class="btn btn-primary" onclick="copy_clipboard();" style="margin-left: 5px;">
+            <i class="fa-solid fa-copy"></i>
+            Copy to clipboard
+          </button>
+
+          <div id="table" class="table-responsive mt-3"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/tableToExcel.js"></script>
+  <script src="assets/js/jquery.min.js"></script>
+  <script src="assets/js/moment.min.js"></script>
+  <script src="assets/js/daterangepicker.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+  <script>
+    $(document).ready(function() {
+      // Inisiasi Select2
+      $('#machno').select2({
+        width: '100%'
+      });
+
+      var start = moment().subtract(29, 'days');
+      var end = moment();
+
+      function cb(start, end) {
+        $('#daterange span').html(start.format('D MMMM YYYY') + ' - ' + end.format('D MMMM YYYY'));
+        updateTable()
+      }
+
+      $('#daterange').daterangepicker({
+        showDropdowns: true,
+        minYear: 2020,
+        maxYear: parseInt(moment().format('YYYY'), 10) + 1,
+        startDate: start,
+        endDate: end,
+        ranges: {
+          'Today': [moment(), moment()],
+          'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+          'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+          'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+          'This Month': [moment().startOf('month'), moment().endOf('month')],
+          'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        }
+      }, cb);
+
+      cb(start, end);
+
+      $('#fldb1, #slcs, #submit').hide();
+
+      $('#ModelName,#lotNo,#machno, #process,#type-process').change(function() {
+        updateTable()
+        updateDocNo()
+      })
+
+      $('#type-process, #process').change(function() {
+        updateMachine()
+      })
+    });
+
+    function updateMachine() {
+      var processCode = document.getElementById("process").value;
+      var machineSelect = $('#machno');
+
+      // Kosongkan dropdown
+      machineSelect.empty();
+
+      if (!processCode || processCode === '' || processCode === '-' || processCode === 'null') {
+        machineSelect.trigger('change');
+        return;
+      }
+
+      // Akal-akalan agar bisa menarik data mesin Production
+      var lookupProcessCode = processCode;
+      var parts = lookupProcessCode.split('-');
+      if (parts.length >= 3) {
+          parts[1] = 'p'; 
+          lookupProcessCode = parts.join('-');
+      }
+
+      $.ajax({
+        url: "<?php echo base_url(); ?>machine/list?process=" + lookupProcessCode,
+        dataType: 'JSON',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          
+          // --- TAMBAHKAN BARIS INI ---
+          // Masukkan kembali opsi "Semua Mesin" ke urutan paling atas dengan value kosong ("")
+          machineSelect.append(new Option("-- Semua Mesin (Tidak Dipilih) --", "", true, true));
+          // ---------------------------
+
+          for (let i = 0; i < data.length; i++) {
+            // Masukkan nama mesin dari database
+            machineSelect.append(new Option(data[i].machine_name, data[i].machine_name, false, false));
+          }
+          
+          // Otomatis men-trigger tabel untuk update 
+          machineSelect.trigger('change');
+        },
+        error: function(data) {
+          console.log("Error mengambil data mesin: ", data);
+          machineSelect.trigger('change');
+        }
+      });
+    }
+
+    function updateTable() {
+      var checkProcess = document.getElementById("process").value;
+      if (!checkProcess || checkProcess === "") {
+        return;
+      }
+
+      let resDate = convertDate();
+      let process = document.getElementById("process").value;
+      let model = $('#ModelName').val();
+      let lotNo = $('#lotNo').val();
+      
+      let machno = $('#machno').val();
+      if(!machno || machno === 'null') { machno = ""; }
+      machno = encodeURIComponent(machno);
+
+      let device = "";
+      
+      // PERBAIKAN FATAL: Tipe proses diambil murni dari dropdown, bukan ditebak dari string
+      let typeProcess = document.getElementById("type-process").value;
+
+      if (process != null && process !== "") {
+        device = process.split("-")[0];
+      }
+
+      if (!typeProcess || typeProcess === "") {
+        return;
+      }
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "<?php echo base_url();?>" + typeProcess + "/data?dateStart=" + resDate.dateStart + " 00:00:00" + "&dateEnd=" + resDate.dateEnd + " 23:59:59" + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device, true);
+      xhr.onload = (e) => {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          $('#submit').show();
+          document.getElementById('table').innerHTML = xhr.responseText;
+        } else if (xhr.readyState === 4) {
+          $('#submit').show();
+          document.getElementById('table').innerHTML = "<div class='alert alert-danger'>Gagal menarik data dari server.</div>";
+        }
+      };
+      xhr.send(null);
+    }
+
+    function updateDocNo() {
+      var docNo = document.getElementById("docno");
+      var processValue = document.getElementById("process");
+      if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+        var text = processValue.options[processValue.selectedIndex].text;
+        docNo.value = text.split(" ")[0];
+      }
+    }
+
+    function convertDate() {
+      const date = $('#daterange span').html().split(" - ");
+      var map = { "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6, "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12 }
+      const date0 = date[0]; const date1 = date[1];
+      const splitDate0 = date0.split(" "); const splitDate1 = date1.split(" ");
+      const dateStart = splitDate0[2] + "-" + map[splitDate0[1]] + "-" + splitDate0[0];
+      const dateEnd = splitDate1[2] + "-" + map[splitDate1[1]] + "-" + splitDate1[0];
+      return { dateStart, dateEnd };
+    }
+
+    function changeDevice() {
+      var docType = document.getElementById('type-process').value;
+      var device = document.getElementById("device").value;
+
+      // PENCEGAH ERROR: Jangan kirim AJAX kalau Doc Type atau Device masih kosong
+      if (!docType || docType === "" || !device || device === "") {
+          $('#process').empty().append('<option value="">-- Pilih Device & Doc Type --</option>');
+          updateMachine(); // Kosongkan juga mesin
+          return;
+      }
+
+      $.ajax({
+        url: "<?php echo base_url(); ?>process/list?device=" + device + "&type=" + docType,
+        // ... (biarkan sisa kodenya tetap sama persis seperti milik Anda)
+        dataType: 'JSON',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          var processValue = document.getElementById("process");
+          var processValueLen = processValue.length;
+          for (let i = 0; i < processValueLen; i++) {
+            processValue.remove(0);
+          }
+          for (let i = 0; i < data.length; i++) {
+            var option = document.createElement("option");
+            option.text = data[i].name;
+            option.value = data[i].process_code;
+            if (processValue.length == 0) {
+              processValue.add(option, processValue[0]);
+            } else {
+              processValue.add(option, processValue[processValue.length]);
+            }
+          }
+          updateMachine();
+          updateTable();
+          updateDocNo();
+        }
+      });
+    }
+
+    function copy_clipboard() {
+      var table = document.getElementById(document.getElementById("process").value);
+      var range, selection;
+      if (document.createRange && window.getSelection) {
+        range = document.createRange(); selection = window.getSelection(); selection.removeAllRanges();
+        try { range.selectNodeContents(table); selection.addRange(range); } catch (e) { range.selectNode(table); selection.addRange(range); }
+        document.execCommand('copy'); selection.removeAllRanges(); alert('Table copied to clipboard.');
+      } else {
+        range = document.body.createTextRange(); range.moveToElementText(table); range.select(); range.execCommand('copy'); alert('Table copied to clipboard.');
+      }
+    }
+
+    function download_table_as_excel() {
+      let resDate = convertDate();
+      let d1 = moment(resDate.dateStart);
+      let d2 = moment(resDate.dateEnd);
+      if (d2.diff(d1, 'days') > 62) {
+        alert("Maaf, Export Data maksimal 2 bulan untuk menjaga stabilitas server!");
+        return;
+      }
+
+      let process = document.getElementById("process").value;
+      let model = $('#ModelName').val();
+      let lotNo = $('#lotNo').val();
+      
+      let machno = $('#machno').val();
+      if (!machno || machno === 'null') { machno = ""; }
+      machno = encodeURIComponent(machno);
+
+      let device = "";
+      let typeProcess = document.getElementById("type-process").value;
+
+      if (process != null && process !== "") {
+        device = process.split("-")[0];
+      }
+
+      let exportUrl = "<?= base_url('history/exportExcel') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
+      window.open(exportUrl, '_blank');
+    }
+
+   function download_table_as_pdf() {
+      let resDate = convertDate();
+      let d1 = moment(resDate.dateStart);
+      let d2 = moment(resDate.dateEnd);
+      if (d2.diff(d1, 'days') > 62) {
+          alert("Maaf, Export Data maksimal 2 bulan untuk menjaga stabilitas server!");
+          return;
+      }
+
+      let process = document.getElementById("process").value;
+      let model = $('#ModelName').val();
+      let lotNo = $('#lotNo').val();
+      
+      let machno = $('#machno').val();
+      if(!machno || machno === 'null') { machno = ""; }
+      machno = encodeURIComponent(machno);
+
+      let device = "";
+      let typeProcess = document.getElementById("type-process").value;
+
+      if (process != null && process !== "") {
+        device = process.split("-")[0];
+      }
+
+      let exportUrl = "<?= base_url('history/exportPDF') ?>?typeProcess=" + typeProcess + "&dateStart=" + resDate.dateStart + "&dateEnd=" + resDate.dateEnd + "&process=" + process + "&model=" + model + "&lotno=" + lotNo + "&machno=" + machno + "&device=" + device;
+      window.open(exportUrl, '_blank');
+    }
+
+    document.getElementById("menu-show").addEventListener("click", function() {
+      if (document.getElementById("menu").classList.contains('show')) {
+        document.getElementById("menu").classList.remove('show');
+      } else {
+        document.getElementById("menu").classList.add('show')
+      }
+    })
+  </script>
+  <script src="assets/js/dataTables.js"></script>
+  <script src="assets/js/dataTables.bootstrap4.js"></script>
+
+  <script>
+    $(document).ready(function() {
+      // AMBIL DATA DEVICE TERLEBIH DAHULU SAAT HALAMAN DIBUKA
+      $.ajax({
+        url: "<?php echo base_url(); ?>device/list",
+        dataType: 'JSON',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          var deviceValue = $('#device');
+          deviceValue.empty();
+          
+          if(data && data.length > 0) {
+              for (let i = 0; i < data.length; i++) {
+                deviceValue.append(new Option(data[i].name, data[i].code));
+              }
+          } else {
+              deviceValue.append(new Option("-- Device Kosong --", ""));
+          }
+          
+          // SETELAH DEVICE BERHASIL DIISI, BARU KITA JALANKAN RANTAI DROPDOWN-NYA
+          changeDevice();
+        },
+        error: function(xhr) {
+          // TRIK PAKSA BACA DATA DEVICE (Abaikan Error 500)
+          if (xhr.responseText) {
+            try {
+              var data = JSON.parse(xhr.responseText);
+              if(data && data.length > 0) {
+                var deviceValue = $('#device');
+                deviceValue.empty();
+                for (let i = 0; i < data.length; i++) {
+                  deviceValue.append(new Option(data[i].name, data[i].code));
+                }
+                // Jika berhasil dipaksa masuk, langsung jalankan fungsi rantainya
+                changeDevice();
+                return; 
+              }
+            } catch(e) {}
+          }
+          console.log("Gagal memuat Device: ", xhr.responseText);
+        }
+      });
+    });
+  </script>
+</main>
+<?= $this->endSection(); ?>
+
+========================================
+FILE: app\Config\Routes.php
+========================================
+<?php
+
+use CodeIgniter\Router\RouteCollection;
+
+/**
+ * @var RouteCollection $routes
+ */
+
+// ==========================================================
+// 1. AUTHENTICATION & DEFAULT
+// ==========================================================
+$routes->get('/', 'Auth::index', ['priority' => 1]);
+$routes->get('/login', 'Auth::index');
+$routes->post('/login', 'Auth::login');
+$routes->get('/logout', 'Auth::logout');
+$routes->get('/forbidden', 'Auth::forbidden');
+
+$routes->get('auth/cek_role', 'Auth::cek_role');
+
+// ==========================================================
+// 2. CORE MODULES: PRODUCTION
+// ==========================================================
+$routes->get('/production', 'Production::index'); 
+$routes->get('/production/datatable', 'Production::datatable'); 
+$routes->get('/production/data','Production::dataProduction');
+$routes->get('/production/form','Production::formInputProduction');
+$routes->post('/production', 'Production::createProduction'); 
+$routes->get('/production/edit/form', 'Production::formEdit');
+$routes->get('/production/edit/(:num)', 'Production::edit/$1');
+$routes->get('/productions/history/(:num)', 'Production::productionByNumber/$1');
+$routes->delete('/production/(:num)','Production::deleteProduction/$1');
+
+// ==========================================================
+// 3. CORE MODULES: STARTUP
+// ==========================================================
+$routes->get('/startup', 'Startup::index'); 
+$routes->get('/startup/data','Startup::dataStartup');
+$routes->get('/startup/form','Startup::formInputStartup');
+$routes->post('/startup', 'Startup::createStartup');
+$routes->get('/startup/edit/form','Startup::formEdit');
+$routes->get('/startup/edit/(:num)','Startup::edit/$1');
+$routes->get('/startup/history/(:num)', 'Startup::startupByNumber/$1');
+$routes->delete('/startup/(:num)','Startup::deleteStartup/$1');
+
+// ==========================================================
+// 4. CORE MODULES: FOREGOING
+// ==========================================================
+$routes->get('/foregoing', 'Foregoing::index'); 
+$routes->get('/foregoing/data','History::dataForegoing'); 
+$routes->get('/foregoing/form','Foregoing::formInputForegoing');
+$routes->post('/foregoing', 'Foregoing::createForegoing'); 
+$routes->get('/foregoing/edit/form','Foregoing::formEdit'); 
+$routes->get('/foregoing/edit/(:num)','Foregoing::edit/$1'); 
+$routes->get('/foregoing/history/(:num)', 'History::foregoingByNumber/$1'); 
+$routes->delete('/foregoing/(:num)','Foregoing::deleteForegoing/$1');
+
+// ==========================================================
+// 5. GENERAL FEATURES (Input, History, Log Activity)
+// ==========================================================
+$routes->get('/home', 'LotHistory::index');
+$routes->get('/log-activity', 'LogActivity::index');
+$routes->get('/input', 'Input::index'); 
+$routes->get('/input/note-form/(:any)', 'Input::formStandard/$1');
+$routes->get('/history', 'History::index');
+$routes->get('/history/export/ff-d2-001', 'History::exportFF_D2_001');
+
+// ==========================================================
+// 6. APPROVAL SYSTEM
+// ==========================================================
+$routes->get('/approve', 'Approval::index');
+$routes->get('/approve-form', 'Approval::formApproval');
+$routes->post('/approve', 'Approval::updateApproval');
+$routes->get('/approval/([a-zA-Z0-9]+)','Home::approval/$1');
+
+// ==========================================================
+// 7. MASTER DATA: DEVICE
+// ==========================================================
+$routes->get('/device', 'Device::index');
+$routes->get('/device/list', 'Device::listDevice');
+$routes->get('/device/add', 'Device::createDeviceForm');
+$routes->post('/device', 'Device::createDevice');
+$routes->get('/device/edit/(:num)', 'Device::updateDeviceForm/$1');
+$routes->post('/device/update', 'Device::updateDevice');
+$routes->delete('/device/([0-9]+)', 'Device::deleteDevice/$1');
+
+// ==========================================================
+// 8. MASTER DATA: PROCESS
+// ==========================================================
+$routes->get('/process', 'Process::index');
+$routes->get('/process/list', 'Process::listProcess');
+$routes->get('/process/add', 'Process::addProcess');
+$routes->post('/process', 'Process::createProcess');
+$routes->get('/process/edit/(:num)', 'Process::updateProcessForm/$1');
+$routes->post('/process/update', 'Process::updateProcess');
+$routes->delete('/process/([0-9]+)', 'Process::deleteProcess/$1');
+
+// ==========================================================
+// 9. MASTER DATA: MACHINE LIST
+// ==========================================================
+$routes->get('/machine/list', 'Machine::getList');
+$routes->get('/machine/get-processes', 'Machine::getProcessesByDevice');
+$routes->get('/machine', 'Machine::index');
+$routes->post('/machine/save', 'Machine::save');
+$routes->delete('/machine/(:num)', 'Machine::deleteMachine/$1');
+$routes->get('/machine/edit/(:num)', 'Machine::editMachineForm/$1');
+$routes->post('/machine/update', 'Machine::updateMachine');
+
+// ==========================================================
+// 10. EXPORT & DATA CLEANSING (Universal)
+// ==========================================================
+$routes->get('/history/exportExcel', 'History::exportExcel');
+$routes->get('/history/exportPDF', 'History::exportPDF');
+$routes->get('/cleansing', 'Cleansing::index');
+$routes->post('/cleansing/execute', 'Cleansing::execute');
+
+// ==========================================================
+// 11. TESTING & UTILITIES
+// ==========================================================
+$routes->match(['GET', 'POST'], 'home/ajaxAutofill', 'Home::ajaxAutofill');
+$routes->get('/testing','Test::testEmp');
+$routes->get('/test2/([a-zA-Z0-9]+)/([a-zA-Z0-9]+)','Test::testStartup/$1/$2');
+
+// ==========================================================
+// 12. RUTE CLEANSING DATA (Untuk Perbaikan Typo Machno Startup)
+// ==========================================================
+$routes->get('/cleansing', 'Cleansing::index');
+$routes->post('/cleansing/execute', 'Cleansing::execute');
+
+========================================
+FILE: app\Views\layout\sl56\history\production\sl56-p-db2.php
+========================================
+<div class="table-responsive mt-3" id="sl56-p-db2">
+<input type="hidden" id="cnt-table" value="1">
+    <table class="table table-bordered table-hover" id="table1">
+        <thead align="center">
+            <tr>
+            <th colspan="32" scope="col"><?php echo nl2br("LD DIE BONDING 2 MACHINE")?></th>
+            </tr>
+            <tr>
+                <th rowspan="3" >No.</th>
+                <th rowspan="3" >Operator Start</th>         
+                <th rowspan="3" >Shift/Group </th>
+                <th rowspan="3" >Operator Finish</th>         
+                <th rowspan="3" >Shift/Group </th>
+                <th rowspan="3" >Mch. No.</th>         
+                <th rowspan="3" >Model</th>
+                <th rowspan="3" >Lot No.</th> 
+                <th rowspan="3" >Date (dd/mm/yyyy)</th>
+                <th colspan="3" scope="col" >Quantity</th>
+                <th rowspan="3" >Yield (%)</th>
+                <th colspan="2" scope="col" >Time</th>
+                <th colspan="4" scope="col" >Foregoing (5 pcs/head/lot)</th>
+                <th colspan="4" scope="col" >Vis Insp (10%/lot)</th>
+                <th colspan="8" rowspan="2" scope="col" >Die Bonding Strength (1 pcs/head/shift) <br> Standard >= 500g (4.9 N) <br> Standart Model GH04Series & GH05Series* <br> GH0523AD2G >= 6.0 N</th>
+                <th rowspan="3" >Judge</th>
+            </tr>
+            <tr>
+                <th  rowspan="2">Input</th>
+                <th  rowspan="2">Output</th>
+                <th  rowspan="2">NG</th>
+                <th  rowspan="2">IN</th>
+                <th  rowspan="2">OUT</th>
+                <th  colspan="2" scope="col">MSP Chip</th>
+                <th  colspan="2" scope="col">LD Chip</th>
+                <th  colspan="2" scope="col">MSP Chip</th>
+                <th  colspan="2" scope="col">LD Chip</th>
+            </tr>
+            <tr>
+                <th scope="col">Crack</th>
+                <th scope="col">Chipping</th>
+                <th scope="col">LD Pos</th>
+                <th scope="col">Miss</th>
+                <th scope="col">Crack</th>
+                <th scope="col">Chipping</th>
+                <th scope="col">LD Pos</th>
+                <th scope="col">Miss</th>
+                <th scope="col">1</th>
+                <th scope="col">2</th>
+                <th scope="col">3</th>
+                <th scope="col">4</th>
+                <th scope="col">5</th>
+                <th scope="col">6</th>
+                <th scope="col">7</th>
+                <th scope="col">8</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <?php $i = 1; ?>
+            <?php foreach($alldata as $c): ?>
+            <tr>
+            <td rowspan="1" ><?= $i++; ?></td>
+            <td rowspan="1" ><?= (string)$c['name'];?></td>
+            <td rowspan="1" ><?= (string)$c['shift'] .' / '. (string)$c['group'];?></td>
+            <td rowspan="1" >
+            <?php
+                if((string)$c['name2']){
+                echo  (string)$c['name2'];
+                }
+                else{
+                echo "";
+                }
+            ?>
+            </td>
+            <td rowspan="1" >
+            <?php
+                if((string)$c['shift2']){
+                echo (string)$c['shift2'] . ' / ' . (string)$c['group2'];
+                }
+                else{
+                echo "";
+                }
+            ?>
+            </td>
+            <td rowspan="1" ><?= (string)$c['machno']; ?></td>
+            <td rowspan="1" ><?= (string)$c['model']; ?></td>
+            <td rowspan="1" ><?= (string)$c['lotno']; ?></td>
+            <td rowspan="1" ><?= date('d/m/Y', strtotime((string)$c['created_at'])); ?></td>
+            <td rowspan="1" ><?= (string)$c['par013']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par014']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par015']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par016']; ?></td>
+            <td rowspan="1" ><?= date('H:i', strtotime((string)$c['par008'])); ?></td>
+            <td rowspan="1" >
+                <?php 
+                    if(!(string)$c['par009']) echo "";
+                    else echo date('H:i', strtotime((string)$c['par009'])); 
+                ?>
+            </td>
+            <td rowspan="1" ><?= (string)$c['par035']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par036']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par037']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par038']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par039']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par040']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par041']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par042']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par017']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par018']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par019']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par020']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par021']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par022']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par023']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par024']; ?></td>
+            <td rowspan="1" ><?= (string)$c['par043']; ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+        
+        
+    </table>
+</div>

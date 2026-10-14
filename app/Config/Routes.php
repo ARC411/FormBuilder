@@ -14,11 +14,15 @@ $routes->get('/login', 'Auth::index');
 $routes->post('/login', 'Auth::login');
 $routes->get('/logout', 'Auth::logout');
 $routes->get('/forbidden', 'Auth::forbidden');
+$routes->cli('cronjob/closeweeklydata', 'Cronjob::closeWeeklyData');
+
+$routes->get('auth/cek_role', 'Auth::cek_role');
 
 // ==========================================================
 // 2. CORE MODULES: PRODUCTION
 // ==========================================================
 $routes->get('/production', 'Production::index'); 
+$routes->get('/production/datatable', 'Production::datatable'); 
 $routes->get('/production/data','Production::dataProduction');
 $routes->get('/production/form','Production::formInputProduction');
 $routes->post('/production', 'Production::createProduction'); 
@@ -38,6 +42,8 @@ $routes->get('/startup/edit/form','Startup::formEdit');
 $routes->get('/startup/edit/(:num)','Startup::edit/$1');
 $routes->get('/startup/history/(:num)', 'Startup::startupByNumber/$1');
 $routes->delete('/startup/(:num)','Startup::deleteStartup/$1');
+$routes->post('/startup/update', 'Startup::updateStartup'); // Jika pakai route biasa
+$routes->post('/startup/update/(:num)', 'Startup::updateStartup/$1'); // Jika pakai ID di URL
 
 // ==========================================================
 // 4. CORE MODULES: FOREGOING
@@ -66,8 +72,18 @@ $routes->get('/history/export/ff-d2-001', 'History::exportFF_D2_001');
 // ==========================================================
 $routes->get('/approve', 'Approval::index');
 $routes->get('/approve-form', 'Approval::formApproval');
-$routes->post('/approve', 'Approval::updateApproval');
-$routes->get('/approval/([a-zA-Z0-9]+)','Home::approval/$1');
+
+// Rute Eksekusi Approve: Tangkap POST, PUT, dan PATCH, baik ada ID maupun tidak
+// Kita hilangkan /$1 agar tidak bentrok dengan public function updateApproval() yang tidak punya parameter
+$routes->match(['post', 'put', 'patch'], '/approve', 'Approval::updateApproval');
+$routes->match(['post', 'put', 'patch'], '/approve/(:any)', 'Approval::updateApproval');
+
+// Rute lainnya
+$routes->get('/approval/history/(:any)', 'Approval::approvalById/$1');
+$routes->get('/approval/weekly', 'Approval::weekly');
+$routes->post('/approval/processWeekly', 'Approval::processWeekly');
+$routes->get('/approval/detail_mingguan/(:num)', 'Approval::detail_mingguan/$1');
+$routes->get('/approval/([a-zA-Z0-9]+)', 'Home::approval/$1');
 
 // ==========================================================
 // 7. MASTER DATA: DEVICE
@@ -122,3 +138,15 @@ $routes->get('/test2/([a-zA-Z0-9]+)/([a-zA-Z0-9]+)','Test::testStartup/$1/$2');
 // ==========================================================
 $routes->get('/cleansing', 'Cleansing::index');
 $routes->post('/cleansing/execute', 'Cleansing::execute');
+
+// ==========================================================
+// 13. FORM BUILDER (DYNAMIC PARAMETER)
+// ==========================================================
+$routes->get('form-builder', 'FormBuilder::index');
+$routes->get('form-builder/get-processes', 'FormBuilder::getProcesses');
+$routes->post('form-builder/load', 'FormBuilder::loadForm');
+$routes->post('form-builder/save', 'FormBuilder::saveParam');
+$routes->post('form-builder/delete', 'FormBuilder::deleteParam');
+$routes->post('form-builder/up-revisi', 'FormBuilder::upRevisi');
+$routes->get('form-builder/sedotHtml', 'FormBuilder::sedotHtml');
+$routes->get('/run-migration', 'FormBuilder::eksekusiMigrasi');

@@ -11,6 +11,17 @@
         <label for="device" class="col-sm-2 col-form-label">Device</label>
         <div class="col-sm-3">
             <select id="device" name="device" class="form-select" aria-label="Default select example">
+                <option value="" selected>Pilih Device</option>
+                <?php if(!empty($listDevice)) : ?>
+                    <?php foreach($listDevice as $dev) : ?>
+                        <?php 
+                            // Menyesuaikan dengan nama kolom code dan name dari database
+                            $kode = is_object($dev) ? $dev->code : $dev['code'];
+                            $nama = is_object($dev) ? $dev->name : $dev['name'];
+                        ?>
+                        <option value="<?= $kode; ?>"><?= $nama; ?></option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </select>
         </div>
         </div>

@@ -103,7 +103,7 @@
             loading.show();
 
             $.ajax({
-                url: "/startup/history/" + number,
+                url: "<?= base_url('startup/history/') ?>" + number,
                 dataType: 'html',
                 success: function(data) {
                     loading.hide();

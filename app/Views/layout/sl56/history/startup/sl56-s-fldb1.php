@@ -66,7 +66,7 @@
                 <td rowspan="1" ><?= (string)$alldata[$i]['par026']; ?></td>
                 <td rowspan="2" ><?= (string)$alldata[$i]['status']; ?></td>
                 <?php
-                    if((string)$alldata[$i]['role']){
+                    $roleKey = (string)$alldata[$i]['role']; if($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey])){
                         echo '<td rowspan=2>'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
                     } 
                     else{

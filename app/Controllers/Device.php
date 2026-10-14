@@ -22,6 +22,7 @@ class Device extends BaseController
 
     public function listDevice()
     {
+        error_reporting(0);
         $data = [
             'title' => 'Device Data',
             'alldata' => $this->DeviceModel->getAll()

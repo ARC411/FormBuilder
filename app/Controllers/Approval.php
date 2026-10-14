@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\StartupModel;
+use App\Models\LogActivityModel;
+use App\Models\WeeklyApprovalModel;
 use App\Models\ProductionModel; // Pastikan model ini dipanggil karena dipakai di approvalById
 
 class Approval extends BaseController
@@ -76,4 +78,73 @@ class Approval extends BaseController
         $update = $this->StartupModel->updateApproval($number, $name, $level);
         return redirect()->to(base_url().'approve');
     }
+
+    public function weekly()
+    {
+        if(!$this->session->has('name')){
+            return redirect()->to(base_url().'login');
+        }
+
+        $weeklyModel = new WeeklyApprovalModel();
+        
+        $data = [
+            'title' => 'Weekly Approval | Startup Management',
+            'weekly_data' => $weeklyModel->getWeeklyList(),
+            'user_role' => $this->session->get('role') // Asumsi: session role menyimpan 'qc' atau 'production'
+        ];
+
+        return view('weekly_approval', $data);
+    }
+
+    // 2. Fungsi untuk memproses tombol Approve
+    public function processWeekly()
+    {
+        if(!$this->session->has('name')){
+            return redirect()->to(base_url().'login');
+        }
+
+        $weeklyModel = new WeeklyApprovalModel();
+        
+        $weekly_id = $this->request->getPost('weekly_id');
+        $action = $this->request->getPost('action'); // isinya: 'Approve' atau 'Reject'
+        $departemen = $this->request->getPost('departemen'); // isinya: 'qc' atau 'production'
+
+        $updateData = [];
+        if ($departemen === 'qc') {
+            $updateData['status_qc'] = $action;
+        } else if ($departemen === 'production') {
+            $updateData['status_production'] = $action;
+        }
+
+        if (!empty($updateData)) {
+            $weeklyModel->update($weekly_id, $updateData);
+            $this->session->setFlashdata('message', "Data mingguan berhasil di-$action oleh $departemen");
+        }
+
+        return redirect()->to(base_url().'approval/weekly');
+    }
+
+    // Fungsi untuk menampilkan isi dokumen dari satu periode mingguan
+    public function detail_mingguan($id)
+    {
+        if(!$this->session->has('name')){
+            return redirect()->to(base_url().'login');
+        }
+
+        $weeklyModel = new WeeklyApprovalModel();
+        $dataMingguan = $weeklyModel->find($id);
+
+        if(empty($dataMingguan)) {
+            return "Data mingguan tidak ditemukan.";
+        }
+
+        $data = [
+            'title' => 'Detail Mingguan | Startup Management',
+            'mingguan' => $dataMingguan,
+            'alldata' => $this->StartupModel->getByWeeklyId($id)
+        ];
+
+        return view('weekly_detail', $data);
+    }
+
 }

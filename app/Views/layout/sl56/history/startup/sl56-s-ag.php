@@ -33,12 +33,14 @@
                 <td><?= (string)$alldata[$i]['par004']; ?></td>
                 <td><?= (string)$alldata[$i]['status']; ?></td>
                 <?php
-                  if((string)$alldata[$i]['role']){
-                      echo '<td>'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
-                  } 
-                  else{
-                      echo '<td>  </td>';
-                  }
+                // Ini baris baru hasil replace:
+                $roleKey = (string)$alldata[$i]['role']; if($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey])){
+                    // Ini baris lama yang tidak ikut direplace, tapi SEKARANG AMAN karena dilindungi if di atas:
+                    echo '<td>'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
+                } 
+                else{
+                    echo '<td>  </td>';
+                }
                 ?>
                 <td><?= date('H:i', strtotime((string)$alldata[$i]['updated_at'])); ?></td>
             </tr>

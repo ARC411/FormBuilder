@@ -208,7 +208,8 @@ $(document).ready(function()
 {
     $.ajax(
         {
-            url: "/device/list",
+            // Ubah baris ini menggunakan base_url bawaan PHP CodeIgniter
+            url: "<?= base_url('device/list'); ?>", 
             dataType:'JSON',
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             success: function(data)

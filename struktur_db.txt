@@ -1,0 +1,924 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.0
+-- https://www.phpmyadmin.net/
+--
+-- Host: localhost:3306
+-- Generation Time: Oct 02, 2026 at 02:08 AM
+-- Server version: 8.0.30
+-- PHP Version: 8.3.33
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `startup`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin`
+--
+
+CREATE TABLE `admin` (
+  `id` int NOT NULL,
+  `empid` varchar(25) COLLATE utf8mb4_general_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `admin`
+--
+
+INSERT INTO `admin` (`id`, `empid`) VALUES
+(1, '000032'),
+(2, '001264'),
+(3, '003366'),
+(4, 'S106458');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `checksheet`
+--
+
+CREATE TABLE `checksheet` (
+  `idcsheet` int NOT NULL,
+  `device` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `process` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `lotno` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `model` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `machno` varchar(15) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `empid` varchar(6) COLLATE utf8mb4_general_ci NOT NULL,
+  `group` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `shift` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `par001` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par002` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par003` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par004` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par005` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par006` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par007` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par008` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par009` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par010` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par011` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par012` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par013` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par014` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par015` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par016` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par017` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par018` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par019` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par020` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par021` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par022` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par023` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par024` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par025` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par026` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par027` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par028` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par029` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par030` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `par031` varchar(11) COLLATE utf8mb4_general_ci NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `deleted_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `device`
+--
+
+CREATE TABLE `device` (
+  `id` int NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `deleted_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `device`
+--
+
+INSERT INTO `device` (`id`, `code`, `name`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'fl18', 'Frame Laser 1.8', '0000-00-00 00:00:00', '2025-05-05 12:58:51', '0000-00-00 00:00:00'),
+(2, 'sl33', 'Single Laser 3.3', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '0000-00-00 00:00:00'),
+(3, 'sl38', 'Single Laser 3.8', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '0000-00-00 00:00:00'),
+(4, 'sl56', 'Single Laser 5.6', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '0000-00-00 00:00:00'),
+(5, 'sl90', 'Single Laser 9.0', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '0000-00-00 00:00:00');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `foregoing`
+--
+
+CREATE TABLE `foregoing` (
+  `id` int NOT NULL,
+  `number` int DEFAULT NULL,
+  `device` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `process` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `model` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `lotno` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `machno` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `empid` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `group` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `shift` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `name` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par000` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par001` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par002` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par003` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par004` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par005` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par006` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par007` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par008` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par009` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par010` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par011` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par012` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par013` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par014` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par015` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par016` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par017` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par018` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par019` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par020` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par021` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par022` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par023` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par024` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par025` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par026` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par027` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par028` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par029` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par030` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par031` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par032` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par033` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par034` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par035` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par036` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par037` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par038` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par039` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par040` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par041` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par042` int DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `deleted_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `log_activity`
+--
+
+CREATE TABLE `log_activity` (
+  `id` int NOT NULL,
+  `emp_id` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `type_activity` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `activity` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `user` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `table_name` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `deleted_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `machine_list`
+--
+
+CREATE TABLE `machine_list` (
+  `id` int UNSIGNED NOT NULL,
+  `process_code` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `machine_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `machine_list`
+--
+
+INSERT INTO `machine_list` (`id`, `process_code`, `machine_name`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'fl18-p-db1', 'FFDB 1.1', NULL, NULL, NULL),
+(2, 'fl18-p-db1', 'FFDB 1.2', NULL, NULL, NULL),
+(3, 'fl18-p-db1', 'FFDB 1.3', NULL, NULL, NULL),
+(4, 'fl18-p-db1', 'FFDB 1.4', NULL, NULL, NULL),
+(5, 'fl18-p-db1', 'FFDB 1.5', NULL, NULL, NULL),
+(6, 'fl18-p-db1', 'FFDB 1.6', NULL, NULL, NULL),
+(7, 'fl18-p-db1', 'FFDB 1.7', NULL, NULL, NULL),
+(8, 'fl18-p-db1', 'FFDB 1.8', NULL, NULL, NULL),
+(9, 'fl18-p-db1', 'FFDB 1.9', NULL, NULL, NULL),
+(10, 'fl18-p-db1', 'FFDB 1.10', NULL, NULL, NULL),
+(11, 'fl18-p-db1', 'FFDB 1.11', NULL, NULL, NULL),
+(12, 'fl18-p-db1', 'FFDB 1.12', NULL, NULL, NULL),
+(13, 'fl18-p-db1', 'FFDB 1.13', NULL, NULL, NULL),
+(14, 'fl18-p-db1', 'FFDB 1.14', NULL, NULL, NULL),
+(15, 'fl18-p-db1', 'FFDB 1.15', NULL, NULL, NULL),
+(16, 'fl18-p-db1', 'FFDB 1.16', NULL, NULL, NULL),
+(17, 'fl18-p-db1', 'FFDB 1.17', NULL, NULL, NULL),
+(18, 'fl18-p-db1', 'FFDB 1.18', NULL, NULL, NULL),
+(19, 'fl18-p-db1', 'FFDB 1.19', NULL, NULL, NULL),
+(20, 'fl18-p-db1', 'FFDB 1.20', NULL, NULL, NULL),
+(21, 'fl18-p-db1', 'FFDB 1.21', NULL, NULL, NULL),
+(22, 'fl18-p-db1', 'FFDB 1.22', NULL, NULL, NULL),
+(23, 'fl18-p-db1', 'FFDB 1.23', NULL, NULL, NULL),
+(24, 'fl18-p-db1', 'FFDB 1.24', NULL, NULL, NULL),
+(25, 'fl18-p-db1', 'FFDB 1.25', NULL, NULL, NULL),
+(26, 'fl18-p-db1', 'FFDB 1.26', NULL, NULL, NULL),
+(27, 'fl18-p-db1', 'FFDB 1.27', NULL, NULL, NULL),
+(28, 'fl18-p-db1', 'FFDB 1.28', NULL, NULL, NULL),
+(29, 'fl18-p-db2', 'FFDB 2.1', NULL, NULL, NULL),
+(30, 'fl18-p-db2', 'FFDB 2.2', NULL, NULL, NULL),
+(31, 'fl18-p-db2', 'FFDB 2.3', NULL, NULL, NULL),
+(32, 'fl18-p-db2', 'FFDB 2.4', NULL, NULL, NULL),
+(33, 'fl18-p-db2', 'FFDB 2.5', NULL, NULL, NULL),
+(34, 'fl18-p-db2', 'FFDB 2.6', NULL, NULL, NULL),
+(35, 'fl18-p-db2', 'FFDB 2.7', NULL, NULL, NULL),
+(36, 'fl18-p-db2', 'FFDB 2.8', NULL, NULL, NULL),
+(37, 'fl18-p-db2', 'FFDB 2.9', NULL, NULL, NULL),
+(38, 'fl18-p-db2', 'FFDB 2.10', NULL, NULL, NULL),
+(39, 'fl18-p-db2', 'FFDB 2.11', NULL, NULL, NULL),
+(40, 'fl18-p-db2', 'FFDB 2.12', NULL, NULL, NULL),
+(41, 'fl18-p-db2', 'FFDB 2.13', NULL, NULL, NULL),
+(42, 'fl18-p-db2', 'FFDB 2.14', NULL, NULL, NULL),
+(43, 'fl18-p-db2', 'FFDB 2.15', NULL, NULL, NULL),
+(44, 'fl18-p-db2', 'FFDB 2.16', NULL, NULL, NULL),
+(45, 'fl18-p-db2', 'FFDB 2.17', NULL, NULL, NULL),
+(46, 'sl56-p-db1', 'SDB1-4', NULL, NULL, NULL),
+(47, 'sl56-p-db1', 'SLD1-1', NULL, NULL, NULL),
+(48, 'sl56-p-db1', 'SLD1-2', NULL, NULL, NULL),
+(49, 'sl56-p-db1', 'SLD1-3', NULL, NULL, NULL),
+(50, 'sl56-p-db1', 'SLD1-4', NULL, NULL, NULL),
+(51, 'sl56-p-db1', 'SLD1-9', NULL, NULL, NULL),
+(52, 'sl56-p-db1', 'SLD1-10', NULL, NULL, NULL),
+(53, 'sl56-p-db2', 'SLD 2-1', NULL, NULL, NULL),
+(54, 'sl56-p-db2', 'SLD 2-3', NULL, NULL, NULL),
+(55, 'sl56-p-db2', 'SLD 2-4', NULL, NULL, NULL),
+(56, 'sl56-p-db2', 'SLD 2-6', NULL, NULL, NULL),
+(57, 'sl56-s-db2', 'SLD 2-1', NULL, NULL, NULL),
+(58, 'sl56-s-db2', 'SLD 2-3', NULL, NULL, NULL),
+(59, 'sl56-s-db2', 'SLD 2-4', NULL, NULL, NULL),
+(60, 'sl56-s-db2', 'SLD 2-6', NULL, NULL, NULL),
+(61, 'sl56-f-fldb2', 'SLD 2-1', NULL, NULL, NULL),
+(62, 'sl56-f-fldb2', 'SLD 2-3', NULL, NULL, NULL),
+(63, 'sl56-f-fldb2', 'SLD 2-4', NULL, NULL, NULL),
+(64, 'sl56-f-fldb2', 'SLD 2-6', NULL, NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `migrations`
+--
+
+CREATE TABLE `migrations` (
+  `id` bigint UNSIGNED NOT NULL,
+  `version` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `class` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `group` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `namespace` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `time` int NOT NULL,
+  `batch` int UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `production`
+--
+
+CREATE TABLE `production` (
+  `id` int NOT NULL,
+  `number` int NOT NULL,
+  `device` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `process` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `model` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `lotno` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `machno` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `empid` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `group` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `shift` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `name` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `empid2` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `group2` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `shift2` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `name2` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par001` int DEFAULT NULL,
+  `par002` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par003` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par004` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par005` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par006` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par007` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par008` datetime DEFAULT NULL,
+  `par009` datetime DEFAULT NULL,
+  `par010` time DEFAULT NULL,
+  `par011` date DEFAULT NULL,
+  `par012` date DEFAULT NULL,
+  `par013` float DEFAULT NULL,
+  `par014` float DEFAULT NULL,
+  `par015` float DEFAULT NULL,
+  `par016` float DEFAULT NULL,
+  `par017` float DEFAULT NULL,
+  `par018` float DEFAULT NULL,
+  `par019` float DEFAULT NULL,
+  `par020` float DEFAULT NULL,
+  `par021` float DEFAULT NULL,
+  `par022` float DEFAULT NULL,
+  `par023` float DEFAULT NULL,
+  `par024` float DEFAULT NULL,
+  `par025` float DEFAULT NULL,
+  `par026` float DEFAULT NULL,
+  `par027` float DEFAULT NULL,
+  `par028` float DEFAULT NULL,
+  `par029` float DEFAULT NULL,
+  `par030` float DEFAULT NULL,
+  `par031` float DEFAULT NULL,
+  `par032` float DEFAULT NULL,
+  `par033` float DEFAULT NULL,
+  `par034` float DEFAULT NULL,
+  `par035` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par036` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par037` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par038` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par039` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par040` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par041` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par042` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par043` varchar(5) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par044` varchar(12) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'PENDING',
+  `par045` varchar(16) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Process Start',
+  `foreman` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `leader` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `supervisor` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `deleted_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `production_backup_20260922`
+--
+
+CREATE TABLE `production_backup_20260922` (
+  `id` int NOT NULL DEFAULT '0',
+  `number` int NOT NULL,
+  `device` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `process` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `model` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `lotno` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `machno` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `empid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `group` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `shift` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `empid2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `group2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `shift2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `name2` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par001` int DEFAULT NULL,
+  `par002` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par003` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par004` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par005` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par006` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par007` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par008` datetime DEFAULT NULL,
+  `par009` datetime DEFAULT NULL,
+  `par010` time DEFAULT NULL,
+  `par011` date DEFAULT NULL,
+  `par012` date DEFAULT NULL,
+  `par013` float DEFAULT NULL,
+  `par014` float DEFAULT NULL,
+  `par015` float DEFAULT NULL,
+  `par016` float DEFAULT NULL,
+  `par017` float DEFAULT NULL,
+  `par018` float DEFAULT NULL,
+  `par019` float DEFAULT NULL,
+  `par020` float DEFAULT NULL,
+  `par021` float DEFAULT NULL,
+  `par022` float DEFAULT NULL,
+  `par023` float DEFAULT NULL,
+  `par024` float DEFAULT NULL,
+  `par025` float DEFAULT NULL,
+  `par026` float DEFAULT NULL,
+  `par027` float DEFAULT NULL,
+  `par028` float DEFAULT NULL,
+  `par029` float DEFAULT NULL,
+  `par030` float DEFAULT NULL,
+  `par031` float DEFAULT NULL,
+  `par032` float DEFAULT NULL,
+  `par033` float DEFAULT NULL,
+  `par034` float DEFAULT NULL,
+  `par035` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par036` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par037` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par038` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par039` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par040` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par041` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par042` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par043` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par044` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'PENDING',
+  `par045` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Process Start',
+  `foreman` varchar(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `leader` varchar(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `supervisor` varchar(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `deleted_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `proses`
+--
+
+CREATE TABLE `proses` (
+  `id` int NOT NULL,
+  `device` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `type` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `process_code` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `name` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `docno` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `revisi` varchar(10) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `berlaku` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `proses`
+--
+
+INSERT INTO `proses` (`id`, `device`, `type`, `process_code`, `name`, `docno`, `revisi`, `berlaku`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1004, 'fl18', 'foregoing', 'fl18-f-fdb1', 'Foregoing Die Bonding 1', 'FF-D1-004-18', NULL, NULL, '2024-08-07 13:30:46', '2025-05-05 12:55:43', NULL),
+(1005, 'fl18', 'foregoing', 'fl18-f-fdb2', 'Foregoing Die Bonding 2', 'FF-D2-003-11', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1012, 'fl18', 'production', 'fl18-p-ag', 'Ag Paste Hardening', 'FF-D2-005-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1015, 'fl18', 'production', 'fl18-p-bi', 'Burn In Manual', 'FF-BI-001-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1008, 'fl18', 'production', 'fl18-p-cs', 'Cap Set', 'FF-CS-004-01', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1006, 'fl18', 'production', 'fl18-p-db1', 'LD Die Bonding 1', 'FF-D1-001-21', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1007, 'fl18', 'production', 'fl18-p-db2', 'LD Die Bonding 2', 'FF-D2-001-10', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1019, 'fl18', 'production', 'fl18-p-db2qc', 'Inspection LD D/B 2 Control', 'FF-D2-004-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1011, 'fl18', 'production', 'fl18-p-ft1', 'Final Test GH15 series', 'FF-FT-004-00', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1014, 'fl18', 'production', 'fl18-p-ft2', 'Final Test GH33series', 'FF-FT-003-01', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1018, 'fl18', 'production', 'fl18-p-ftbc', 'Inspection tie Bar Cutting', 'FF-TC-003-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1010, 'fl18', 'production', 'fl18-p-lc', 'Lead Cutting', 'FF-LC-001-06', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1016, 'fl18', 'production', 'fl18-p-m1', 'Hardening of Ink', 'FF-MK-003-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1017, 'fl18', 'production', 'fl18-p-m2', 'Marking', 'FF-MK-001-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1009, 'fl18', 'production', 'fl18-p-tc', 'Tie Bar Cutting', 'FF-TC-001-06', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1105, 'fl18', 'production', 'fl18-p-vi', 'Visual Inspection Control Sheet', 'FF-VI-001-03', NULL, NULL, '2024-08-09 14:45:55', '2024-08-09 14:45:55', NULL),
+(1013, 'fl18', 'production', 'fl18-p-wb', 'Wire Bonding', 'FF-WB-001-06', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1100, 'fl18', 'production', 'fl18-p-wbc', 'Capillary Change Record Sheet', 'EG-LS-008-04', NULL, NULL, '2024-08-09 08:15:10', '2024-08-09 08:15:10', NULL),
+(1020, 'fl18', 'production', 'fl18-p-wbqc', 'Inpsection Wire Bonding', 'FF-WB-003-7', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(996, 'fl18', 'startup', 'fl18-s-ag', 'Ag Paste Hardening', 'FF-D2-006-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(987, 'fl18', 'startup', 'fl18-s-bi', 'Burn In', 'FF-BI-006-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1083, 'fl18', 'startup', 'fl18-s-bi2', 'Burn In BOX Machine', 'FF-BI-002-06', NULL, NULL, '2024-08-07 15:19:09', '2024-08-07 15:19:09', '2024-08-07 15:17:38'),
+(1084, 'fl18', 'startup', 'fl18-s-bi3', 'Burn In BOX Machine (2)', 'FF-BI-005-02', NULL, NULL, '2024-08-08 08:20:06', '2024-08-08 08:20:06', NULL),
+(997, 'fl18', 'startup', 'fl18-s-cs', 'Cap Set', 'FF-CS-005-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1001, 'fl18', 'startup', 'fl18-s-csa', 'Cap Set', 'FF-CS-002-4', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(990, 'fl18', 'startup', 'fl18-s-db1a', 'LD Die Bonding 1 Type GH16PSeries', 'FF-D1-002-6', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(991, 'fl18', 'startup', 'fl18-s-db1b', 'LD Die Bonding 1 Type GH15*30*8C* / GH3*****C*', 'FF-D1-009-15', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(985, 'fl18', 'startup', 'fl18-s-db1c', 'LD Die Bonding 1 Type GH17P28F8CL', 'FF-D1-007-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(986, 'fl18', 'startup', 'fl18-s-db1d', 'LD Die Bonding 1 Type GH17P28A8C2', 'FF-D1-006-3', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(994, 'fl18', 'startup', 'fl18-s-db2', 'LD Die Bonding 2 Machine', 'FF-D2-002-12', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1002, 'fl18', 'startup', 'fl18-s-ft1', 'Verification Final Test ', 'MP-FFFT-002', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1003, 'fl18', 'startup', 'fl18-s-ft2', 'Periodical Final Testing Machine', 'MP-FFFT-001-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1000, 'fl18', 'startup', 'fl18-s-lc', 'Lead Cutting', 'FF-LC-002-3', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(988, 'fl18', 'startup', 'fl18-s-mk', 'Marking Hardening Oven', 'FF-MK-004-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(999, 'fl18', 'startup', 'fl18-s-tbc', 'Tie Bar Cutting', 'FF-TC-002-3', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(998, 'fl18', 'startup', 'fl18-s-vi', 'Vacum JIG', 'FF-VI-002-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(992, 'fl18', 'startup', 'fl18-s-wb1', 'Wire Bonding Extreme Machine', 'FF-WB-009-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(993, 'fl18', 'startup', 'fl18-s-wb2', 'Wire Bonding ASM Machine', 'FF-WB-008-3', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(995, 'fl18', 'startup', 'fl18-s-wb3', 'Wire Bonding', 'FF-WB-002-9', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(989, 'fl18', 'startup', 'fl18-s-wb4', 'Wire Bonding Frame Laser 1.3', 'FF-WB-007-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1029, 'sl33', 'foregoing', 'sl33-f-fcs', 'Foregoing Cap Seal', 'NS-CS-017-5', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1036, 'sl33', 'production', 'sl33-p-cs', 'Cap Seal', 'NS-CS-009-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1030, 'sl33', 'production', 'sl33-p-db1a', 'Die Bonding 1 Type GH07P28F4C2', 'NS-D1-013-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1033, 'sl33', 'production', 'sl33-p-db1b', 'Die Bonding 1 Type (GH06510F4A, GH06510F4AK & GH07P28F4C', 'NS-D1-012-4', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1093, 'sl33', 'production', 'sl33-p-dbm', 'Die Bonding 2 Auto Machine', 'NS-D2-008-03', NULL, NULL, '2024-08-08 10:31:18', '2024-08-08 10:31:18', NULL),
+(1094, 'sl33', 'production', 'sl33-p-dbqc', 'Inspection D/B 2 Control', 'NS-D2-003', NULL, NULL, '2024-08-08 10:56:22', '2024-08-08 10:56:22', NULL),
+(1034, 'sl33', 'production', 'sl33-p-ft1', 'Final Test Type (GH06510F4A & GH06510F4AK)', 'NS-FT-001-6', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1035, 'sl33', 'production', 'sl33-p-ft2', 'Final Test Type GH07P28F4C', 'NS-FT-003-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1031, 'sl33', 'production', 'sl33-p-m', 'Marking', 'NS-MK-001-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1090, 'sl33', 'production', 'sl33-p-vi1', 'Visual Inspection ', 'NS-VI-001-01', NULL, NULL, '2024-08-08 10:02:59', '2024-08-08 10:02:59', NULL),
+(1087, 'sl33', 'production', 'sl33-p-vi2', 'Visual Inspection 2 (GH06510F4A)', 'NS-VI-003-00', NULL, NULL, '2024-08-08 09:49:57', '2024-08-08 09:49:57', NULL),
+(1032, 'sl33', 'production', 'sl33-p-wb', 'Wire Bonding', 'NS-WB-012-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1101, 'sl33', 'production', 'sl33-p-wbc', 'Capillary Change Record Sheet', 'EG-LS-008-04', NULL, NULL, '2024-08-09 09:16:18', '2024-08-09 09:16:18', NULL),
+(1085, 'sl33', 'production', 'sl33-p-wbqc', 'Inspection Wire Bonding', 'NS-WB-005-04', NULL, NULL, '2024-08-08 08:54:43', '2024-08-08 08:54:43', NULL),
+(1026, 'sl33', 'startup', 'sl33-s-ag', 'Ag Paste Hardening', 'NS-D2-006-5', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1025, 'sl33', 'startup', 'sl33-s-bi', 'Burn In', 'NS-BI-020-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1022, 'sl33', 'startup', 'sl33-s-cs', 'Cap Seal Machine DAITOH HCP-2000 (High Speed Without Baking)', 'NS-CS-009-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1021, 'sl33', 'startup', 'sl33-s-db1a', 'Die Bonding 1 Machine GH06510F4A* Series', 'NS-D1-011-5', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1023, 'sl33', 'startup', 'sl33-s-db1b', 'Die Bonding 1 Machine GH07P28F4C2', 'NS-D1-014-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1024, 'sl33', 'startup', 'sl33-s-db2a', 'Die Bonding 2 Manual Machine', 'NS-D2-002-7', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1027, 'sl33', 'startup', 'sl33-s-db2b', 'Die Bonding 2 Auto Machine', 'NS-D2-009-11', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1028, 'sl33', 'startup', 'sl33-s-db2c', 'Die Bonding 2 Auto Machine (High Speed)', 'NS-D2-016-5', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1099, 'sl33', 'startup', 'sl33-s-ft', 'Final Test', 'NS-FT-004-01', NULL, NULL, '2024-08-08 13:26:38', '2024-08-08 13:26:38', NULL),
+(1098, 'sl33', 'startup', 'sl33-s-wb', 'Wire Bonding Type HN-942', 'NS-WB-007-00', NULL, NULL, '2024-08-08 12:52:09', '2024-08-08 12:52:09', NULL),
+(1047, 'sl38', 'foregoing', 'sl38-f-fcs', 'Foregoing Cap Seal', 'SM-CS-001-00', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1048, 'sl38', 'foregoing', 'sl38-f-fldsm', 'Foregoing LDSM Machine', 'SM-LM-001-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1052, 'sl38', 'production', 'sl38-p-bi', 'Burn In', 'SM-BI-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1055, 'sl38', 'production', 'sl38-p-cs', 'Cap Seal', 'SM-CS-001-00', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1057, 'sl38', 'production', 'sl38-p-db1', 'Die Bonding 1', 'SM-P1-001-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1061, 'sl38', 'production', 'sl38-p-dbqc', 'Inspection LD D/B Control', 'SM-P1-004-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1056, 'sl38', 'production', 'sl38-p-ft', 'Final Test', 'SM-FT-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1051, 'sl38', 'production', 'sl38-p-het', 'Helium Testing', 'SM-HT-001-00', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1059, 'sl38', 'production', 'sl38-p-ht', 'Hot Test', 'SM-HT-003-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1058, 'sl38', 'production', 'sl38-p-ldsm', 'LDSM Machine', 'SM-LM-001-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1060, 'sl38', 'production', 'sl38-p-ldsmqc', 'Inspection LDSM Control', 'SM-LM-003-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1054, 'sl38', 'production', 'sl38-p-lt', 'Leak Testing', 'SM-LT-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1053, 'sl38', 'production', 'sl38-p-m', 'Marking', 'SM-MK-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1049, 'sl38', 'production', 'sl38-p-mp', 'Metal Paste Hardening', 'SM-P1-005-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1050, 'sl38', 'production', 'sl38-p-wb', 'Wire Bonding', 'SM-WB-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1062, 'sl38', 'production', 'sl38-p-wbqc', 'Inspection Wire Bonding', 'SM-WB-003-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1042, 'sl38', 'startup', 'sl38-s-bi', 'BURN IN (DAITOH MACHINE DSLD-4000H-HV)', 'SM-BI-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1039, 'sl38', 'startup', 'sl38-s-cs', 'Cap Seal (DAITOH MACHINE)', 'SM-CS-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1037, 'sl38', 'startup', 'sl38-s-db1', 'Die Bonding 1', 'SM-P1-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1041, 'sl38', 'startup', 'sl38-s-ft', 'Final Test (ALPHAX LD1360AHP)', 'SM-FT-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1044, 'sl38', 'startup', 'sl38-s-ht', 'Hot Test', 'SM-HT-002-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1043, 'sl38', 'startup', 'sl38-s-ldsm', 'LDSM MACHINE', 'SM-LM-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1045, 'sl38', 'startup', 'sl38-s-lt', 'Leak Test', 'SM-LT-002-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1040, 'sl38', 'startup', 'sl38-s-m', 'Marking', 'SM-MK-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1046, 'sl38', 'startup', 'sl38-s-pht', 'Periodical Hot Test', 'MP-SMHT-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1038, 'sl38', 'startup', 'sl38-s-wb', 'Wire Bonding (KAIJO MACHINE FB-910-LDW)', 'SM-WB-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(965, 'sl56', 'foregoing', 'sl56-f-fcs', 'Foregoing Cap Seal', 'SL-CS-009-4', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(966, 'sl56', 'foregoing', 'sl56-f-fldb1', 'Foregoing LD Die Bonding 1', 'SL-DB-001', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(945, 'sl56', 'foregoing', 'sl56-f-fldb2', 'LD Die Bonding 2 Machine', 'SL-D2-003-14', NULL, NULL, '2024-08-07 13:30:46', '2024-08-14 15:20:12', NULL),
+(967, 'sl56', 'foregoing', 'sl56-f-fldsm', 'Foregoing LDSM', 'SL-LM-001-8', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(974, 'sl56', 'production', 'sl56-p-ag', 'AG Paste Hardening', 'SL-D2-005-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(978, 'sl56', 'production', 'sl56-p-bi', 'Burn In', 'SL-BI-001-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(979, 'sl56', 'production', 'sl56-p-cs', 'Cap Seal', 'SL-CS-009-3', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(969, 'sl56', 'production', 'sl56-p-db1', 'LD Die Bonding 1', 'SL-D1-001-25', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(970, 'sl56', 'production', 'sl56-p-db2', 'LD Die Bonding 2', 'SL-D2-001-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(968, 'sl56', 'production', 'sl56-p-dbm', 'PIN Die Bonding Machine', 'SL-P1-001-12', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(982, 'sl56', 'production', 'sl56-p-ft1', 'Final Test (Blue Laser/ Green Laser/ Violet/ Cyan Laser)', 'SL-FT-007-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(983, 'sl56', 'production', 'sl56-p-ft2', 'Final Test', 'SL-FT-001-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(980, 'sl56', 'production', 'sl56-p-ht', 'Hot Test', 'SL-HT-002-00', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(971, 'sl56', 'production', 'sl56-p-ld2', 'LD 2 Control', 'SL-D2-004-01', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(972, 'sl56', 'production', 'sl56-p-ldsm', 'LDSM Machine', 'SL-LM-001-8', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(973, 'sl56', 'production', 'sl56-p-ldsmqc', 'Inspection LDSM Control', 'SL-LM-003-00', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(981, 'sl56', 'production', 'sl56-p-lt', 'Leak Testing', 'SL-LT-001-01', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(977, 'sl56', 'production', 'sl56-p-m', 'Marking', 'SL-MK-001-01', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1095, 'sl56', 'production', 'sl56-p-pc', 'Packing', 'SL-PK-002-00', NULL, NULL, '2024-08-08 11:07:12', '2024-08-08 11:07:12', NULL),
+(1096, 'sl56', 'production', 'sl56-p-sa', 'STEM SET A & LEAD CORRECTION', 'SL-SA-001-02', NULL, NULL, '2024-08-08 11:07:41', '2024-08-08 11:07:41', NULL),
+(984, 'sl56', 'production', 'sl56-p-vi', 'Visual Inspection', 'SL-VI-001-03', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(975, 'sl56', 'production', 'sl56-p-wb', 'Wire Bonding', 'SL-WB-001-8', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1103, 'sl56', 'production', 'sl56-p-wbc', 'Capillary Change Record Sheet', 'EG-LS-008-04', NULL, NULL, '2024-08-09 09:29:17', '2024-08-09 09:29:17', NULL),
+(976, 'sl56', 'production', 'sl56-p-wbh', 'Wire Bonding High Power', 'SL-WB-008-5', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1097, 'sl56', 'production', 'sl56-p-wbqc', 'Inspection Wire Bonding', 'SL-WB-006-03', NULL, NULL, '2024-08-08 11:08:01', '2024-08-08 11:08:01', NULL),
+(947, 'sl56', 'startup', 'sl56-s-ag', 'AG Paste Hardening', 'SL-D2-006-02', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(952, 'sl56', 'startup', 'sl56-s-bi1', 'Burn In', 'SL-BI-002-06', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(953, 'sl56', 'startup', 'sl56-s-bi2', 'Burn In Daitoh Machine', 'SL-BI-005-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(954, 'sl56', 'startup', 'sl56-s-bi3', 'Set Reset Burn In Normal Mode', 'SL-BI-006-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(955, 'sl56', 'startup', 'sl56-s-bi4', 'Set Reset Burn In Red Mode GHZ002A4', 'SL-BI-007-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(964, 'sl56', 'startup', 'sl56-s-bi5', 'Burn In GHZ002A4 (GH0632BA2GL)', 'SL-BI-008-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(950, 'sl56', 'startup', 'sl56-s-cs1', 'Cap Seal', 'SL-CS-002-6', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(951, 'sl56', 'startup', 'sl56-s-cs2', 'Cap Seal Daitoh Machine', 'SL-CS-010-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1086, 'sl56', 'startup', 'sl56-s-db2', 'LD Die Bonding 2', 'SL-D2-003-3', NULL, NULL, '2024-08-08 09:02:30', '2024-08-08 09:02:30', NULL),
+(943, 'sl56', 'startup', 'sl56-s-dbm', 'Pin Die Bonding 1 Machine ATOM SEIMITSU MACHINE', 'SL-P1-006-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1091, 'sl56', 'startup', 'sl56-s-dbm2', 'Pin Die Bonding 1 Machine ', 'SL-P1-002-02', NULL, NULL, '2024-08-08 10:18:48', '2024-08-08 10:18:48', NULL),
+(958, 'sl56', 'startup', 'sl56-s-ft1', 'Final Test', 'SL-FT-010-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(959, 'sl56', 'startup', 'sl56-s-ft2', 'Final Test LBP Type', 'SL-FT-005-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(960, 'sl56', 'startup', 'sl56-s-ft3', 'Final Test LD1360AHP', 'SL-FT-009-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(961, 'sl56', 'startup', 'sl56-s-ft4', 'Final Test LD1360A', 'SL-FT-010-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1088, 'sl56', 'startup', 'sl56-s-ft5', 'Final Test', 'SL-FT-002-01', NULL, NULL, '2024-08-08 10:00:50', '2024-08-08 10:00:50', NULL),
+(956, 'sl56', 'startup', 'sl56-s-ht1', 'Hot Test', 'SL-HT-003-3', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(957, 'sl56', 'startup', 'sl56-s-ht2', 'Hot Test Red', 'SL-HT-004-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(944, 'sl56', 'startup', 'sl56-s-ldb1', 'LD Die Bonding 1 Machine', 'SL-D1-005-3', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(946, 'sl56', 'startup', 'sl56-s-ldsm', 'LDSM Machine', 'SL-LM-002-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(962, 'sl56', 'startup', 'sl56-s-lt', 'Leak Testing', 'SL-LT-003-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1089, 'sl56', 'startup', 'sl56-s-mk', 'Marking', 'SL-MK-002-02', NULL, NULL, '2024-08-08 10:01:12', '2024-08-08 10:01:12', NULL),
+(1092, 'sl56', 'startup', 'sl56-s-sa', 'Stem Set & Lead Correction', 'SL-SA-002-03', NULL, NULL, '2024-08-08 10:19:05', '2024-08-08 10:58:50', NULL),
+(963, 'sl56', 'startup', 'sl56-s-vi', 'Visual Inspection', 'SL-VI-003-01', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(948, 'sl56', 'startup', 'sl56-s-wb1', 'Wire Bonding', 'SL-WB-002-10', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(949, 'sl56', 'startup', 'sl56-s-wb2', 'Wire Bonding Kaijo Machine', 'SL-WB-007-2', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1071, 'sl90', 'foregoing', 'sl90-f-cs', 'Foregoing Cap seal', 'BG-CS-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1070, 'sl90', 'foregoing', 'sl90-f-fldsm', 'Foregoing LDSM Machine', 'BG-LM-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1079, 'sl90', 'production', 'sl90-p-bi', 'Burn In', 'BG-BI-001-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1074, 'sl90', 'production', 'sl90-p-cs', 'Cap Seal', 'BG-CS-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1076, 'sl90', 'production', 'sl90-p-ft', 'Final Test', 'BG-FT-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1078, 'sl90', 'production', 'sl90-p-hg', 'Helium Gas', 'BG-HG-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1075, 'sl90', 'production', 'sl90-p-ht', 'Hot Test', 'BG-HT-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1072, 'sl90', 'production', 'sl90-p-ldsm', 'LDSM Machine', 'BG-LM-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1082, 'sl90', 'production', 'sl90-p-ldsmqc', 'Inspection LDSM Control', 'BG-LM-003-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1077, 'sl90', 'production', 'sl90-p-lt', 'Leak Testing', 'BG-LT-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1080, 'sl90', 'production', 'sl90-p-vi', 'Visual Inspection', 'BG-VI-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1073, 'sl90', 'production', 'sl90-p-wb', 'Wire Bonding', 'BG-WB-001-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1081, 'sl90', 'production', 'sl90-p-wbqc', 'Inspection Wire Bonding', 'BG-WB-003-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1068, 'sl90', 'startup', 'sl90-s-bi', 'Burn In', 'BG-BI-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1066, 'sl90', 'startup', 'sl90-s-cs', 'Cap Seal (DAITOH MACHINE)', 'BG-CS-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1067, 'sl90', 'startup', 'sl90-s-ft', 'Final Test', 'BG-FT-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1063, 'sl90', 'startup', 'sl90-s-ht', 'Hot Test', 'BG-HT-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1064, 'sl90', 'startup', 'sl90-s-ldsm', 'LDSM Machine', 'BG-LM-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1069, 'sl90', 'startup', 'sl90-s-lt', 'Leak Testing', 'BG-LT-002-1', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL),
+(1065, 'sl90', 'startup', 'sl90-s-wb', 'Wire Bonding (KAIJO MACHINE FB-910 LDW)', 'BG-WB-002-0', NULL, NULL, '2024-08-07 13:30:46', '2024-08-07 13:30:46', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `startup`
+--
+
+CREATE TABLE `startup` (
+  `id` int NOT NULL,
+  `number` int NOT NULL,
+  `device` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `process` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `model` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `lotno` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `machno` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `empid` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `group` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `shift` varchar(30) COLLATE utf8mb4_general_ci NOT NULL,
+  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `par000` int NOT NULL,
+  `par001` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par002` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par003` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par004` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par005` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par006` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par007` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par008` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par009` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par010` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par011` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par012` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par013` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par014` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par015` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par016` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par017` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par018` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par019` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par020` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par021` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par022` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par023` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par024` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par025` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par026` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par027` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par028` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par029` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par030` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par031` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par032` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par033` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par034` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par035` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par036` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par037` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par038` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par039` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par040` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par041` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par042` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par043` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `par044` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `status` varchar(25) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Pending',
+  `role` varchar(10) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `foreman` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `leader` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `supervisor` varchar(25) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `deleted_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` int UNSIGNED NOT NULL,
+  `username` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
+  `email` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
+  `password` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
+  `section` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
+  `state` varchar(15) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
+  `level` int NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `section`, `state`, `level`) VALUES
+(8, '001946', 'Iwan Martanto', 'iwan.martanto@fti-foxconn.com', '001946', 'Engineering Section', 'Approver', 7),
+(9, '002260', 'Dona Alatiful Chobir', 'dona.alatifulchobir@fti-foxconn.com', '002260', 'Engineering Section', 'Originator', 2),
+(10, 'admin', 'Administrator', 'admin@fti-foxconn.com', 'admin', 'Engineering Section', 'Admin', 8);
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `admin`
+--
+ALTER TABLE `admin`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `checksheet`
+--
+ALTER TABLE `checksheet`
+  ADD PRIMARY KEY (`idcsheet`);
+
+--
+-- Indexes for table `device`
+--
+ALTER TABLE `device`
+  ADD PRIMARY KEY (`code`) USING BTREE,
+  ADD UNIQUE KEY `id` (`id`),
+  ADD UNIQUE KEY `code` (`code`);
+
+--
+-- Indexes for table `foregoing`
+--
+ALTER TABLE `foregoing`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `process` (`process`);
+
+--
+-- Indexes for table `log_activity`
+--
+ALTER TABLE `log_activity`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `machine_list`
+--
+ALTER TABLE `machine_list`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `process_code` (`process_code`);
+
+--
+-- Indexes for table `migrations`
+--
+ALTER TABLE `migrations`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `production`
+--
+ALTER TABLE `production`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `process` (`process`);
+
+--
+-- Indexes for table `proses`
+--
+ALTER TABLE `proses`
+  ADD PRIMARY KEY (`process_code`),
+  ADD UNIQUE KEY `id` (`id`),
+  ADD KEY `device` (`device`);
+
+--
+-- Indexes for table `startup`
+--
+ALTER TABLE `startup`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `process` (`process`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `section` (`section`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `admin`
+--
+ALTER TABLE `admin`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `checksheet`
+--
+ALTER TABLE `checksheet`
+  MODIFY `idcsheet` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `device`
+--
+ALTER TABLE `device`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
+
+--
+-- AUTO_INCREMENT for table `foregoing`
+--
+ALTER TABLE `foregoing`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `log_activity`
+--
+ALTER TABLE `log_activity`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `machine_list`
+--
+ALTER TABLE `machine_list`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=65;
+
+--
+-- AUTO_INCREMENT for table `migrations`
+--
+ALTER TABLE `migrations`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `production`
+--
+ALTER TABLE `production`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `proses`
+--
+ALTER TABLE `proses`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1109;
+
+--
+-- AUTO_INCREMENT for table `startup`
+--
+ALTER TABLE `startup`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `users`
+--
+ALTER TABLE `users`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `foregoing`
+--
+ALTER TABLE `foregoing`
+  ADD CONSTRAINT `foregoing_ibfk_1` FOREIGN KEY (`process`) REFERENCES `proses` (`process_code`) ON DELETE SET NULL ON UPDATE SET NULL;
+
+--
+-- Constraints for table `production`
+--
+ALTER TABLE `production`
+  ADD CONSTRAINT `production_ibfk_1` FOREIGN KEY (`process`) REFERENCES `proses` (`process_code`);
+
+--
+-- Constraints for table `proses`
+--
+ALTER TABLE `proses`
+  ADD CONSTRAINT `proses_ibfk_1` FOREIGN KEY (`device`) REFERENCES `device` (`code`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `startup`
+--
+ALTER TABLE `startup`
+  ADD CONSTRAINT `startup_ibfk_1` FOREIGN KEY (`process`) REFERENCES `proses` (`process_code`) ON DELETE CASCADE ON UPDATE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

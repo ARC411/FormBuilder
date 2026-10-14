@@ -34,6 +34,7 @@ class History extends BaseController
 
     public function index(): string
     {
+        error_reporting(0);
         $data = ['title' => 'History | Startup Management'];
         return view('history', $data);
     }
@@ -141,7 +142,14 @@ class History extends BaseController
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
         $revisi = str_pad(!empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0, 2, '0', STR_PAD_LEFT);
-        $machNo = $machno !== '' ? $machno : ((!empty($alldata) && $alldata[0]['machno'] !== '-') ? $alldata[0]['machno'] : '');
+        
+        // --- PERBAIKAN LOGIKA NAMA MESIN DI SINI ---
+        // Jika parameter machno dikirimkan dan bukan string kosong/'null'/'ALL', tampilkan nama mesin tersebut.
+        // Jika kosong, berarti user ingin melihat semua mesin, maka tampilkan "ALL MACHINES".
+        $machNo = ($machno !== '' && $machno !== 'null' && $machno !== 'ALL') ? strtoupper($machno) : 'ALL MACHINES';
+        
+        // Definisikan juga variabel $nama_mesin agar pasti nyambung dengan kop_surat.php
+        $nama_mesin = $machNo;
 
         $tglBerlaku = '-';
         if ($latestDate > 0) {
@@ -153,7 +161,8 @@ class History extends BaseController
             $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
         }
 
-        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
+        // --- Variabel $nama_mesin ditambahkan ke return compact ---
+        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
     }
 
     // =========================================================================
@@ -175,18 +184,28 @@ class History extends BaseController
         $lotno = $this->request->getGet('lotno') ?? '';
         $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
 
-        $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
+        try {
+            $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
 
-        $_SERVER['REQUEST_URI'] = 'exportExcel';
-        $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
-        try { 
-            $htmlString = view($viewPath, ['alldata' => $context['alldata']]); 
-        } catch (\Exception $e) { 
-            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
+            $_SERVER['REQUEST_URI'] = 'exportExcel';
+            $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+            $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
+
+            // Bersihkan output yang mungkin sudah tercetak sebelum header file dikirim
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            $excelGen = new ExcelGenerator();
+            $excelGen->generate($htmlString, $context);
+        } catch (\Throwable $e) {
+            log_message('error', 'exportExcel gagal: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            die("<h2>EXPORT EXCEL GAGAL</h2><p><b>Pesan:</b> " . esc($e->getMessage())
+                . "</p><p><b>Lokasi:</b> " . esc($e->getFile()) . " (Baris: " . $e->getLine() . ")</p>");
         }
-
-        $excelGen = new ExcelGenerator();
-        $excelGen->generate($htmlString, $context);
     }
 
     public function exportPDF()
