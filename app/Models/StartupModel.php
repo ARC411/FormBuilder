@@ -16,7 +16,9 @@ class StartupModel extends Model
         'par021','par022','par023','par024','par025','par026','par027','par028',
         'par029','par030','par031','par032','par033','par034','par035','par036',
         'par037','par038','par039','par040','par041','par042','par043','par044',
-        'status','role','foreman','leader','supervisor','name', 'docno', 'revisi'
+        'status','role','foreman','leader','supervisor','name', 'docno', 'revisi',
+        'par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 
+        'par021_unit'
     ];
 
     public function getCsheet($slug = false)

@@ -41,6 +41,7 @@ $routes->post('/startup', 'Startup::createStartup');
 $routes->get('/startup/edit/form','Startup::formEdit');
 $routes->get('/startup/edit/(:num)','Startup::edit/$1');
 $routes->get('/startup/history/(:num)', 'Startup::startupByNumber/$1');
+$routes->get('/startup/startupByNumber/(:num)', 'Startup::startupByNumber/$1');
 $routes->delete('/startup/(:num)','Startup::deleteStartup/$1');
 $routes->post('/startup/update', 'Startup::updateStartup'); // Jika pakai route biasa
 $routes->post('/startup/update/(:num)', 'Startup::updateStartup/$1'); // Jika pakai ID di URL
@@ -145,8 +146,7 @@ $routes->post('/cleansing/execute', 'Cleansing::execute');
 $routes->get('form-builder', 'FormBuilder::index');
 $routes->get('form-builder/get-processes', 'FormBuilder::getProcesses');
 $routes->post('form-builder/load', 'FormBuilder::loadForm');
-$routes->post('form-builder/save', 'FormBuilder::saveParam');
-$routes->post('form-builder/delete', 'FormBuilder::deleteParam');
+$routes->post('form-builder/save', 'FormBuilder::saveParameter');
+$routes->post('form-builder/delete', 'FormBuilder::deleteParameter');
 $routes->post('form-builder/up-revisi', 'FormBuilder::upRevisi');
-$routes->get('form-builder/sedotHtml', 'FormBuilder::sedotHtml');
-$routes->get('/run-migration', 'FormBuilder::eksekusiMigrasi');
+$routes->match(['GET', 'POST'], 'form-builder/render-input', 'FormBuilder::renderOperatorForm');

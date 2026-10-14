@@ -167,19 +167,13 @@ class Input extends BaseController
             'revisi'  => $postData['revisi-txt'] ?? ''
         ];
 
-        // 3. Looping Otomatis untuk Parameter (par001 sampai par031)
-        // Menyesuaikan dengan struktur tabel checksheet Abang saat ini
-        for ($i = 1; $i <= 31; $i++) {
-            // Format angka jadi 3 digit: 1 jadi 001, 15 jadi 015
+        // 3. Looping Otomatis untuk Parameter (par001 sampai par050)
+        for ($i = 1; $i <= 50; $i++) {
             $parNum = str_pad($i, 3, '0', STR_PAD_LEFT); 
             $parName = 'par' . $parNum;
 
-            // Jika di file HTML ada input dengan name="par001", ambil nilainya
-            // Jika tidak ada (misal di form itu cuma butuh par013), isi dengan string kosong
             if (isset($postData[$parName])) {
                 $dataToSave[$parName] = $postData[$parName];
-            } else {
-                $dataToSave[$parName] = ''; 
             }
         }
 

@@ -3,6 +3,23 @@
   <?= csrf_field(); ?>
   <input type="hidden" name="cnt-proses" value="1">
 <input type="hidden" id="number-edit" name="number-edit" value=<?php if(isset($alldata)){echo $number;} ?>>
+<?php $currentStd = isset($alldata) ? ($alldata[0]['std_die_bond'] ?? '') : ''; ?>
+
+  <!-- Pilihan Jenis SM-Chip -->
+  <div class="mb-3 row align-items-center">
+    <label for="sm_chip_type" class="col-sm-2 col-form-label fw-bold">Jenis SM-Chip</label>
+    <div class="col-sm-4">
+      <select class="form-control" id="sm_chip_type" name="sm_chip_type" onchange="updateDieBondStd()" required>
+          <option value="" disabled <?= empty($currentStd) ? 'selected' : '' ?>>-- Pilih Jenis SM-Chip --</option>
+          <option value="350" <?= ($currentStd == '2.8' || $currentStd == '350') ? 'selected' : '' ?>>350 μm</option>
+          <option value="450" <?= ($currentStd == '3.6' || $currentStd == '450') ? 'selected' : '' ?>>450 μm</option>
+          <option value="850" <?= ($currentStd == '8.7' || $currentStd == '850') ? 'selected' : '' ?>>850 μm</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Input hidden untuk dikirim ke database -->
+  <input type="hidden" id="std_die_bond" name="std_die_bond" value="<?= $currentStd ?>">
   <table class="table table-striped-columns">
     <thead align="center">
       <tr>
@@ -268,7 +285,9 @@
         <th class="input-form" colspan="2" scope="col">(2pcs/Lot)</th>
       </tr>
       <tr>
-        <th class="input-form" colspan="2" scope="col">> 5N</th>
+        <th class="input-form" colspan="2" scope="col">
+            Min: <span id="label_die_bond_std">-</span> N
+        </th>
         <th class="input-form" colspan="2" scope="col">OK:✓ <br> NG:X</th>
         <th class="input-form" colspan="2" scope="col">OK:✓ <br> NG:X</th>
         <th class="input-form" colspan="2" scope="col">OK:✓ <br> NG:X</th>
@@ -287,10 +306,10 @@
     <tbody>
       <tr>
         <td rowspan="2">
-          <input type="number"  oninput="" step="0.00000001" class="form-control" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+          <input type="number" step="0.01" class="form-control" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
         </td>
         <td rowspan="2">
-          <input type="number"  oninput="" step="0.00000001" class="form-control" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
+          <input type="number" step="0.01" class="form-control" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
         </td>
         <td rowspan="2">
           <select class="form-select" id="par041" name="par041" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par041'];} ?>>
@@ -509,3 +528,70 @@
     </tbody>
   </table>
 </div>
+
+<script>
+function updateDieBondStd() {
+    var smChip = document.getElementById("sm_chip_type");
+    if (!smChip) return;
+    var chipType = smChip.value;
+    var stdInput = document.getElementById("std_die_bond");
+    var stdLabel = document.getElementById("label_die_bond_std");
+    var input1st = document.getElementById("par017");
+    var input2nd = document.getElementById("par018");
+    
+    var minVal = 0;
+    
+    // Tentukan standar berdasarkan jenis SM-chip
+    if (chipType === "350") {
+        minVal = 2.8;
+    } else if (chipType === "450") {
+        minVal = 3.6;
+    } else if (chipType === "850") {
+        minVal = 8.7;
+    }
+    
+    // Simpan nilai untuk dikirim ke database
+    if (stdInput) {
+        stdInput.value = minVal > 0 ? minVal : "";
+    }
+
+    // Update tampilan standar di tabel
+    if (stdLabel) {
+        stdLabel.innerHTML = minVal > 0 ? minVal : "-";
+    }
+    
+    // Pasang fungsi validasi pada input
+    if (input1st) {
+        input1st.setAttribute("min", minVal);
+    }
+    if (input2nd) {
+        input2nd.setAttribute("min", minVal);
+    }
+}
+
+// Jalankan saat pertama kali dimuat jika sudah ada nilai (misal mode edit)
+if (document.getElementById("sm_chip_type") && document.getElementById("sm_chip_type").value !== "") {
+    updateDieBondStd();
+}
+
+// Tambahkan validasi saat operator mengetik/mengubah angka
+if (document.getElementById("par017")) {
+    document.getElementById("par017").addEventListener("change", function() {
+        let minReq = parseFloat(this.getAttribute("min"));
+        if (this.value !== "" && !isNaN(minReq) && minReq > 0 && parseFloat(this.value) < minReq) {
+            alert("NG! Nilai di bawah standar minimum (" + minReq + " N) untuk SM-chip tersebut.");
+            this.value = ""; // Reset form jika NG
+        }
+    });
+}
+
+if (document.getElementById("par018")) {
+    document.getElementById("par018").addEventListener("change", function() {
+        let minReq = parseFloat(this.getAttribute("min"));
+        if (this.value !== "" && !isNaN(minReq) && minReq > 0 && parseFloat(this.value) < minReq) {
+            alert("NG! Nilai di bawah standar minimum (" + minReq + " N) untuk SM-chip tersebut.");
+            this.value = ""; // Reset form jika NG
+        }
+    });
+}
+</script>

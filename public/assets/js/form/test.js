@@ -229,3 +229,39 @@ function changeDisableSubmit(type){
     let submit_button = document.getElementById("submit")
     submit_button.disabled=type
 }
+
+// FL 1.8 Die Bonding 2 - Die Bond Strength Standard
+function updateDieBondStd() {
+    var smChip = document.getElementById("sm_chip_type");
+    if (!smChip) return;
+    var chipType = smChip.value;
+    var stdInput = document.getElementById("std_die_bond");
+    var stdLabel = document.getElementById("label_die_bond_std");
+    var input1st = document.getElementById("par017");
+    var input2nd = document.getElementById("par018");
+    
+    var minVal = 0;
+    
+    if (chipType === "350") {
+        minVal = 2.8;
+    } else if (chipType === "450") {
+        minVal = 3.6;
+    } else if (chipType === "850") {
+        minVal = 8.7;
+    }
+    
+    if (stdInput) {
+        stdInput.value = minVal > 0 ? minVal : "";
+    }
+    
+    if (stdLabel) {
+        stdLabel.innerHTML = minVal > 0 ? minVal : "-";
+    }
+    
+    if (input1st) {
+        input1st.setAttribute("min", minVal);
+    }
+    if (input2nd) {
+        input2nd.setAttribute("min", minVal);
+    }
+}

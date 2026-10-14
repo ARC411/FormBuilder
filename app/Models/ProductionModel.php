@@ -10,7 +10,7 @@ class ProductionModel extends Model
     protected $useTimestamps = true;
     protected $allowedFields = [
         'id', 'number', 'device', 'process', 'model', 'lotno', 'machno',
-        'empid', 'group', 'shift', 'name', 'empid2', 'group2', 'shift2', 'name2',
+        'empid', 'group', 'shift', 'name', 'empid2', 'group2', 'shift2', 'name2', 'std_die_bond',
         'par001', 'par002', 'par003', 'par004', 'par005', 'par006', 'par007',
         'par008', 'par009', 'par010', 'par011', 'par012', 'par013', 'par014',
         'par015', 'par016', 'par017', 'par018', 'par019', 'par020', 'par021',
@@ -164,8 +164,6 @@ class ProductionModel extends Model
         ->getRowArray();
 
     if ($prosesMaster) {
-        $data['par041'] = $prosesMaster['revisi'];
-        $data['par042'] = $prosesMaster['berlaku'];
 
         // --- TAMBAHAN BARU: Stempel Otomatis ---
         $data['docno']  = $prosesMaster['docno'];

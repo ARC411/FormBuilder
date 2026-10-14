@@ -2,15 +2,15 @@
 
 <?= $this->section('content'); ?>
 <main>
-<link rel="stylesheet" href="assets/css/jquery-ui.css">
-<link rel="stylesheet" href="assets/css/global.css">
+<link rel="stylesheet" href="<?= base_url('assets/css/jquery-ui.css') ?>">
+<link rel="stylesheet" href="<?= base_url('assets/css/global.css') ?>">
 <!-- CSS Select2 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <!-- jQuery hanya dimuat SATU kali -->
-<script src="assets/js/jquery-3.7.1.min.js"></script>
-<script src="assets/js/jquery-ui.js"></script>
-<script src="assets/js/form/test.js"></script>
+<script src="<?= base_url('assets/js/jquery-3.7.1.min.js') ?>"></script>
+<script src="<?= base_url('assets/js/jquery-ui.js') ?>"></script>
+<script src="<?= base_url('assets/js/form/test.js') ?>"></script>
 <!-- JS Select2 -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
@@ -28,7 +28,7 @@
         <div class="card-header py-3">
           <h3 class="m-0 font-weight-bold">Input Checksheet</h3>
         </div>
-        <input type="hidden" name="cnt-error-input" id="cnt-error-input" value=0>
+        <input type="hidden" name="cnt-error-input" id="cnt-error-input" value="0">
 
         <div class="card-body">
           <div class="row">
@@ -78,7 +78,7 @@
 
               <!-- DocType -->
               <div class="mb-3 row">
-                <label for="process-txt" class="col-sm-2 col-form-label">Doc. Type</label>
+                <label for="type-process-txt" class="col-sm-2 col-form-label">Doc. Type</label>
                 <div class="col-sm-6">
                   <select class="form-control" id="type-process-txt" name="type-process-txt" onchange="updateDevice()" required>
                     <option class="dropdown-item" value="-">choose type document</option>
@@ -108,9 +108,9 @@
 
               <!-- Doc No -->
               <div class="mb-3 row">
-                <label for="machno" class="col-sm-2 col-form-label">Doc. No</label>
+                <label for="docno" class="col-sm-2 col-form-label">Doc. No</label>
                 <div class="col-sm-6">
-                  <input type="text" class="form-control-plaintext" id="docno" value="-" readonly>
+                  <input type="text" class="form-control-plaintext" id="docno" name="docno" value="-" readonly>
                 </div>
               </div>
 
@@ -170,15 +170,16 @@
                 <div class="col-sm-6">
                   <div class="input-group mb-1" id="empid-div1">
                     <span class="input-group-text" id="basic-addon1">Emp. ID :</span>
-                    <input type="number" class="form-control" id="empid-txt" value="<?= $session->get('empid') ?>" name="empid-txt" readonly required>
+                    <!-- Diubah dari type="number" ke type="text" agar value "admin" tidak error -->
+                    <input type="text" class="form-control" id="empid-txt" value="<?= esc($session->get('empid')) ?>" name="empid-txt" readonly required>
                   </div>
                   <div class="input-group mb-1">
                     <span class="input-group-text" id="basic-addon3">Name--:</span>
-                    <input type="text" class="form-control" id="name-txt" name="name-txt" value="<?= $session->get('name') ?>" readonly>
+                    <input type="text" class="form-control" id="name-txt" name="name-txt" value="<?= esc($session->get('name')) ?>" readonly>
                   </div>
                   <div class="input-group mb-1">
                     <span class="input-group-text" id="basic-addon-pos">Position:</span>
-                    <input type="text" class="form-control" id="position-txt" name="position-txt" value="<?= $session->get('positionid') ?>" readonly>
+                    <input type="text" class="form-control" id="position-txt" name="position-txt" value="<?= esc($session->get('positionid')) ?>" readonly>
                   </div>
                   <div class="input-group mb-1">
                     <span class="input-group-text" id="basic-addon2">Shift----:</span>
@@ -206,16 +207,16 @@
               echo '<p id=msgsuccess class="invisible">Kosong</p>';
             }
           ?>
-          <div id="form-input" class="">
+          <div id="form-input" class="mt-3">
 
           </div>
-          <div class="d-flex justify-content-center">
+          <div class="d-flex justify-content-center mt-3">
             <button type="submit" class="btn btn-lg btn-primary btn-block mx-auto" id="submit" onclick="return checkSubmit();">Submit</button>
           </div>
 
         </div>
       </div>
-</div>
+    </div>
   </form>
 
 </main>
@@ -235,7 +236,8 @@ $(document).ready(function()
         alert($('#msgsuccess').html());
     }
 
-    $('#type-process-txt, #process-txt').change(function()
+    // Hanya pantau perubahan dropdown #process-txt (karena #type-process-txt sudah di-handle oleh updateDevice)
+    $('#process-txt').change(function()
     {
         updateInput();
         updateDocNo();
@@ -246,7 +248,7 @@ $(document).ready(function()
         document.getElementById("form-action").action = "/checkseet/" + document.getElementById("type-process-txt").value;
     });
 
-    // Auto-fill shift & group saat halaman dimuat (tetap bisa diedit)
+    // Auto-fill shift & group saat halaman dimuat
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl');
 });
 
@@ -262,7 +264,6 @@ function checkSubmit() {
 }
 
 // FUNGSI AUTO-FILL SHIFT & GROUP
-// Hanya mengisi field yang masih kosong, sehingga input manual user tidak tertimpa
 function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
     var empid = $.trim($(empIdTag).val());
     if (!empid) return;
@@ -276,7 +277,7 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
                 if (!$(groupTag).val()) $(groupTag).val(d.groupid);
                 warn.removeClass('visible').addClass('invisible');
             } else {
-                if (d.found) { // terisi sebagian
+                if (d.found) {
                     if (d.acc && !$(shiftTag).val()) $(shiftTag).val(d.acc);
                     if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
                 }
@@ -296,11 +297,15 @@ function updateDevice() {
 
     if(device === '-' || docType === '-') {
         $('#process-txt').empty().append('<option value="-">choose process</option>');
+        $('#form-input').empty();
+        $('#submit').hide();
+        $('#revisi-txt').val('');
+        $('#docno').val('-');
         return;
     }
 
     $.ajax({
-        url: "<?php echo base_url();?>process/list?device="+device+"&type="+docType,
+        url: "<?= base_url('process/list') ?>?device=" + device + "&type=" + docType,
         dataType: 'JSON',
         success: function(data) {
             populateProcess(data);
@@ -326,8 +331,8 @@ function populateProcess(data) {
     } else {
         processDropdown.append(new Option("-- Data Kosong --", "-"));
     }
-    updateInput();
     updateDocNo();
+    updateInput();
     updateMachine();
 }
 
@@ -344,7 +349,7 @@ function updateMachine() {
     }
 
     $.ajax({
-        url: "<?php echo base_url();?>machine/list?process=" + processCode,
+        url: "<?= base_url('machine/list') ?>?process=" + processCode,
         dataType: 'JSON',
         success: function(data) {
             populateMachine(data, machineSelect);
@@ -374,36 +379,36 @@ function populateMachine(data, machineSelect) {
     machineSelect.trigger('change');
 }
 
-// FUNGSI LOGIKA REVISI & FORM INPUT
+// FUNGSI LOGIKA REVISI & FORM INPUT DINAMIS (TERHUBUNG KE FORM BUILDER)
 function updateInput() {
     let typeProcess, device, process;
     process = document.getElementById("process-txt").value;
 
     if(!process || process === 'null' || process === '-'){
-        var form_input = document.getElementById('form-input');
         $('#submit').hide();
-        form_input.innerHTML = "";
-        document.getElementById('revisi-txt').value = ""; // Kosongkan revisi
+        $('#form-input').empty();
+        document.getElementById('revisi-txt').value = "";
         return;
     }
 
     device = process.split("-")[0];
     let revField = document.getElementById('revisi-txt');
+    let selectedDocType = $('#type-process-txt').val();
 
-    if(process.split("-")[1] == 'p'){
+    if(selectedDocType === 'production' || process.split("-")[1] == 'p'){
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
-        typeProcess="production";
+        typeProcess = "production";
     }
-    else if(process.split("-")[1] == 'f'){
+    else if(selectedDocType === 'foregoing' || process.split("-")[1] == 'f'){
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
-        typeProcess="foregoing";
+        typeProcess = "foregoing";
     }
     else{
         document.getElementById('model-txt').disabled = true;
         document.getElementById('lotno-txt').disabled = true;
-        typeProcess="startup";
+        typeProcess = "startup";
     }
 
     document.getElementById("form-action").action = "/checkseet/" + typeProcess;
@@ -413,50 +418,40 @@ function updateInput() {
     submit_button.disabled = false;
     cnt_error.value = 0;
 
-    // --- TARIK NILAI REVISI DINAMIS DARI DATABASE ---
-    // Karena kita sudah punya fungsi getAll() di ProcessModel, kita bisa memanfaatkannya
-    // Atau bisa menggunakan endpoint API yang sudah Abang siapkan untuk Process
-    $.ajax({
-        url: "<?php echo base_url();?>process/detail?process_code=" + process, 
-        // Catatan: Pastikan endpoint 'process/detail' ada di controller Process Abang
-        // Jika tidak ada, kita bisa gunakan trik sederhana dengan mengambil nilai dari dropdown text
-        dataType: 'JSON',
-        success: function(res) {
-            if(res && res.revisi) {
-                if (revField) revField.value = res.revisi;
-            } else {
-                if (revField) revField.value = "-"; // Default jika kosong
-            }
-        },
-        error: function() {
-            // JURUS ALTERNATIF: Ambil revisi dari ujung string DocNo di dropdown!
-            // Mengingat Abang tadi bilang "angka revisi itu ditunjukan sama angka setelah tanda '-' terakhir di kolom docno"
-            var processValue = document.getElementById("process-txt");
-            if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-                var text = processValue.options[processValue.selectedIndex].text; // Cth: FF-D1-004-18 (Nama Proses)
-                var docno = text.split(" ")[0]; // Mengambil FF-D1-004-18
-                var parts = docno.split("-");
-                if (parts.length > 1) {
-                    var lastPart = parts[parts.length - 1]; // Mengambil 18
-                    if (revField) revField.value = lastPart;
-                } else {
-                    if (revField) revField.value = "-";
-                }
-            }
-        }
-    });
-    // ------------------------------------------------
-
     updateSetting(process);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", "<?php echo base_url();?>"+typeProcess+"/form?device="+device+"&process="+process, true);
-    xhr.onload = (e) => {
-        if (xhr.readyState === 4) {
-            var form_input = document.getElementById('form-input');
-            if (xhr.status === 200 && xhr.responseText.trim() !== "") {
+    // PANGGIL MESIN TABEL DINAMIS DARI FORM BUILDER (1 Panggilan JSON Cepat)
+    $('#form-input').html('<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin"></i> Memuat form...</div>');
+
+    $.ajax({
+        url: "<?= base_url('form-builder/render-input') ?>",
+        type: "POST",
+        data: {
+            process: process,
+            doc_type: typeProcess
+        },
+        dataType: "json",
+        success: function(res) {
+            if (res && res.status === 'success' && res.html) {
+                // 1. Isi nomor Revisi terbaru dari tabel form_revisions
+                if (revField) {
+                    revField.value = res.revisi;
+                }
+
+                // 2. Sinkronkan ujung angka Doc. No dengan Revisi terbaru (opsional jika formatnya SL-D2-001-2)
+                var docNoEl = document.getElementById("docno");
+                if (docNoEl && docNoEl.value && docNoEl.value !== '-') {
+                    var dParts = docNoEl.value.split('-');
+                    if (dParts.length >= 4) {
+                        dParts[dParts.length - 1] = res.revisi;
+                        docNoEl.value = dParts.join('-');
+                    }
+                }
+
+                // 3. Tampilkan Tabel Dinamis & Tombol Submit
+                $('#form-input').html(res.html);
                 $('#submit').show();
-                form_input.innerHTML = xhr.responseText;
+
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
                 if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
@@ -464,29 +459,36 @@ function updateInput() {
                 }
             } else {
                 $('#submit').hide();
-                form_input.innerHTML = "";
+                $('#form-input').html('<div class="alert alert-warning text-center">Form tidak ditemukan.</div>');
             }
+        },
+        error: function(xhr) {
+            console.error("Gagal memuat form dinamis:", xhr.responseText);
+            $('#submit').hide();
+            $('#form-input').html('<div class="alert alert-danger text-center">Gagal memuat form. Pastikan rute form-builder/render-input sudah terdaftar.</div>');
         }
-    };
-    xhr.send(null);
+    });
 }
 
 function updateSetting(processCode) {
-  if(!processCode || processCode === 'null' || processCode === '-'){
-      document.getElementById('catatan-modal-body').innerHTML = "Pilih proses terlebih dahulu.";
-      return;
-  }
-  const xhr = new XMLHttpRequest();
-  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+processCode, true);
-  xhr.onload = (e) => {
-      var modal_body = document.getElementById('catatan-modal-body');
-      if (xhr.readyState === 4 && xhr.status === 200) {
-          modal_body.innerHTML = xhr.responseText;
-      } else {
-          modal_body.innerHTML = "Catatan tidak ditemukan untuk proses ini.";
-      }
-  };
-  xhr.send(null);
+    if(!processCode || processCode === 'null' || processCode === '-'){
+        document.getElementById('catatan-modal-body').innerHTML = "Pilih proses terlebih dahulu.";
+        return;
+    }
+    $.ajax({
+        url: "<?= base_url('input/note-form') ?>/" + processCode,
+        type: "GET",
+        dataType: "html",
+        success: function(res) {
+            // Bersihkan script debugbar CI4 jika ada agar tidak memicu stack overflow newXHR
+            var cleanHtml = res.replace(/<script\b[^>]*src=[^>]*debugbar[^>]*><\/script>/gi, '')
+                               .replace(/<script\b[^>]*id="debugbar_loader"[\s\S]*?<\/script>/gi, '');
+            document.getElementById('catatan-modal-body').innerHTML = cleanHtml;
+        },
+        error: function() {
+            document.getElementById('catatan-modal-body').innerHTML = "Catatan tidak ditemukan untuk proses ini.";
+        }
+    });
 }
 
 function updateDocNo() {
@@ -494,7 +496,7 @@ function updateDocNo() {
     var processValue = document.getElementById("process-txt");
     if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
         var text = processValue.options[processValue.selectedIndex].text;
-        docNo.value=text.split(" ")[0];
+        docNo.value = text.split(" ")[0];
     }
 }
 </script>
