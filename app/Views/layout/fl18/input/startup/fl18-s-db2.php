@@ -1,5 +1,21 @@
 <div class="table-responsive" id="fldb1a">
 <?= csrf_field(); ?>
+<?php 
+if (!function_exists('getValUnit')) {
+    function getValUnit($alldata, $param) {
+        $result = ['val' => '', 'unit' => ''];
+        if (isset($alldata) && isset($alldata[0][$param]) && $alldata[0][$param] !== '') {
+            $parts = explode(' ', trim($alldata[0][$param]));
+            $result['val'] = $parts[0];
+            if (count($parts) > 1) {
+                unset($parts[0]);
+                $result['unit'] = implode(' ', $parts);
+            }
+        }
+        return $result;
+    }
+}
+?>
 <input type="hidden" id="number-edit" name="number-edit" value=<?php if(isset($alldata)){echo $number;} ?>>
     <table class="table table-striped-columns">
     <thead align="center">
@@ -22,7 +38,7 @@
             <td colspan="2">@ Air Pressure 1</td>
             <td >0.05 ~ 0.15 MPa</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par001',0.05,0.15)" id="par001" name="par001" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par001'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par001',0.05,0.15)" id="par001" name="par001" placeholder="" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par001'].'"';} ?>>
             </td>
         </tr>
 
@@ -31,7 +47,7 @@
             <td colspan="2">@ Air Pressure 2</td>
             <td >0.35 ~ 0.50 MPa</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par002',0.35,0.5)"  id="par002" name="par002" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par002'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par002',0.35,0.5)"  id="par002" name="par002" placeholder="" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par002'].'"';} ?>>
             </td>
         </tr>
 
@@ -40,7 +56,7 @@
             <td colspan="2">Middle Push Up</td>
             <td >-80 kPa atau kurang</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par003',-99999999,-80)"  id="par003" name="par003" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par003'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par003',-99999999,-80)"  id="par003" name="par003" placeholder="" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par003'].'"';} ?>>
           </td>
         </tr>
 
@@ -49,7 +65,7 @@
             <td colspan="2">@ Needle Push Up</td>
             <td >0.30 ~ 0.60 mm</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par004',0.3,0.6)"  id="par004" name="par004" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par004'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par004',0.3,0.6)"  id="par004" name="par004" placeholder="" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par004'].'"';} ?>>
             </td>
         </tr>
 
@@ -89,12 +105,23 @@
             </td>
         </tr>
 
+        <!-- ITEM 7: COLLET LOAD DENGAN PILIHAN SATUAN (N / gr) -->
         <tr>
             <td >7</td>
             <td colspan="2">@ Colled Load</td>
             <td >0.60 ~ 1.00N (60 ~ 100 gr)</td>
+            <?php $p008 = getValUnit(isset($alldata) ? $alldata : null, 'par008'); ?>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par008',0.6,1)"  id="par008" name="par008" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par008'];} ?>>
+                <div class="input-group">
+                    <input type="hidden" id="par008" name="par008" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par008'] ?? '') : '' ?>">
+                    <input class="form-control" type="number" step="0.000000001" id="par008_val" value="<?= htmlspecialchars($p008['val']) ?>" 
+                           oninput="combineData('par008')" 
+                           onchange="combineData('par008'); validateDynamicUnit('par008')" placeholder="">
+                           <select class="form-control" id="par008_unit" onchange="combineData('par008'); validateDynamicUnit('par008')" style="max-width: 80px; padding: 0.375rem;">
+                                <option value="N" data-min="0.60" data-max="1.00" <?= $p008['unit'] == 'N' ? 'selected' : '' ?>>N</option>
+                                <option value="gr" data-min="60" data-max="100" <?= $p008['unit'] == 'gr' ? 'selected' : '' ?>>gr</option>
+                            </select>
+                </div>
             </td>
         </tr>
 
@@ -116,7 +143,7 @@
             <td >Air Pressure</td>
             <td >0.01 ~ 0.2 Mpa</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par010',0.01,0.2)" id="par010" name="par010" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par010'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par010',0.01,0.2)" id="par010" name="par010" placeholder="" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par010'].'"';} ?>>
             </td>
         </tr>
 
@@ -124,7 +151,7 @@
             <td >Dispense Time</td>
             <td >10 ~ 100 ms</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par011',10,100)" id="par011" name="par011" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par011'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par011',10,100)" id="par011" name="par011" placeholder="" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par011'].'"';} ?>>
             </td>
         </tr>
        
@@ -132,7 +159,7 @@
             <td >Vacuum pressure</td>
             <td >-0.30 ~ -0.10 kPa</td>
             <td >
-              <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par012',-0.30,-0.10)" id="par012" name="par012" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par012'];} ?>>
+              <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par012',-0.30,-0.10)" id="par012" name="par012" placeholder="" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par012'].'"';} ?>>
             </td>
         </tr>
 
@@ -270,7 +297,7 @@
         <tr>
             <td colspan="4">Note</td>
             <td >
-              <input class="form-control" type="text" id="par023" name="par023" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par023'];} ?>>
+              <input class="form-control" type="text" id="par023" name="par023" placeholder="" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par023'] ?? '').'"';} ?>>
             </td>
         </tr>
     </tbody>   

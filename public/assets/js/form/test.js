@@ -276,42 +276,17 @@ function validateDynamicUnit(id) {
         return;
     }
 
-    let unit = unitElem.value;
-    let min, max;
+    // Ambil opsi satuan yang sedang dipilih user
+    let selectedOption = unitElem.options[unitElem.selectedIndex];
+    
+    // Tarik nilai min dan max dari atribut HTML
+    let min = selectedOption.getAttribute('data-min');
+    let max = selectedOption.getAttribute('data-max');
 
-    // Limit untuk Collet Load A & B
-    if (id === 'par015' || id === 'par016') {
-        if (unit === 'N') { min = 0.60; max = (id === 'par015' ? 1.00 : 1.40); }
-        else if (unit === 'gr') { min = 60; max = (id === 'par015' ? 100 : 140); }
-    } 
-    // Limit untuk Air Pressure Analog & Digital
-    else if (id === 'par018') {
-        if (unit === 'MPa') { min = 0.01; max = 0.10; }
-        else if (unit === 'kPa') { min = 10; max = 100; }
-        else if (unit === 'kgf/cm^2') { min = 0.10; max = 1; }
-    } 
-    else if (id === 'par019') {
-        if (unit === 'MPa') { min = 0.005; max = 0.10; }
-        else if (unit === 'kPa') { min = 5; max = 100; }
-        else if (unit === 'kgf/cm^2') { min = 0.05; max = 1; }
+    // Jika data-min dan data-max tersedia, panggil changeRange
+    if (min !== null && max !== null) {
+        changeRange(id + '_val', min, max);
     }
-    // Limit untuk Dispense Time Analog & Digital
-    else if (id === 'par020') {
-        if (unit === 'sec') { min = 0.01; max = 0.15; }
-        else if (unit === 'ms') { min = 10; max = 150; }
-    } 
-    else if (id === 'par021') {
-        if (unit === 'sec') { min = 0.005; max = 0.15; }
-        else if (unit === 'ms') { min = 5; max = 150; }
-    }
-    // Limit untuk Suction Pressure Force Digital
-    else if (id === 'par023') {
-        if (unit === 'kPa') { min = -0.3; max = -0.1; }
-        else if (unit === 'kgf/cm^2') { min = -0.03; max = -0.01; }
-        else if (unit === 'mmHg') { min = -3; max = -1; }
-    }
-
-    changeRange(id + '_val', min, max);
 }
 
 function setFieldDisabledState(id, isDisabled) {
