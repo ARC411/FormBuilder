@@ -2,12 +2,6 @@
 <?= csrf_field(); ?>
 
 <?php 
-// =========================================================================================
-// FUNGSI BANTUAN PHP (DIJALANKAN SAAT LOAD HALAMAN)
-// Fungsi ini bertugas memecah teks dari database (misal: "0.05 MPa") menjadi 2 bagian: 
-// 1. Angka ("0.05") untuk ditaruh di input angka.
-// 2. Teks ("MPa") untuk memilih dropdown secara otomatis.
-// =========================================================================================
 function getValUnit($alldata, $param) {
     $result = ['val' => '', 'unit' => ''];
     if (isset($alldata) && isset($alldata[0][$param]) && $alldata[0][$param] !== '') {
@@ -45,9 +39,9 @@ function getValUnit($alldata, $param) {
           <td rowspan="1">A: 340-490 MPa</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par001',340,490);" 
-            oninput="let b=document.getElementById('par002'); if(this.value && b.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; b.style.background='#ffcccc'; } else { this.setCustomValidity(''); b.setCustomValidity(''); this.style.background=''; b.style.background=''; }" 
-            placeholder="" id="par001" name="par001" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par001'];} ?>>
+            oninput="togglePairLock('par001','par002')" 
+            onchange="togglePairLock('par001','par002'); changeRange('par001',340,490)" 
+            placeholder="" id="par001" name="par001" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par001'].'"';} ?>>
           </td>
         </tr>
         
@@ -55,9 +49,9 @@ function getValUnit($alldata, $param) {
           <td rowspan="1">B: 0.34-0.49 MPa</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par002',0.34,0.49);" 
-            oninput="let a=document.getElementById('par001'); if(this.value && a.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; a.style.background='#ffcccc'; } else { this.setCustomValidity(''); a.setCustomValidity(''); this.style.background=''; a.style.background=''; }" 
-            placeholder="" id="par002" name="par002" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par002'];} ?>>
+            oninput="togglePairLock('par001','par002')" 
+            onchange="togglePairLock('par001','par002'); changeRange('par002',0.34,0.49)" 
+            placeholder="" id="par002" name="par002" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par002'].'"';} ?>>
           </td>
         </tr>
 
@@ -68,9 +62,9 @@ function getValUnit($alldata, $param) {
           <td >A: 60 - 150 MPa</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par003',60,150);" 
-            oninput="let b=document.getElementById('par004'); if(this.value && b.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; b.style.background='#ffcccc'; } else { this.setCustomValidity(''); b.setCustomValidity(''); this.style.background=''; b.style.background=''; }" 
-            placeholder="" id="par003" name="par003" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par003'];} ?>>
+            oninput="togglePairLock('par003','par004')" 
+            onchange="togglePairLock('par003','par004'); changeRange('par003',60,150)" 
+            placeholder="" id="par003" name="par003" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par003'].'"';} ?>>
           </td>
         </tr>
 
@@ -78,9 +72,9 @@ function getValUnit($alldata, $param) {
           <td >B: 0.06 - 0.150 MPa</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par004',0.06,0.15);" 
-            oninput="let a=document.getElementById('par003'); if(this.value && a.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; a.style.background='#ffcccc'; } else { this.setCustomValidity(''); a.setCustomValidity(''); this.style.background=''; a.style.background=''; }" 
-            placeholder="" id="par004" name="par004" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par004'];} ?>>
+            oninput="togglePairLock('par003','par004')" 
+            onchange="togglePairLock('par003','par004'); changeRange('par004',0.06,0.15)" 
+            placeholder="" id="par004" name="par004" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par004'].'"';} ?>>
           </td>
         </tr>
 
@@ -89,9 +83,9 @@ function getValUnit($alldata, $param) {
           <td >A: 340 - 490 MPa</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par005',340,490);" 
-            oninput="let b=document.getElementById('par006'); if(this.value && b.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; b.style.background='#ffcccc'; } else { this.setCustomValidity(''); b.setCustomValidity(''); this.style.background=''; b.style.background=''; }" 
-            placeholder="" id="par005" name="par005" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par005'];} ?>>
+            oninput="togglePairLock('par005','par006')" 
+            onchange="togglePairLock('par005','par006'); changeRange('par005',340,490)" 
+            placeholder="" id="par005" name="par005" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par005'].'"';} ?>>
           </td>
         </tr>
 
@@ -99,9 +93,9 @@ function getValUnit($alldata, $param) {
           <td >B: 0.340 - 0.490 MPa</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par006',0.340,0.490);" 
-            oninput="let a=document.getElementById('par005'); if(this.value && a.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; a.style.background='#ffcccc'; } else { this.setCustomValidity(''); a.setCustomValidity(''); this.style.background=''; a.style.background=''; }" 
-            placeholder="" id="par006" name="par006" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par006'];} ?>>
+            oninput="togglePairLock('par005','par006')" 
+            onchange="togglePairLock('par005','par006'); changeRange('par006',0.340,0.490)" 
+            placeholder="" id="par006" name="par006" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par006'].'"';} ?>>
           </td>
         </tr>
 
@@ -112,9 +106,9 @@ function getValUnit($alldata, $param) {
           <td >A: -80 kPa atau kurang</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par007',-99999999999,-80);" 
-            oninput="let b=document.getElementById('par008'); if(this.value && b.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; b.style.background='#ffcccc'; } else { this.setCustomValidity(''); b.setCustomValidity(''); this.style.background=''; b.style.background=''; }" 
-            placeholder="" id="par007" name="par007" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par007'];} ?>>
+            oninput="togglePairLock('par007','par008')" 
+            onchange="togglePairLock('par007','par008'); changeRange('par007',-99999999999,-80)" 
+            placeholder="" id="par007" name="par007" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par007'].'"';} ?>>
           </td>
         </tr>
 
@@ -122,9 +116,9 @@ function getValUnit($alldata, $param) {
           <td >B: -80 kPa atau kurang</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par008',-99999999999,-80);" 
-            oninput="let a=document.getElementById('par007'); if(this.value && a.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; a.style.background='#ffcccc'; } else { this.setCustomValidity(''); a.setCustomValidity(''); this.style.background=''; a.style.background=''; }" 
-            placeholder="" id="par008" name="par008" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par008'];} ?>>
+            oninput="togglePairLock('par007','par008')" 
+            onchange="togglePairLock('par007','par008'); changeRange('par008',-99999999999,-80)" 
+            placeholder="" id="par008" name="par008" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par008'].'"';} ?>>
           </td>
         </tr>
 
@@ -133,9 +127,9 @@ function getValUnit($alldata, $param) {
           <td >A: -70 kPa atau kurang</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par009',-99999999999,-70);" 
-            oninput="let b=document.getElementById('par010'); if(this.value && b.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; b.style.background='#ffcccc'; } else { this.setCustomValidity(''); b.setCustomValidity(''); this.style.background=''; b.style.background=''; }" 
-            placeholder="" id="par009" name="par009" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par009'];} ?>>
+            oninput="togglePairLock('par009','par010')" 
+            onchange="togglePairLock('par009','par010'); changeRange('par009',-99999999999,-70)" 
+            placeholder="" id="par009" name="par009" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par009'].'"';} ?>>
           </td>
         </tr>
 
@@ -143,9 +137,9 @@ function getValUnit($alldata, $param) {
           <td >B: -70 kPa atau kurang</td>
           <td>
             <input class="form-control" type="number" step="0.000000001" 
-            onchange="if(this.value !== '') changeRange('par010',-99999999999,-70);" 
-            oninput="let a=document.getElementById('par009'); if(this.value && a.value){ this.setCustomValidity('ERROR: Tidak boleh isi keduanya!'); this.reportValidity(); this.style.background='#ffcccc'; a.style.background='#ffcccc'; } else { this.setCustomValidity(''); a.setCustomValidity(''); this.style.background=''; a.style.background=''; }" 
-            placeholder="" id="par010" name="par010" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par010'];} ?>>
+            oninput="togglePairLock('par009','par010')" 
+            onchange="togglePairLock('par009','par010'); changeRange('par010',-99999999999,-70)" 
+            placeholder="" id="par010" name="par010" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par010'].'"';} ?>>
           </td>
         </tr>
         
@@ -196,11 +190,6 @@ function getValUnit($alldata, $param) {
           </td>
         </tr>
 
-        <!-- ========================================================================= -->
-        <!-- MULAI DARI SINI: PARAMETER DENGAN DROPDOWN (SKENARIO C)                   -->
-        <!-- Perubahan: validateDynamicUnit DIHAPUS dari onkeyup agar tidak overreact. -->
-        <!-- ========================================================================= -->
-
         <tr>
           <td rowspan="2">6</td>
           <td rowspan="2" colspan="2">@Colled Load</td>
@@ -208,15 +197,10 @@ function getValUnit($alldata, $param) {
           <?php $p015 = getValUnit(isset($alldata) ? $alldata : null, 'par015'); ?>
           <td>
             <div class="input-group">
-                <!-- HIDDEN INPUT: Inilah yang akan disubmit ke database (name="par015") -->
                 <input type="hidden" id="par015" name="par015" value="<?= isset($alldata) ? $alldata[0]['par015'] : '' ?>">
-                
-                <!-- INPUT UI ANGKA: onchange untuk validasi merah, onkeyup HANYA untuk gabung teks -->
                 <input class="form-control" type="number" step="0.000000001" id="par015_val" value="<?= $p015['val'] ?>" 
-                       onchange="combineData('par015'); validateDynamicUnit('par015')" 
-                       onkeyup="combineData('par015')" placeholder="">
-                       
-                <!-- SELECT UI SATUAN -->
+                       oninput="combineData('par015')" 
+                       onchange="combineData('par015'); validateDynamicUnit('par015')" placeholder="">
                 <select class="form-control" id="par015_unit" onchange="combineData('par015'); validateDynamicUnit('par015')" style="max-width: 80px; padding: 0.375rem;">
                     <option value="N" <?= $p015['unit'] == 'N' ? 'selected' : '' ?>>N</option>
                     <option value="gr" <?= $p015['unit'] == 'gr' ? 'selected' : '' ?>>gr</option>
@@ -231,11 +215,9 @@ function getValUnit($alldata, $param) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par016" name="par016" value="<?= isset($alldata) ? $alldata[0]['par016'] : '' ?>">
-                
                 <input class="form-control" type="number" step="0.000000001" id="par016_val" value="<?= $p016['val'] ?>" 
-                       onchange="combineData('par016'); validateDynamicUnit('par016')" 
-                       onkeyup="combineData('par016')" placeholder="">
-                       
+                       oninput="combineData('par016')" 
+                       onchange="combineData('par016'); validateDynamicUnit('par016')" placeholder="">
                 <select class="form-control" id="par016_unit" onchange="combineData('par016'); validateDynamicUnit('par016')" style="max-width: 80px; padding: 0.375rem;">
                     <option value="N" <?= $p016['unit'] == 'N' ? 'selected' : '' ?>>N</option>
                     <option value="gr" <?= $p016['unit'] == 'gr' ? 'selected' : '' ?>>gr</option>
@@ -265,12 +247,10 @@ function getValUnit($alldata, $param) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par018" name="par018" value="<?= isset($alldata) ? $alldata[0]['par018'] : '' ?>">
-                
                 <input class="form-control" type="number" step="0.000000001" id="par018_val" value="<?= $p018['val'] ?>" 
-                       onchange="combineData('par018'); validateDynamicUnit('par018')" 
-                       onkeyup="combineData('par018')" placeholder="">
-                       
-                <select class="form-control" id="par018_unit" onchange="combineData('par018'); validateDynamicUnit('par018')" style="max-width: 95px; padding: 0.375rem;">
+                       oninput="combineData('par018'); togglePairLock('par018','par019')" 
+                       onchange="combineData('par018'); togglePairLock('par018','par019'); validateDynamicUnit('par018')" placeholder="">
+                <select class="form-control" id="par018_unit" onchange="combineData('par018'); togglePairLock('par018','par019'); validateDynamicUnit('par018')" style="max-width: 95px; padding: 0.375rem;">
                     <option value="MPa" <?= $p018['unit'] == 'MPa' ? 'selected' : '' ?>>MPa</option>
                     <option value="kPa" <?= $p018['unit'] == 'kPa' ? 'selected' : '' ?>>kPa</option>
                     <option value="kgf/cm^2" <?= $p018['unit'] == 'kgf/cm^2' ? 'selected' : '' ?>>kgf/cm²</option>
@@ -285,12 +265,10 @@ function getValUnit($alldata, $param) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par019" name="par019" value="<?= isset($alldata) ? $alldata[0]['par019'] : '' ?>">
-                
                 <input class="form-control" type="number" step="0.000000001" id="par019_val" value="<?= $p019['val'] ?>" 
-                       onchange="combineData('par019'); validateDynamicUnit('par019')" 
-                       onkeyup="combineData('par019')" placeholder="">
-                       
-                <select class="form-control" id="par019_unit" onchange="combineData('par019'); validateDynamicUnit('par019')" style="max-width: 95px; padding: 0.375rem;">
+                       oninput="combineData('par019'); togglePairLock('par018','par019')" 
+                       onchange="combineData('par019'); togglePairLock('par018','par019'); validateDynamicUnit('par019')" placeholder="">
+                <select class="form-control" id="par019_unit" onchange="combineData('par019'); togglePairLock('par018','par019'); validateDynamicUnit('par019')" style="max-width: 95px; padding: 0.375rem;">
                     <option value="MPa" <?= $p019['unit'] == 'MPa' ? 'selected' : '' ?>>MPa</option>
                     <option value="kPa" <?= $p019['unit'] == 'kPa' ? 'selected' : '' ?>>kPa</option>
                     <option value="kgf/cm^2" <?= $p019['unit'] == 'kgf/cm^2' ? 'selected' : '' ?>>kgf/cm²</option>
@@ -306,12 +284,10 @@ function getValUnit($alldata, $param) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par020" name="par020" value="<?= isset($alldata) ? $alldata[0]['par020'] : '' ?>">
-                
                 <input class="form-control" type="number" step="0.000000001" id="par020_val" value="<?= $p020['val'] ?>" 
-                       onchange="combineData('par020'); validateDynamicUnit('par020')" 
-                       onkeyup="combineData('par020')" placeholder="">
-                       
-                <select class="form-control" id="par020_unit" onchange="combineData('par020'); validateDynamicUnit('par020')" style="max-width: 80px; padding: 0.375rem;">
+                       oninput="combineData('par020'); togglePairLock('par020','par021')" 
+                       onchange="combineData('par020'); togglePairLock('par020','par021'); validateDynamicUnit('par020')" placeholder="">
+                <select class="form-control" id="par020_unit" onchange="combineData('par020'); togglePairLock('par020','par021'); validateDynamicUnit('par020')" style="max-width: 80px; padding: 0.375rem;">
                     <option value="sec" <?= $p020['unit'] == 'sec' ? 'selected' : '' ?>>sec</option>
                     <option value="ms" <?= $p020['unit'] == 'ms' ? 'selected' : '' ?>>ms</option>
                 </select>
@@ -325,12 +301,10 @@ function getValUnit($alldata, $param) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par021" name="par021" value="<?= isset($alldata) ? $alldata[0]['par021'] : '' ?>">
-                
                 <input class="form-control" type="number" step="0.000000001" id="par021_val" value="<?= $p021['val'] ?>" 
-                       onchange="combineData('par021'); validateDynamicUnit('par021')" 
-                       onkeyup="combineData('par021')" placeholder="">
-                       
-                <select class="form-control" id="par021_unit" onchange="combineData('par021'); validateDynamicUnit('par021')" style="max-width: 80px; padding: 0.375rem;">
+                       oninput="combineData('par021'); togglePairLock('par020','par021')" 
+                       onchange="combineData('par021'); togglePairLock('par020','par021'); validateDynamicUnit('par021')" placeholder="">
+                <select class="form-control" id="par021_unit" onchange="combineData('par021'); togglePairLock('par020','par021'); validateDynamicUnit('par021')" style="max-width: 80px; padding: 0.375rem;">
                     <option value="sec" <?= $p021['unit'] == 'sec' ? 'selected' : '' ?>>sec</option>
                     <option value="ms" <?= $p021['unit'] == 'ms' ? 'selected' : '' ?>>ms</option>
                 </select>
@@ -338,15 +312,11 @@ function getValUnit($alldata, $param) {
           </td>
         </tr>
 
-        <!-- ========================================================================= -->
-        <!-- KEMBALI KE PARAMETER NORMAL TANPA DROPDOWN SATUAN                         -->
-        <!-- ========================================================================= -->
-
         <tr>
           <td rowspan="2">Suction Pressure Force</td>
           <td >Analog : kurang dari 1/6 dari posisi Off</td>
           <td>
-            <select class="form-control" id="par022" name="par022">
+            <select class="form-control" id="par022" name="par022" onchange="togglePairLock('par022','par023')">
               <option value="">-- Pilih --</option>
               <option value="✔" <?php if(isset($alldata) && $alldata[0]['par022'] == '✔'){echo 'selected';} ?>>✔ (OK)</option>
               <option value="✖" <?php if(isset($alldata) && $alldata[0]['par022'] == '✖'){echo 'selected';} ?>>✖ (NG)</option>
@@ -356,12 +326,19 @@ function getValUnit($alldata, $param) {
         
         <tr>
           <td >Digital : -0.3 ~ -0.1 kPa / -0.03 ~ -0.01 kgf/cm^2 / -3 ~ -1 mmHg</td>
+          <?php $p023 = getValUnit(isset($alldata) ? $alldata : null, 'par023'); ?>
           <td>
-            <select class="form-control" id="par023" name="par023">
-              <option value="">-- Pilih --</option>
-              <option value="✔" <?php if(isset($alldata) && $alldata[0]['par023'] == '✔'){echo 'selected';} ?>>✔ (OK)</option>
-              <option value="✖" <?php if(isset($alldata) && $alldata[0]['par023'] == '✖'){echo 'selected';} ?>>✖ (NG)</option>
-            </select>
+            <div class="input-group">
+                <input type="hidden" id="par023" name="par023" value="<?= isset($alldata) ? $alldata[0]['par023'] : '' ?>">
+                <input class="form-control" type="number" step="0.000000001" id="par023_val" value="<?= $p023['val'] ?>" 
+                       oninput="combineData('par023'); togglePairLock('par022','par023')" 
+                       onchange="combineData('par023'); togglePairLock('par022','par023'); validateDynamicUnit('par023')" placeholder="">
+                <select class="form-control" id="par023_unit" onchange="combineData('par023'); togglePairLock('par022','par023'); validateDynamicUnit('par023')" style="max-width: 95px; padding: 0.375rem;">
+                    <option value="kPa" <?= $p023['unit'] == 'kPa' ? 'selected' : '' ?>>kPa</option>
+                    <option value="kgf/cm^2" <?= $p023['unit'] == 'kgf/cm^2' ? 'selected' : '' ?>>kgf/cm²</option>
+                    <option value="mmHg" <?= $p023['unit'] == 'mmHg' ? 'selected' : '' ?>>mmHg</option>
+                </select>
+            </div>
           </td>
         </tr>
 
@@ -431,10 +408,10 @@ function getValUnit($alldata, $param) {
           <td rowspan="1" colspan="2">@ Needle Push Up Level</td>
           <td >0.2 ~ 0.6 mm</td>
           <td>
-            <input class="form-control" type="number" step="0.0000001" onchange="changeRange('par029',0.2,0.6)" placeholder="" id="par029" name="par029" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par029'];} ?>>
+            <input class="form-control" type="number" step="0.0000001" onchange="changeRange('par029',0.2,0.6)" placeholder="" id="par029" name="par029" <?php if(isset($alldata)){echo 'value="'.$alldata[0]['par029'].'"';} ?>>
           </td>
         </tr> 
-    
+
         <tr>
           <td colspan="4">Note</td>
           <td>
@@ -445,74 +422,3 @@ function getValUnit($alldata, $param) {
       </tbody>   
     </table>
 </div>
-
-<!-- ========================================================================= -->
-<!-- JAVASCRIPT: LOGIC PENGGABUNGAN DATA & VALIDASI WARNA                      -->
-<!-- ========================================================================= -->
-<script>
-/**
- * Fungsi: combineData(id)
- * Tujuan: Menggabungkan nilai angka (misal: "0.05") dengan satuannya (misal: "MPa")
- *         lalu memasukkannya ke Hidden Input agar bisa disubmit ke database.
- */
-function combineData(id) {
-    let valElem = document.getElementById(id + '_val');    // Input UI (Angka)
-    let unitElem = document.getElementById(id + '_unit');  // Input UI (Dropdown)
-    let targetElem = document.getElementById(id);          // Hidden Input (ke DB)
-    
-    if (valElem && unitElem && targetElem) {
-        if (valElem.value !== '') {
-            targetElem.value = valElem.value + ' ' + unitElem.value; // Hasil: "0.05 MPa"
-        } else {
-            targetElem.value = ''; // Kosongkan jika angkanya dihapus
-        }
-    }
-}
-
-/**
- * Fungsi: validateDynamicUnit(id)
- * Tujuan: Merubah parameter min/max untuk validasi warna merah sesuai satuan.
- *         Kemudian memanggil fungsi bawaan changeRange().
- */
-function validateDynamicUnit(id) {
-    let inputElem = document.getElementById(id + '_val');
-    let unitElem = document.getElementById(id + '_unit');
-    
-    if (!inputElem || !unitElem || inputElem.value === '') return;
-
-    let unit = unitElem.value;
-    let min, max;
-
-    // -- Limit untuk Collet Load A & B --
-    if (id === 'par015' || id === 'par016') {
-        if (unit === 'N') { min = 0.60; max = (id==='par015'?1.00:1.40); }
-        else if (unit === 'gr') { min = 60; max = (id==='par015'?100:140); }
-    } 
-    // -- Limit untuk Air Pressure Analog & Digital --
-    else if (id === 'par018') {
-        if (unit === 'MPa') { min = 0.01; max = 0.10; }
-        else if (unit === 'kPa') { min = 10; max = 100; }
-        else if (unit === 'kgf/cm^2') { min = 0.10; max = 1; }
-    } 
-    else if (id === 'par019') {
-        if (unit === 'MPa') { min = 0.005; max = 0.10; }
-        else if (unit === 'kPa') { min = 5; max = 100; }
-        else if (unit === 'kgf/cm^2') { min = 0.05; max = 1; }
-    }
-    // -- Limit untuk Dispense Time Analog & Digital --
-    else if (id === 'par020') {
-        if (unit === 'sec') { min = 0.01; max = 0.15; }
-        else if (unit === 'ms') { min = 10; max = 150; }
-    } 
-    else if (id === 'par021') {
-        if (unit === 'sec') { min = 0.005; max = 0.15; }
-        else if (unit === 'ms') { min = 5; max = 150; }
-    }
-
-    // Panggil fungsi validasi warna/alert bawaan aplikasi
-    // Menggunakan ID UI (contoh: 'par015_val') agar warnanya muncul di input form di layar
-    if (typeof changeRange === "function") {
-        changeRange(id + '_val', min, max);
-    }
-}
-</script>

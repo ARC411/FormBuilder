@@ -101,17 +101,12 @@
             loading.show();
 
             $.ajax({
-                url: "/foregoing/history/" + number,
+                url: "<?= base_url('foregoing/history'); ?>/" + number,
                 dataType: 'html',
                 success: function(data) {
                     loading.hide();
                     modal.find('.modal-body').html(data);
-                },
-                error: function(data) {
-                    loading.hide();
-                    modal.find('.modal-body').html('<p>Error loading data</p>');
-                    console.log(data);
-                },
+                }
             });
         });
 
@@ -124,17 +119,16 @@
             var number = $(this).data('number');
             if (confirm('Apakah kamu yakin?')) {
                 $.ajax({
-                    url: '/foregoing/' + number,
-                    type: 'DELETE',
-                    success: function(result) {
-                        alert('Berhasil menghapus')
-                        location.reload();
-                    },
-                    error: function(err) {
-                        console.log(err);
-                        alert('Error deleting device.');
-                    }
-                });
+            url: "<?= base_url('foregoing'); ?>/" + number,
+            type: 'DELETE',
+            success: function(result) {
+                alert('Berhasil menghapus');
+                location.reload();
+            },
+            error: function(err) {
+                alert('Error deleting data.');
+            }
+        });
             }
         });
     });

@@ -105,7 +105,9 @@ class Startup extends BaseController
         $folder = $this->getFolderType($data['alldata'][0]['process']);
         
         try {
-            return view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
+            $machno = !empty($data['alldata'][0]['machno']) ? esc($data['alldata'][0]['machno']) : '';
+            $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
+            return $machnoHidden . view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
         } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
             return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
         }

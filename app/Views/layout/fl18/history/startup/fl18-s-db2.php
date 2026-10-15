@@ -103,26 +103,35 @@
         </tr>
 
         <tr>
-            <td rowspan="3">9</td>
-            <td rowspan="3">@ Dispenser indication</td>
+            <td rowspan="4">9</td>
+            <td rowspan="4">@ Dispenser indication</td>
             <td >Air Pressure</td>
-            <td rowspan="3">Nilai Air pressure, Dispenser time, vacuum <br> pressure disesuaikan agar mendapatkan <br> nilai ag paste yang standard</td>
+            <td >0.01 ~ 0.2 Mpa</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par010']; ?></td>
+                <td colspan="col"><?= fillHistory((string)$alldata[$i]['par010'],0.01,0.2); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td >Dispense Time</td>
+            <td >10 ~ 100 ms</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par011']; ?></td>
+                <td colspan="col"><?= fillHistory((string)$alldata[$i]['par011'],10,100); ?></td>
             <?php } ?>
         </tr>
        
         <tr>
             <td >Vacuum pressure</td>
+            <td >-0.30 ~ -0.10 kPa</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par012']; ?></td>
+                <td colspan="col"><?= fillHistory((string)$alldata[$i]['par012'],-0.30,-0.10); ?></td>
+            <?php } ?>
+        </tr>
+
+        <tr>
+            <td colspan="2">Nilai Air pressure, Dispenser time , vacuum pressure disesuaikan agar mendapatkan nilai <br>/hasil ag paste yg standard</td>
+            <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
+                <td colspan="col"><?= (string)($alldata[$i]['par024'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
@@ -251,12 +260,7 @@
             <?php } ?>
         </tr>
 
-        <tr>
-            <td colspan="4">Time</td>
-            <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= date('H:i', strtotime((string)$alldata[$i]['updated_at'])); ?></td>
-            <?php } ?>
-        </tr>
+
     </tbody>   
     </table>
 </div>
