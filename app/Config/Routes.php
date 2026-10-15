@@ -67,6 +67,9 @@ $routes->get('/input', 'Input::index');
 $routes->get('/input/note-form/(:any)', 'Input::formStandard/$1');
 $routes->get('/history', 'History::index');
 $routes->get('/history/export/ff-d2-001', 'History::exportFF_D2_001');
+// Route tambahan untuk History Dinamis & Filter Revisi
+$routes->get('history/revisions', 'History::getRevisions');
+$routes->get('history/data', 'History::getDataTable');
 
 // ==========================================================
 // 6. APPROVAL SYSTEM
@@ -147,6 +150,10 @@ $routes->get('form-builder', 'FormBuilder::index');
 $routes->get('form-builder/get-processes', 'FormBuilder::getProcesses');
 $routes->post('form-builder/load', 'FormBuilder::loadForm');
 $routes->post('form-builder/save', 'FormBuilder::saveParameter');
+$routes->post('form-builder/save-tree', 'FormBuilder::saveTreeParameter');
 $routes->post('form-builder/delete', 'FormBuilder::deleteParameter');
 $routes->post('form-builder/up-revisi', 'FormBuilder::upRevisi');
+$routes->post('form-builder/row-save', 'FormBuilder::saveMatrixRow');
+$routes->post('form-builder/row-delete', 'FormBuilder::deleteMatrixRow');
+$routes->post('form-builder/row-move', 'FormBuilder::moveMatrixRow');
 $routes->match(['GET', 'POST'], 'form-builder/render-input', 'FormBuilder::renderOperatorForm');

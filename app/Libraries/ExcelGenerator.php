@@ -424,21 +424,12 @@ class ExcelGenerator
 
         $isStartup = (strtolower($typeProcess) === 'startup');
 
-        // =========================================================================
-        // 📝 [EDIT 6] PENGATURAN FONT KOP SURAT (KIRI)
-        // =========================================================================
-        if ($isStartup) {
-            $fontKopKiri = 14; 
-        } else {
-            $fontKopKiri = 14; 
-        }
-
-        // BIKIN KOP KIRI LEGA (TIDAK TERCEKIK DI PRODUCTION)
-        $spanKiri = $isStartup ? ($identityCols + 1) : ($identityCols + 4); 
+        $totalEndCol = $identityCols + 1 + max(1, $targetDataCols);
+        $spanKiri = $isStartup ? ($identityCols + 1) : min($identityCols + 4, max(2, $totalEndCol - 6)); 
         $lastKopKiriLetter = Coordinate::stringFromColumnIndex($spanKiri);
+        $lastIdentityLetter = $lastKopKiriLetter;
 
-        // Ukuran font khusus Kop Surat. Untuk production dibuat lebih besar.
-        $kopFontSize = ($typeProcess === 'startup') ? 10 : 15; // <--- UBAH UKURAN DI SINI
+        $kopFontSize = ($typeProcess === 'startup') ? 10 : 15;
 
         $sheet->setCellValue("B{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
         $sheet->mergeCells("B{$r1}:{$lastKopKiriLetter}{$r3}");
@@ -460,19 +451,16 @@ class ExcelGenerator
                 $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
             }
         } else {
-            $chunkStartCol = $identityCols + 2;
-            $chunkEndCol = $chunkStartCol + $targetDataCols - 1;
+            $chunkStartCol = $spanKiri + 1;
+            $chunkEndCol = max($chunkStartCol + 3, $totalEndCol);
             $docStartCol = max($chunkStartCol + 1, $chunkEndCol - 2);
             $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
         }
 
-        // PERBESAR KOP SURAT: Naikkan tinggi baris agar saat Fit to Width tidak terlalu pipih
-        // Baris 1-3 (Identitas perusahaan, judul, info dok)
         for ($r = $r1; $r <= $r3; $r++) {
-            $sheet->getRowDimension($r)->setRowHeight(40); // Naikkan dari 20 ke 40
+            $sheet->getRowDimension($r)->setRowHeight(40);
         }
-        // Baris 4 (Machine No & TTD)
-        $sheet->getRowDimension($r4)->setRowHeight(60); // Naikkan dari 38 ke 60
+        $sheet->getRowDimension($r4)->setRowHeight(60);
     }
 
     private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $centerStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess) {
@@ -480,16 +468,12 @@ class ExcelGenerator
         $docMidLetter   = Coordinate::stringFromColumnIndex($docStartCol + 1);
         $docEndLetter   = Coordinate::stringFromColumnIndex($chunkEndCol);
 
-        $revisiStatis = "00";
-        switch (strtolower($typeProcess)) {
-            case 'startup': $revisiStatis = "04"; break;
-            case 'production': $revisiStatis = "06"; break;
-            case 'foregoing': $revisiStatis = "02"; break;
-            default: $revisiStatis = $revisi; break;
-        }
+        $revisiDinamis = ($revisi !== '' && $revisi !== null)
+            ? str_pad((string)$revisi, 2, '0', STR_PAD_LEFT)
+            : '00';
 
         $sheet->setCellValue("{$docStartLetter}{$r1}", "No. Dok / No."); $sheet->setCellValue("{$docMidLetter}{$r1}", ": " . $noDok);
-        $sheet->setCellValue("{$docStartLetter}{$r2}", "Revisi");       $sheet->setCellValue("{$docMidLetter}{$r2}", ": " . $revisiStatis);
+        $sheet->setCellValue("{$docStartLetter}{$r2}", "Revisi");       $sheet->setCellValue("{$docMidLetter}{$r2}", ": " . $revisiDinamis);
         $sheet->setCellValue("{$docStartLetter}{$r3}", "Berlaku");      $sheet->setCellValue("{$docMidLetter}{$r3}", ": " . $tglBerlaku);
 
         $sheet->mergeCells("{$docMidLetter}{$r1}:{$docEndLetter}{$r1}");
@@ -510,22 +494,21 @@ class ExcelGenerator
 
         $sheet->getStyle("{$docStartLetter}{$r1}:{$docStartLetter}{$r3}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
-        $midEndLetter = Coordinate::stringFromColumnIndex(max($chunkStartCol, $docStartCol - 1));
-        $centerStartLetter = Coordinate::stringFromColumnIndex($chunkStartCol);
+        // PERBAIKAN ERROR BARIS 510: Gunakan $centerStartCol (bukan $chunkStartCol)
+        $midEndLetter = Coordinate::stringFromColumnIndex(max($centerStartCol, $docStartCol - 1));
+        $centerStartLetter = Coordinate::stringFromColumnIndex($centerStartCol);
 
         $sheet->setCellValue("{$centerStartLetter}{$r1}", $judulProses . "\n(" . $namaProduk . ")");
         $sheet->mergeCells("{$centerStartLetter}{$r1}:{$midEndLetter}{$r3}");
         $sheet->getStyle("{$centerStartLetter}{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
 
-        // Ukuran font judul.
-        $judulFontSize = ($typeProcess === 'startup') ? 12 : 18; // <--- UBAH UKURAN DI SINI
+        $judulFontSize = ($typeProcess === 'startup') ? 12 : 18;
         $sheet->getStyle("{$centerStartLetter}{$r1}")->getFont()->setBold(true)->setSize($judulFontSize)->setUnderline(true);
         $sheet->mergeCells("{$centerStartLetter}{$r4}:{$midEndLetter}{$r4}");
 
         $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        // Ukuran font area kotak identitas (No Dok, Revisi, Tanda Tangan, dll)
-        $detailFontSize = ($typeProcess === 'startup') ? 10 : 14; // <--- UBAH UKURAN DI SINI
+        $detailFontSize = ($typeProcess === 'startup') ? 10 : 14;
         $sheet->getStyle("{$docStartLetter}{$r1}:{$docEndLetter}{$r4}")->getFont()->setSize($detailFontSize);
     }
 
