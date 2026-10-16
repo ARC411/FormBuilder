@@ -40,7 +40,7 @@
                                 <td><?= $alldata[$i]['device_name']; ?></td>
                                 <td><?= $alldata[$i]['name']; ?></td>
                                 <td>
-                                    <a class="lotno-link" data-bs-toggle="modal" data-bs-target="#exampleModal" data-lotno="<?= $alldata[$i]['lotno']; ?>" data-number="<?= $alldata[$i]['number']; ?>" data-process="<?= $alldata[$i]['name']; ?>">
+                                    <a class="lotno-link" data-bs-toggle="modal" data-bs-target="#exampleModal" data-lotno="<?= $alldata[$i]['lotno']; ?>" data-number="<?= $alldata[$i]['number']; ?>" data-process="<?= $alldata[$i]['name']; ?>" data-machno="<?= !empty($alldata[$i]['machno']) ? $alldata[$i]['machno'] : '-'; ?>">
                                         <?= $alldata[$i]['lotno']; ?>
                                     </a>
                                 </td>
@@ -97,9 +97,15 @@
             var number = button.data('number');
             var lotno = button.data('lotno');
             var process = button.data('process');
+            var machno = button.data('machno');
             var modal = $(this);
             var loading = $('#loading');
-            $('#modalTitle').text(process + ' - ' + lotno);
+            
+            var title = process + ' - ' + lotno;
+            if (machno && machno !== '-') {
+                title += ' - Machine: ' + machno;
+            }
+            $('#modalTitle').text(title);
 
             loading.show();
 
@@ -109,6 +115,11 @@
                 success: function(data) {
                     loading.hide();
                     modal.find('.modal-body').html(data);
+                    
+                    var fetchedMachno = modal.find('#detail-machno').val();
+                    if (fetchedMachno && (!machno || machno === '-')) {
+                        $('#modalTitle').text(process + ' - ' + lotno + ' - Machine: ' + fetchedMachno);
+                    }
                 },
                 error: function(data) {
                     loading.hide();

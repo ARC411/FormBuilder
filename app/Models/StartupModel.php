@@ -137,23 +137,26 @@ class StartupModel extends Model
         return $result->getRow()->number ?? 0;
     }
 
-    public function getAll($dateStart='1970-01-01', $dateEnd='2070-01-01',$device='', $process='',$model='', $lotno='',$machno='')
+    public function getAll($dateStart = '1970-01-01', $dateEnd = '2070-01-01',$device = '', $process = '',$model = '', $lotno = '',$machno = '')
     {
-        // Perbaikan Batas Waktu agar data hari ini masuk
-        $dateStart = empty($dateStart) ? '1970-01-01 00:00:00' : $dateStart . ' 00:00:00';$dateEnd = empty($dateEnd) ? '2070-01-01 23:59:59' :$dateEnd . ' 23:59:59';
+        // Normalisasi format tanggal agar tidak terjadi duplikasi jam (00:00:00 00:00:00)
+        $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';$endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
 
-        $sql = "SELECT DISTINCT *
+        $sql = "SELECT DISTINCT s.*, p.device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
                 FROM `startup` as s
-                INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code 
-                INNER JOIN (SELECT code, name as device_name FROM device ) as d ON p.device=d.code
-                WHERE s.created_at >= '$dateStart' 
-                AND s.created_at <= '$dateEnd' 
+                INNER JOIN `proses` as p ON s.process = p.process_code 
+                INNER JOIN `device` as d ON p.device = d.code
+                WHERE s.created_at >= '$startStr' 
+                AND s.created_at <= '$endStr' 
                 AND s.device LIKE '%$device%' 
                 AND s.process LIKE '%$process%'";
 
-        if ($model !== '') {$sql .= " AND s.model LIKE '%$model%'"; }
-        if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'"; }
-        if ($machno !== '' && $machno !== 'ALL') {$sql .= " AND s.machno = '$machno'"; }
+        if ($model !== '') {$sql .= " AND s.model LIKE '%$model%'";
+        }
+        if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'";
+        }
+        if ($machno !== '' &&$machno !== 'ALL' && $machno !== 'null') {$sql .= " AND s.machno = '$machno'";
+        }
 
         $sql .= " ORDER BY s.created_at ASC";
         

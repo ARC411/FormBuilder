@@ -30,9 +30,15 @@ $(document).ready(function() {
       var button = $(event.relatedTarget);
       var number = button.data('number');
       var process = button.data('process');
+      var machno = button.data('machno');
       var modal = $(this);
       var loading = $('#loading');
-      $('#modalTitle').text(process)
+      
+      var title = process;
+      if (machno && machno !== '-') {
+          title += ' - Machine: ' + machno;
+      }
+      $('#modalTitle').text(title);
 
       loading.show();
 
@@ -42,6 +48,11 @@ $(document).ready(function() {
           success: function(data) {
               loading.hide();
               modal.find('.modal-body').html(data);
+              
+              var fetchedMachno = modal.find('#detail-machno').val();
+              if (fetchedMachno && (!machno || machno === '-')) {
+                  $('#modalTitle').text(process + ' - Machine: ' + fetchedMachno);
+              }
           },
           error: function(data) {
               loading.hide();

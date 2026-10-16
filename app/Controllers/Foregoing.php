@@ -58,12 +58,12 @@ class Foregoing extends BaseController
     public function edit($number)
     {
         $data = [
-            'title' => 'History | Startup Management',
+            'title' => 'History | Foregoing Management',
             'validation' => \Config\Services::validation(),
             'alldata' => $this->ForegoingModel->getByNumber($number)
         ];
         
-        return view('edit-foregoing',$data);
+        return view('edit-foregoing', $data);
     }
 
     public function formInputForegoing()
@@ -531,6 +531,34 @@ class Foregoing extends BaseController
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
             return redirect()->to(base_url());
+        }
+    }
+
+    public function deleteForegoing($number)
+    {
+        if(!$this->session->has('empid')){
+            session()->setFlashdata('message', 'Login terlebih dahulu');
+            return redirect()->to(base_url()."login");
+        }
+        $result = $this->ForegoingModel->deleteByNumber($number);
+        if ($result) {
+            return "berhasil";
+        }
+        return "gagal";
+    }
+
+    public function foregoingByNumber($number)
+    {
+        $data = ['alldata' => $this->ForegoingModel->getByNumber($number)];
+        if(empty($data['alldata'])) return "Data tidak ditemukan.";
+        
+        $folder = 'foregoing';
+        try {
+            $machno = !empty($data['alldata'][0]['machno']) ? esc($data['alldata'][0]['machno']) : '';
+            $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
+            return $machnoHidden . view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
         }
     }
 }

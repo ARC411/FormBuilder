@@ -230,33 +230,39 @@
       var processCode = document.getElementById("process").value;
       var machineSelect = $('#machno');
 
-      machineSelect.empty();
+      // Kosongkan dropdown dan pasang opsi default di urutan paling atas
+      machineSelect.empty().append(new Option("-- Semua Mesin (Tidak Dipilih) --", "", true, true));
 
       if (!processCode || processCode === '' || processCode === '-' || processCode === 'null') {
         machineSelect.trigger('change');
         return;
       }
 
-      var lookupProcessCode = processCode;
-      var parts = lookupProcessCode.split('-');
-      if (parts.length >= 3) {
-          parts[1] = 'p';
-          lookupProcessCode = parts.join('-');
-      }
-
+      // Kirim processCode langsung karena MachineModel::getMachineByProcess() sudah menangani mapping prosesnya
       $.ajax({
-        url: "<?php echo base_url(); ?>machine/list?process=" + lookupProcessCode,
+        url: "<?php echo base_url(); ?>machine/list?process=" + processCode,
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
-          machineSelect.append(new Option("-- Semua Mesin (Tidak Dipilih) --", "", true, true));
-          for (let i = 0; i < data.length; i++) {
-            machineSelect.append(new Option(data[i].machine_name, data[i].machine_name, false, false));
+          if (data && data.length > 0) {
+            for (let i = 0; i < data.length; i++) {
+              machineSelect.append(new Option(data[i].machine_name, data[i].machine_name, false, false));
+            }
           }
           machineSelect.trigger('change');
         },
-        error: function(data) {
-          console.log("Error mengambil data mesin: ", data);
+        error: function(xhr) {
+          // Fallback jika response terbungkus warning/error 500 namun berisi JSON valid
+          if (xhr.responseText) {
+            try {
+              var data = JSON.parse(xhr.responseText);
+              if (data && data.length > 0) {
+                for (let i = 0; i < data.length; i++) {
+                  machineSelect.append(new Option(data[i].machine_name, data[i].machine_name, false, false));
+                }
+              }
+            } catch (e) {}
+          }
           machineSelect.trigger('change');
         }
       });

@@ -7,14 +7,14 @@
 
   <section class="py-2 container">
     <div class="col">
-      <h2 class="fw-light">Edit Startup</h2>
+      <h2 class="fw-light">Edit Foregoing</h2>
       <input type="hidden" id="process-form" name="process-form" value=<?php echo '"'.$alldata[0]["process"].'"' ?>>
       <input type="hidden" id="number-edit" name="number-edit" value=<?php echo '"'.$alldata[0]["number"].'"' ?>>
     </div>
   </section>
 
   <section class="container-fluid">
-    <form name="checksheet" action="startup" method="POST">
+    <form name="checksheet" action="<?= base_url('foregoing/create'); ?>" method="POST">
       <?= csrf_field(); ?>
       <input type="hidden" name="type-input" value="manual">
 
@@ -25,7 +25,6 @@
             <label for="date" class="col-sm-2 col-form-label">Date</label>
             <div class="col-sm-6">
               <input type="text" class="form-control-plaintext" id="date" name="date" value="<?php echo date('Y-m-d');?>" readonly>
-              <!-- <div id="emailHelp" class="form-text">We'll never share your email with anyone else.</div> -->
             </div>
           </div>
 
@@ -43,7 +42,7 @@
             <label for="process-txt" class="col-sm-2 col-form-label">Process</label>
             <div class="col-sm-6">
               <input type="hidden" class="form-control" id="process-txt" name="process-txt" value="<?php echo $alldata[0]["process"] ?>" readonly>
-              <input type="text" class="form-control" id="process-txt-name" name="process-txt-name" value="<?php echo $alldata[0]["name"] ?>" readonly>
+              <input type="text" class="form-control" id="process-txt-name" name="process-txt-name" value="<?php echo $alldata[0]["name"] ?? $alldata[0]["process"] ?>" readonly>
             </div>
           </div>
 
@@ -60,7 +59,7 @@
           <div class="mb-3 row">
             <label for="machno" class="col-sm-2 col-form-label">Doc. No</label>
             <div class="col-sm-6">
-              <input type="text" class="form-control" id="docno" value="<?php echo $alldata[0]["docno"] ?>" readonly>
+              <input type="text" class="form-control" id="docno" value="<?php echo $alldata[0]["docno"] ?? '-' ?>" readonly>
             </div>
           </div>
 
@@ -82,6 +81,7 @@
             </div>
           </div>
 
+          <!-- Operator (5 parameter lengkap) -->
           <div class="mb-3 row">
             <label for="empid-txt" class="col-sm-2 col-form-label">Operator</label>
             <div class="col-sm-6">
@@ -91,15 +91,15 @@
               </div>
               <div class="input-group mb-1">
                 <span class="input-group-text" id="basic-addon3">Name--:</span>
-                <input type="text" class="form-control" id="name-txt" name="<?= $alldata[0]["name"]?>" placeholder="Masukkan nama anda" onkeyup="this.value = this.value.toUpperCase()">
+                <input type="text" class="form-control" id="name-txt" name="name-txt" value="<?= $alldata[0]["name"] ?? '' ?>" placeholder="Masukkan nama anda" onkeyup="this.value = this.value.toUpperCase()">
               </div>
               <div class="input-group mb-1">
                 <span class="input-group-text" id="basic-addon2">Shift----:</span>
-                <input type="number" class="form-control" id="shift-txt" name="<?= $alldata[0]["shift"]?>" placeholder="1 atau 2 atau 3">
+                <input type="number" class="form-control" id="shift-txt" name="shift-txt" value="<?= $alldata[0]["shift"] ?? '' ?>" placeholder="1 atau 2 atau 3">
               </div>
               <div class="input-group mb-1">
                 <span class="input-group-text" id="basic-addon3">Group--:</span>
-                <input type="text" class="form-control" id="group-txt" name="<?= $alldata[0]["group"]?>" placeholder="Contoh: 1S2GW1" onkeyup="this.value = this.value.toUpperCase()">
+                <input type="text" class="form-control" id="group-txt" name="group-txt" value="<?= $alldata[0]["group"] ?? '' ?>" placeholder="Contoh: 1S2GW1" onkeyup="this.value = this.value.toUpperCase()">
               </div>
             </div>
           </div>
@@ -157,8 +157,7 @@
         {
         $.ajax(
         {
-            url: "Home/ajaxAutofill",
-            // type:'POST',
+            url: "<?= base_url('home/ajaxAutofill'); ?>",
             dataType:'JSON',
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             data:"empid-txt=" + empid,
@@ -171,7 +170,6 @@
                 const element = document.getElementById(empIdlTag);  
                 element.classList.remove("visible"); 
                 element.classList.add("invisible"); 
-                console.log("sukses",data)
             },
             error: function(data)
             {
@@ -181,16 +179,13 @@
                 $(shiftTag).val('');            
                 $(groupTag).val('');
                 $(nameTag).val('');
-                console.log("gagal")
             },
         });
         }
         else
         {
-        console.log("error 2")
         $(shiftTag).val('');
         $(groupTag).val('');
-        // document.getElementById("empid-lbl").style.display = "none";
         }
     }
 

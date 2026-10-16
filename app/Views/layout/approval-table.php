@@ -17,7 +17,7 @@
                 <td><?= $alldata[$i]['created_at']; ?></td>
                 <td><?= $alldata[$i]['device_name']; ?></td>
                 <td>
-                    <a class="lotno-link" data-bs-toggle="modal" data-bs-target="#exampleModal" data-number="<?= $alldata[$i]['number']; ?>" data-process="<?= $alldata[$i]['process_name']?>">
+                    <a class="lotno-link" data-bs-toggle="modal" data-bs-target="#exampleModal" data-number="<?= $alldata[$i]['number']; ?>" data-process="<?= $alldata[$i]['process_name']?>" data-machno="<?= !empty($alldata[$i]['machno']) ? $alldata[$i]['machno'] : '-'; ?>">
                         <?= $alldata[$i]['process_name']; ?>
                     </a>
                 </td>

@@ -111,26 +111,35 @@
         </tr>
 
         <tr>
-            <td rowspan="3">9</td>
-            <td rowspan="3">@ Dispenser indication</td>
+            <td rowspan="4">9</td>
+            <td rowspan="4">@ Dispenser indication</td>
             <td >Air Pressure</td>
-            <td rowspan="3">Nilai Air pressure, Dispenser time, vacuum <br> pressure disesuaikan agar mendapatkan <br> nilai ag paste yang standard</td>
+            <td >0.01 ~ 0.2 Mpa</td>
             <td >
-                <input class="form-control" type="text" id="par010" name="par010" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par010'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par010',0.01,0.2)" id="par010" name="par010" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par010'];} ?>>
             </td>
         </tr>
 
         <tr>
             <td >Dispense Time</td>
+            <td >10 ~ 100 ms</td>
             <td >
-                <input class="form-control" type="text" id="par011" name="par011" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par011'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par011',10,100)" id="par011" name="par011" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par011'];} ?>>
             </td>
         </tr>
        
         <tr>
             <td >Vacuum pressure</td>
+            <td >-0.30 ~ -0.10 kPa</td>
             <td >
-              <input class="form-control" type="text" id="par012" name="par012" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par012'];} ?>>
+              <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par012',-0.30,-0.10)" id="par012" name="par012" placeholder="" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par012'];} ?>>
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="2">Nilai Air pressure, Dispenser time , vacuum pressure disesuaikan agar mendapatkan nilai <br>/hasil ag paste yg standard</td>
+            <td>
+                <input class="form-control" type="text" id="par024" name="par024" placeholder="" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par024'] ?? '').'"';} ?>>
             </td>
         </tr>
 
