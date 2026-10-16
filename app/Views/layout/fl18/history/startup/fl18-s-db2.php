@@ -90,7 +90,7 @@
             <td colspan="2">@ Colled Load</td>
             <td >0.60 ~ 1.00N (60 ~ 100 gr)</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= fillHistory((string)$alldata[$i]['par008'],0.6,1); ?></td>
+                <td colspan="col"><?= (string)$alldata[$i]['par008']; ?></td>
             <?php } ?>
         </tr>
 
