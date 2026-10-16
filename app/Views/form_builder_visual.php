@@ -134,7 +134,7 @@ if (!function_exists('renderInputPreview')) {
             $html .= '<span class="badge bg-secondary d-block mt-1" style="font-size:10px;"><i class="fas fa-eye"></i> Read-Only</span>';
         }
 
-        if (!empty($leaf['standar_nilai'])) {
+        if (!empty($leaf['standar_nilai']) && empty($leaf['posisi_grid'])) {
             $html .= '<small class="text-muted d-block mt-1" style="font-size:10px;">' . esc($leaf['standar_nilai']) . '</small>';
         }
         return $html;
@@ -293,12 +293,16 @@ if (!function_exists('buildHorizontalHeaders')) {
 
             $gridRowNames = [];
             $firstGridLeafIdx = null;
+            $gridHeaderLabel = 'Sample / Label';
             foreach ($headerLeaves as $hIdx => $hLeaf) {
                 if (!empty($hLeaf['children']) && !empty($hLeaf['children'][0]['posisi_grid'])) {
                     if ($firstGridLeafIdx === null) {
                         $firstGridLeafIdx = $hIdx;
                     }
                     foreach ($hLeaf['children'] as $gridChild) {
+                        if (!empty($gridChild['standar_nilai'])) {
+                            $gridHeaderLabel = $gridChild['standar_nilai'];
+                        }
                         if (!empty($gridChild['posisi_grid']) && !in_array($gridChild['posisi_grid'], $gridRowNames)) {
                             $gridRowNames[] = $gridChild['posisi_grid'];
                         }
@@ -329,7 +333,12 @@ if (!function_exists('buildHorizontalHeaders')) {
                                         $rowsJson = htmlspecialchars(json_encode($gridRowNames), ENT_QUOTES, 'UTF-8');
                                 ?>
                                         <th rowspan="<?= $headerMaxDepth ?>" class="align-middle bg-secondary p-2">
-                                            <div>Sample / Label</div>
+                                            <div class="d-flex justify-content-center align-items-center gap-1">
+                                                <span><?= esc($gridHeaderLabel) ?></span>
+                                                <button type="button" class="btn btn-sm btn-warning text-dark py-0 px-1 btn-edit-matrix-header" data-label="<?= esc($gridHeaderLabel) ?>" title="Ubah Nama Kolom Ini (Misal: Pos)">
+                                                    <i class="fas fa-edit" style="font-size:10px;"></i>
+                                                </button>
+                                            </div>
                                             <button type="button" class="btn btn-xs btn-success mt-2 py-0 px-2 btn-add-matrix-row" data-rows='<?= $rowsJson ?>' title="Tambah Baris Baru (Misal: Y)">
                                                 <i class="fas fa-plus"></i> Tambah Baris
                                             </button>

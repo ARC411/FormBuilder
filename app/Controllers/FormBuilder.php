@@ -6,6 +6,7 @@ use App\Models\DeviceModel;
 use App\Models\ProcessModel;
 use App\Models\FormRevisionModel;
 use App\Models\FormParameterModel;
+use App\Models\LogActivityModel;
 
 class FormBuilder extends BaseController
 {
@@ -13,13 +14,14 @@ class FormBuilder extends BaseController
     protected $processModel;
     protected $formRevModel;
     protected $formParamModel;
+    protected $logActivityModel;
 
     public function __construct()
     {
         $uri = service('uri');
         $isRenderInput = ($uri->getTotalSegments() >= 2 && $uri->getSegment(2) === 'render-input');
 
-        if (!session()->get('isadmin') && !$isRenderInput) { 
+        if (!session()->get('isadmin') && !$isRenderInput) {
             echo "<script>alert('Akses Ditolak! Khusus Admin/QC.'); window.location.href='/';</script>";
             exit;
         }
@@ -28,6 +30,7 @@ class FormBuilder extends BaseController
         $this->processModel   = new ProcessModel();
         $this->formRevModel   = new FormRevisionModel();
         $this->formParamModel = new FormParameterModel();
+        $this->logActivityModel = new LogActivityModel();
     }
 
     public function index()
@@ -67,7 +70,7 @@ class FormBuilder extends BaseController
         }
 
         $revision = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->first();
-        
+
         if (!$revision) {
             $procRow = $this->processModel->where('process_code', $processCode)->first();
             $revCode = $procRow['revisi'] ?? '0';
@@ -104,12 +107,16 @@ class FormBuilder extends BaseController
         if (!$hasAnyParent && count($rawParams) > 1) {
             $isLegacyFlat = true;
         }
-        
+
         if (empty($rawParams) || $isLegacyFlat || $forceReparse === 'true') {
             $this->parseSingleProcess($processCode, $revisionId, $detectedKategori);
             $rawParams = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
+
+            if ($forceReparse === 'true') {
+                $this->catatLog('RESYNC HTML', "Menarik ulang (reset) struktur form dari file HTML asli pada Revisi {$revision['revisi']}", $processCode);
+            }
         }
-        
+
         $treeParams = $this->buildTree($rawParams);
         if (empty($treeParams) && !empty($rawParams)) {
             foreach ($rawParams as &$rp) {
@@ -132,14 +139,14 @@ class FormBuilder extends BaseController
             'maxTableDepth' => max(1, $maxTableDepth)
         ];
 
-        $htmlUtuh = view('form_builder_visual', $data); 
+        $htmlUtuh = view('form_builder_visual', $data);
         return $this->response->setJSON([
-            'status'      => 'success', 
+            'status'      => 'success',
             'html'        => $htmlUtuh,
             'revision'    => $revision,
             'params_list' => $rawParams,
             'tree_params' => $treeParams
-        ]); 
+        ]);
     }
 
     // 4. AJAX Save Tree (Simpan Rekursif Tanpa Batas Tingkat: Bapak -> Anak -> Cucu -> dst.)
@@ -190,6 +197,19 @@ class FormBuilder extends BaseController
             $this->formParamModel->whereIn('id', $toDelete)->delete();
         }
 
+        $revRow    = $this->formRevModel->find($revisionId);
+        $procCode  = $revRow['process_code'] ?? '';
+        $revNum    = $revRow['revisi'] ?? '-';
+        $namaUtama = $treeData['nama_parameter'] ?? 'Parameter';
+        $jmlAnak   = isset($treeData['children']) && is_array($treeData['children']) ? count($treeData['children']) : 0;
+        $jenisAksi = !empty($treeData['id']) ? 'EDIT PARAMETER' : 'TAMBAH PARAMETER';
+
+        $this->catatLog(
+            $jenisAksi,
+            "Menyimpan parameter '{$namaUtama}'" . ($jmlAnak > 0 ? " beserta {$jmlAnak} sub-parameter" : "") . " pada Revisi {$revNum}",
+            $procCode
+        );
+
         return $this->response->setJSON([
             'status'  => 'success',
             'message' => 'Struktur parameter berhasil disimpan!'
@@ -238,7 +258,7 @@ class FormBuilder extends BaseController
         $rumusOtomatis  = null;
         $isExclusive    = !empty($node['is_exclusive']) ? 1 : 0;
         $standarDinamis = (!empty($node['standar_dinamis']) && is_array($node['standar_dinamis']))
-                          ? json_encode($node['standar_dinamis'], JSON_UNESCAPED_UNICODE) : null;
+            ? json_encode($node['standar_dinamis'], JSON_UNESCAPED_UNICODE) : null;
 
         if (!$hasChildren && ($node['jenis_elemen'] ?? 'input') === 'input' && !$isForegoingLeafColumn) {
             $tipeInput  = $node['tipe_input'] ?: 'text';
@@ -333,9 +353,9 @@ class FormBuilder extends BaseController
         $batasMin   = (isset($colConfig['batas_min']) && $colConfig['batas_min'] !== '') ? (float)$colConfig['batas_min'] : null;
         $batasMax   = (isset($colConfig['batas_max']) && $colConfig['batas_max'] !== '') ? (float)$colConfig['batas_max'] : null;
         $satuanOpsi = (!empty($colConfig['satuan_opsi']) && is_array($colConfig['satuan_opsi']))
-                      ? json_encode($colConfig['satuan_opsi'], JSON_UNESCAPED_UNICODE) : null;
+            ? json_encode($colConfig['satuan_opsi'], JSON_UNESCAPED_UNICODE) : null;
         $rumusOtomatis = (!empty($colConfig['rumus_otomatis']) && is_array($colConfig['rumus_otomatis']) && !empty($colConfig['rumus_otomatis']['type']))
-                         ? json_encode($colConfig['rumus_otomatis'], JSON_UNESCAPED_UNICODE) : null;
+            ? json_encode($colConfig['rumus_otomatis'], JSON_UNESCAPED_UNICODE) : null;
 
         foreach ($gridRows as $rIdx => $rLabel) {
             $suffix = chr(97 + $rIdx); // a, b, c, d...
@@ -378,13 +398,24 @@ class FormBuilder extends BaseController
     public function deleteParameter()
     {
         $id = $this->request->getPost('id');
-        // Hapus juga anak-anaknya secara rekursif jika FK cascade belum aktif
         $param = $this->formParamModel->find($id);
         if ($param) {
+            $revRow   = $this->formRevModel->find($param['revision_id']);
+            $procCode = $revRow['process_code'] ?? '';
+            $revNum   = $revRow['revisi'] ?? '-';
+            $namaPar  = $param['nama_parameter'] ?? ('ID ' . $id);
+
             $all = $this->formParamModel->where('revision_id', $param['revision_id'])->findAll();
             $idsToDelete = [];
             $this->collectAllDescendantIds((int)$id, $all, $idsToDelete);
             $this->formParamModel->whereIn('id', $idsToDelete)->delete();
+
+            $jmlHapus = count($idsToDelete);
+            $this->catatLog(
+                'HAPUS PARAMETER',
+                "Menghapus parameter '{$namaPar}' (total {$jmlHapus} item dengan sub-bagiannya) pada Revisi {$revNum}",
+                $procCode
+            );
         }
         return $this->response->setJSON(['status' => 'success', 'message' => 'Parameter beserta sub-bagiannya berhasil dihapus.']);
     }
@@ -403,13 +434,43 @@ class FormBuilder extends BaseController
     public function saveMatrixRow()
     {
         $revisionId = (int)$this->request->getPost('revision_id');
-        $mode       = $this->request->getPost('mode'); // 'add' atau 'edit'
+        $mode       = $this->request->getPost('mode'); // 'add', 'edit', atau 'edit_header'
         $rowLabel   = trim((string)$this->request->getPost('row_label'));
         $oldLabel   = trim((string)$this->request->getPost('old_label'));
         $afterRow   = trim((string)$this->request->getPost('after_row'));
 
         if (!$revisionId || $rowLabel === '') {
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Nama baris Sample/Label wajib diisi!']);
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Nama tidak boleh kosong!']);
+        }
+
+        // MODE EDIT HEADER: Ubah nama judul kolom "Sample / Label" (misal jadi "Pos")
+        if ($mode === 'edit_header') {
+            $revRow   = $this->formRevModel->find($revisionId);
+            $procCode = $revRow['process_code'] ?? '';
+
+            // Ambil semua revision_id milik process_code ini agar di History (revisi berapa pun) namanya ikut berubah!
+            $allRevs = $procCode
+                ? $this->formRevModel->where('process_code', $procCode)->findAll()
+                : [['id' => $revisionId]];
+            $revIds = array_column($allRevs, 'id');
+
+            $db = \Config\Database::connect();
+            $db->table('form_parameters')
+                ->whereIn('revision_id', !empty($revIds) ? $revIds : [$revisionId])
+                ->where('posisi_grid IS NOT NULL', null, false)
+                ->where('posisi_grid !=', '')
+                ->update(['standar_nilai' => $rowLabel]);
+
+            $this->catatLog(
+                'EDIT HEADER FOREGOING',
+                "Mengubah nama kolom header matriks dari '{$oldLabel}' menjadi '{$rowLabel}' pada Revisi " . ($revRow['revisi'] ?? '-'),
+                $procCode
+            );
+
+            return $this->response->setJSON([
+                'status'  => 'success',
+                'message' => "Nama kolom berhasil diubah menjadi '$rowLabel'."
+            ]);
         }
 
         // MODE EDIT: Ganti nama baris di seluruh kolom matriks
@@ -425,6 +486,9 @@ class FormBuilder extends BaseController
                     'posisi_grid'    => $rowLabel
                 ]);
             }
+
+            $revRow = $this->formRevModel->find($revisionId);
+            $this->catatLog('EDIT BARIS FOREGOING', "Mengubah nama baris matriks dari '{$oldLabel}' menjadi '{$rowLabel}' pada Revisi " . ($revRow['revisi'] ?? '-'), $revRow['process_code'] ?? '');
             return $this->response->setJSON(['status' => 'success', 'message' => "Baris '$oldLabel' berhasil diubah menjadi '$rowLabel'."]);
         }
 
@@ -507,6 +571,9 @@ class FormBuilder extends BaseController
         // Urutkan ulang urutan & huruf suffix (a, b, c, d) sesuai urutan baris terbaru
         $this->reorderMatrixRowsInternal($revisionId, $newRowOrder);
 
+        $revRow = $this->formRevModel->find($revisionId);
+        $this->catatLog('TAMBAH BARIS FOREGOING', "Menambahkan baris matriks baru '{$rowLabel}' pada Revisi " . ($revRow['revisi'] ?? '-'), $revRow['process_code'] ?? '');
+
         return $this->response->setJSON(['status' => 'success', 'message' => "Baris '$rowLabel' berhasil ditambahkan!"]);
     }
 
@@ -536,6 +603,9 @@ class FormBuilder extends BaseController
             $this->reorderMatrixRowsInternal($revisionId, $rowOrder);
         }
 
+        $revRow = $this->formRevModel->find($revisionId);
+        $this->catatLog('HAPUS BARIS FOREGOING', "Menghapus baris matriks '{$rowLabel}' pada Revisi " . ($revRow['revisi'] ?? '-'), $revRow['process_code'] ?? '');
+
         return $this->response->setJSON(['status' => 'success', 'message' => "Baris '$rowLabel' berhasil dihapus."]);
     }
 
@@ -564,6 +634,10 @@ class FormBuilder extends BaseController
             }
         }
 
+        $revRow = $this->formRevModel->find($revisionId);
+        $arah   = ($direction === 'up') ? 'ke atas' : 'ke bawah';
+        $this->catatLog('GESER BARIS FOREGOING', "Menggeser posisi baris matriks '{$rowLabel}' {$arah} pada Revisi " . ($revRow['revisi'] ?? '-'), $revRow['process_code'] ?? '');
+        
         return $this->response->setJSON(['status' => 'success']);
     }
 
@@ -606,9 +680,9 @@ class FormBuilder extends BaseController
     {
         $oldRevisionId = $this->request->getPost('revision_id');
         $oldRevision   = $this->formRevModel->find($oldRevisionId);
-        
+
         $newRevisiCode = $oldRevision['revisi'];
-        $newRevisiCode++; 
+        $newRevisiCode++;
 
         $this->formRevModel->protect(false)->insert([
             'process_code'  => $oldRevision['process_code'],
@@ -639,8 +713,14 @@ class FormBuilder extends BaseController
 
         $duplicateRecursive($tree, null);
 
+        $this->catatLog(
+            'NAIK REVISI',
+            "Menaikkan versi revisi dokumen dari Revisi {$oldRevision['revisi']} menjadi Revisi {$newRevisiCode}",
+            $oldRevision['process_code'] ?? ''
+        );
+
         return $this->response->setJSON([
-            'status'  => 'success', 
+            'status'  => 'success',
             'message' => 'Revisi berhasil dinaikkan menjadi ' . $newRevisiCode
         ]);
     }
@@ -849,7 +929,14 @@ class FormBuilder extends BaseController
             $numTheadRows = count($theadRows);
 
             $processRowGroup = function (array $rowsGroup, bool $isHeaderGroup) use (
-                &$matrix, &$cellList, &$rowIndex, &$maxCols, $numTheadRows, $xpath, $unitLimitsMap, $detectedDynamicStd
+                &$matrix,
+                &$cellList,
+                &$rowIndex,
+                &$maxCols,
+                $numTheadRows,
+                $xpath,
+                $unitLimitsMap,
+                $detectedDynamicStd
             ) {
                 foreach ($rowsGroup as $tr) {
                     $colIndex = 0;
@@ -1220,5 +1307,34 @@ class FormBuilder extends BaseController
             }
         }
         return $maxDepth + 1;
+    }
+
+   // --- HELPER PENCATAT LOG ACTIVITY OTOMATIS (SESUAI LOGACTIVITYMODEL) ---
+    private function catatLog(string $aksi, string $detail, string $processCode = '')
+    {
+        try {
+            $tableName = $processCode !== '' ? strtoupper($processCode) : 'form_parameters';
+            $pesan     = "[Form Builder - {$aksi}] {$detail}";
+
+            // Gunakan fungsi logAction bawaan LogActivityModel
+            if (method_exists($this->logActivityModel, 'logAction')) {
+                $res = $this->logActivityModel->logAction($aksi, $pesan, $tableName);
+                if ($res !== false) {
+                    return;
+                }
+            }
+
+            // Fallback insert langsung jika session positionid kosong/berbeda
+            $session = session();
+            $this->logActivityModel->protect(false)->insert([
+                'emp_id'        => (string)($session->get('empid') ?? 'admin'),
+                'type_activity' => $aksi,
+                'activity'      => $pesan,
+                'user'          => (string)($session->get('name') ?? $session->get('empid') ?? 'admin'),
+                'table_name'    => $tableName,
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal mencatat Log Activity FormBuilder: ' . $e->getMessage());
+        }
     }
 }

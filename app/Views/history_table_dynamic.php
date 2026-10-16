@@ -7,8 +7,6 @@ if (!function_exists('histPrepareTree')) {
             if (!empty($node['children'])) {
                 $node['children'] = histPrepareTree($node['children']);
             }
-            // Jika node memiliki standar_dinamis (seperti Min: - N pada Die Bond Strength),
-            // sisipkan kolom "Std (Min)" secara otomatis di sebelah kiri anak-anaknya (1st, 2nd)
             if (!empty($node['standar_dinamis']) && !empty($node['children'])) {
                 $dyn = is_string($node['standar_dinamis']) ? json_decode($node['standar_dinamis'], true) : $node['standar_dinamis'];
                 if (is_array($dyn) && !empty($dyn['options'])) {
@@ -65,7 +63,6 @@ if (!function_exists('histFormatCellValue')) {
         $colDb = trim((string)($leaf['kolom_db'] ?? ''));
         if ($colDb === '') return '-';
 
-        // Khusus kolom Std (Min) dari standar_dinamis (misal std_die_bond)
         if (($leaf['tipe_input'] ?? '') === 'std_display') {
             $rawStd = isset($row[$colDb]) ? trim((string)$row[$colDb]) : '';
             if ($rawStd === '' || $rawStd === '-') return '-';
@@ -79,12 +76,10 @@ if (!function_exists('histFormatCellValue')) {
         $rawVal = isset($row[$colDb]) ? trim((string)$row[$colDb]) : '';
         if ($rawVal === '') return '-';
 
-        // Cek apakah perlu pewarnaan merah (out-of-range) untuk tampilan web
         if (!$isExport && ($leaf['tipe_input'] ?? '') === 'number' && $rawVal !== '-') {
             $min = ($leaf['batas_min'] !== null && $leaf['batas_min'] !== '') ? (float)$leaf['batas_min'] : null;
             $max = ($leaf['batas_max'] !== null && $leaf['batas_max'] !== '') ? (float)$leaf['batas_max'] : null;
 
-            // Jika punya satuan_opsi (contoh: "0.85 N" atau "80 gr"), cek batas min/max sesuai satuannya
             $parts = explode(' ', $rawVal, 2);
             $numPart = $parts[0] ?? '';
             $unitPart = isset($parts[1]) ? trim($parts[1]) : '';
@@ -221,14 +216,14 @@ $lenData      = count($alldata ?? []);
             if ($d > $maxDepth) $maxDepth = $d;
         }
         $maxDepth = max(2, $maxDepth);
-        $identityCols = $maxDepth + 1; // Kolom No + Start Up Check Item + Standard
+        $identityCols = $maxDepth + 1;
         $dataColsSpan = max(1, $lenData);
 
-       $verticalRows = [];
+        $verticalRows = [];
         $rowIndex = 0;
         histBuildStartupRows($preparedTree, 0, $maxDepth, $verticalRows, $rowIndex, true);
 
-        // Gabungkan sel Standard yang kembar berurutan di dalam 1 nomor item yang sama (Contoh: Item 9 Dispenser Indication)
+        // Gabungkan sel Standard yang kembar berurutan dalam 1 nomor item yang sama
         $totalVRows = count($verticalRows);
         for ($r = 0; $r < $totalVRows; $r++) {
             if (isset($verticalRows[$r][0]['type']) && $verticalRows[$r][0]['type'] === 'no' && $verticalRows[$r][0]['rowspan'] > 1) {
@@ -238,7 +233,6 @@ $lenData      = count($alldata ?? []);
                 $anchorName = null;
 
                 for ($sr = $r; $sr <= $grpEnd; $sr++) {
-                    // Cari sel param terakhir sebelum sel input pada baris ini
                     $lastParamIdx = null;
                     foreach ($verticalRows[$sr] as $cIdx => $cellItem) {
                         if ($cellItem['type'] === 'param') $lastParamIdx = $cIdx;
@@ -263,7 +257,6 @@ $lenData      = count($alldata ?? []);
             }
         }
 
-        // Pastikan baris "Note" selalu ada sebagai penanda batas akhir halaman di ExcelGenerator & PdfGenerator
         $hasNoteRow = false;
         foreach ($verticalRows as $vr) {
             if (isset($vr[0]['type']) && $vr[0]['type'] === 'note_label') {
@@ -333,7 +326,6 @@ $lenData      = count($alldata ?? []);
                     </tr>
                 <?php endif; ?>
 
-                <!-- Baris Status Approval, Operator, dan Time (Otomatis dikelola saat Export Excel/PDF) -->
                 <tr>
                     <td colspan="<?= $identityCols ?>">Status Approval</td>
                     <?php if ($lenData > 0): ?>
@@ -397,14 +389,19 @@ $lenData      = count($alldata ?? []);
         histBuildHorizontalHeaders($preparedTree, 0, $headerRows, $headerLeaves, $headerMaxDepth);
         ksort($headerRows);
 
-        // Deteksi apakah ada baris matriks Foregoing (X, Y, Z, θ atau Sample 1, Sample 2)
-        $gridRowNames = [];
+        // Deteksi baris matriks Foregoing (X, Y, Z, θ) & Nama Kolom Header Dinamis (Misal: "Pos")
+        $gridRowNames     = [];
         $firstGridLeafIdx = null;
-        $hasSuffixCols = false;
+        $hasSuffixCols    = false;
+        $gridHeaderLabel  = 'Sample / Label';
+
         foreach ($headerLeaves as $hIdx => $hLeaf) {
             if (!empty($hLeaf['children']) && !empty($hLeaf['children'][0]['posisi_grid'])) {
                 if ($firstGridLeafIdx === null) $firstGridLeafIdx = $hIdx;
                 foreach ($hLeaf['children'] as $gridChild) {
+                    if (!empty($gridChild['standar_nilai'])) {
+                        $gridHeaderLabel = $gridChild['standar_nilai'];
+                    }
                     if (!empty($gridChild['posisi_grid']) && !in_array($gridChild['posisi_grid'], $gridRowNames)) {
                         $gridRowNames[] = $gridChild['posisi_grid'];
                     }
@@ -415,7 +412,6 @@ $lenData      = count($alldata ?? []);
             }
         }
 
-        // Cek apakah Time (par008 / par009) sudah ada di dalam pohon parameter
         $hasTimeInTree = false;
         foreach ($headerLeaves as $hl) {
             if (in_array($hl['kolom_db'] ?? '', ['par008', 'par009'])) {
@@ -425,9 +421,9 @@ $lenData      = count($alldata ?? []);
         }
         $showAutoTimeCols = ($kategori_form === 'production' && !$hasTimeInTree);
 
-        $metaColCount = ($kategori_form === 'production') ? 9 : 7;
-        $extraTimeCols = $showAutoTimeCols ? 2 : 0;
-        $extraLabelCol = !empty($gridRowNames) ? 1 : 0;
+        $metaColCount   = ($kategori_form === 'production') ? 9 : 7;
+        $extraTimeCols  = $showAutoTimeCols ? 2 : 0;
+        $extraLabelCol  = !empty($gridRowNames) ? 1 : 0;
         $totalTableCols = $metaColCount + $extraTimeCols + $extraLabelCol + count($headerLeaves);
         ?>
         <table class="table table-bordered table-hover" id="table1">
@@ -474,7 +470,7 @@ $lenData      = count($alldata ?? []);
                             if (!empty($gridRowNames) && $level === 0 && !$labelInserted && $runningCol === $firstGridLeafIdx):
                                 $labelInserted = true;
                         ?>
-                                <th rowspan="<?= $headerMaxDepth ?>">Sample / Label</th>
+                                <th rowspan="<?= $headerMaxDepth ?>"><?= esc($gridHeaderLabel) ?></th>
                         <?php
                             endif;
                         ?>
@@ -531,11 +527,10 @@ $lenData      = count($alldata ?? []);
                     <?php endfor; ?>
 
                 <?php else: ?>
-                    <!-- BARIS MATRIKS (FOREGOING: MENDUKUNG MULTI-ROW DB MAUPUN SINGLE-ROW DB) -->
+                    <!-- BARIS MATRIKS (FOREGOING) -->
                     <?php
                     $gridCount = count($gridRowNames);
-                    // Deteksi apakah data di $alldata disimpan per baris matriks (tanpa suffix a/b/c di key array)
-                    $isSplitRowsInDb = ($hasSuffixCols && !isset($alldata[0]['par001a']) && !isset($alldata[0]['par021a']));
+                    $isSplitRowsInDb = ($hasSuffixCols && !isset($alldata[0]['par001a']) && !isset($alldata[0]['par013a']) && !isset($alldata[0]['par021a']));
                     $step = $isSplitRowsInDb ? max(1, $gridCount) : 1;
                     $noUrut = 1;
                     ?>
@@ -579,7 +574,6 @@ $lenData      = count($alldata ?? []);
                                         if ($matchedCell) {
                                             $cellCopy = $matchedCell;
                                             $colKey = $cellCopy['kolom_db'] ?? '';
-                                            // Jika di DB disimpan sebagai par001 (tanpa huruf akhir a/b/c/d)
                                             if (!isset($activeRow[$colKey]) && preg_match('/^(par\d+)[a-z]$/i', $colKey, $mBase)) {
                                                 $cellCopy['kolom_db'] = strtolower($mBase[1]);
                                             }

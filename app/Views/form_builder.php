@@ -944,13 +944,14 @@ $(document).ready(function() {
         $('#modalMatrixRow').modal('show');
     });
 
-    $(document).on('click', '.btn-edit-matrix-row', function() {
-        let lbl = $(this).data('label');$('#matrixRowMode').val('edit');
+    $(document).on('click', '.btn-edit-matrix-header', function() {
+        let lbl = $(this).data('label') || 'Sample / Label';
+        $('#matrixRowMode').val('edit_header');
         $('#matrixOldLabel').val(lbl);
         $('#matrixRowLabel').val(lbl);
         $('#boxMatrixAfterRow').addClass('d-none');
 
-        $('#modalMatrixRowTitle').text('Ubah Nama Baris: ' + lbl);
+        $('#modalMatrixRowTitle').text('Ubah Nama Kolom Header: ' + lbl);
         $('#modalMatrixRow').modal('show');
     });
 

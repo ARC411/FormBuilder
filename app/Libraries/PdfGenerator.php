@@ -30,7 +30,7 @@ class PdfGenerator
             die("Error: Tidak ada elemen <table> yang ditemukan untuk dijadikan PDF!");
         }
 
-        // 1. Hapus baris judul utama di dalam <thead> pertama (karena sudah ada di Kop Surat)
+        // 1. Hapus baris judul utama di dalam <thead> pertama (karena judul sudah ada di Kop Surat)
         $theads = $table->getElementsByTagName('thead');
         if ($theads->length > 0) {
             $firstThead = $theads->item(0);
@@ -87,10 +87,11 @@ class PdfGenerator
         );
 
         // 5. Render Halaman per Chunk
-        $pagesHtml = '';
-        $validEndRow = $grid['totalRows'];
+        $pagesHtml    = '';
+        $validEndRow  = $grid['totalRows'];
 
         if ($isStartup) {
+            // Cari baris 'Note' sebagai batas bawah halaman Startup
             for ($r = $grid['totalRows']; $r >= 1; $r--) {
                 $firstCellVal = $grid['origins'][$r][1]['value'] ?? '';
                 if (stripos(trim($firstCellVal), 'note') !== false) {
@@ -108,16 +109,43 @@ class PdfGenerator
                 $pagesHtml .= "<div class=\"startup-page\"{$pageBreakStyle}>\n{$tableHtml}\n</div>";
             }
         } else {
-            $dataRowStart = $headerRowCount + 1;
-            $dataRowCount = max(0, $grid['totalRows'] - $headerRowCount);
-            $totalPages   = max(1, (int)ceil(max(1, $dataRowCount) / $PER_PAGE));
+            // Production & Foregoing:
+            // Hitung jumlah kolom identitas di sebelah kiri (termasuk kolom Sample / Label jika Foregoing)
+            $horizIdentityCols = (isset($typeProcess) && strtolower($typeProcess) === 'foregoing') ? 8 : 9;
+            if ($horizIdentityCols >= $grid['totalCols']) {
+                $horizIdentityCols = min(3, max(1, $grid['totalCols'] - 1));
+            }
 
-            for ($p = 0; $p < $totalPages; $p++) {
+            $totalDataCols = max(1, $grid['totalCols'] - $horizIdentityCols);
+            // Maksimal 16 kolom parameter per halaman A4 Landscape agar kolom tidak pernah tergencet sempit
+            $MAX_DATA_COLS_PER_PAGE = 16;
+            $colChunks = [];
+            if ($totalDataCols > $MAX_DATA_COLS_PER_PAGE) {
+                $cStart = $horizIdentityCols + 1;
+                while ($cStart <= $grid['totalCols']) {
+                    $cEnd = min($grid['totalCols'], $cStart + $MAX_DATA_COLS_PER_PAGE - 1);
+                    $colChunks[] = [$cStart, $cEnd];
+                    $cStart = $cEnd + 1;
+                }
+            } else {
+                $colChunks[] = [$horizIdentityCols + 1, $grid['totalCols']];
+            }
+
+            $dataRowStart  = $headerRowCount + 1;
+            $dataRowCount  = max(0, $grid['totalRows'] - $headerRowCount);
+            $totalRowPages = max(1, (int)ceil(max(1, $dataRowCount) / $PER_PAGE));
+
+            $pageIdx = 0;
+            for ($p = 0; $p < $totalRowPages; $p++) {
                 $rStart = $dataRowStart + ($p * $PER_PAGE);
                 $rEnd   = $rStart + $PER_PAGE - 1;
-                $pageBreakStyle = ($p > 0) ? ' style="page-break-before: always;"' : '';
-                $tableHtml = $this->buildHorizontalChunkTableHtml($grid, $headerRowCount, $rStart, $rEnd);
-                $pagesHtml .= "<div{$pageBreakStyle}>\n{$tableHtml}\n</div>";
+
+                foreach ($colChunks as $cRange) {
+                    $pageBreakStyle = ($pageIdx > 0) ? ' style="page-break-before: always;"' : '';
+                    $tableHtml = $this->buildHorizontalChunkTableHtml($grid, $horizIdentityCols, $cRange, $headerRowCount, $rStart, $rEnd);
+                    $pagesHtml .= "<div{$pageBreakStyle}>\n{$tableHtml}\n</div>";
+                    $pageIdx++;
+                }
             }
         }
 
@@ -175,7 +203,6 @@ class PdfGenerator
         $stdCol = $identityColCount;
 
         for ($r = 1; $r <= $grid['totalRows']; $r++) {
-            // Cek jika baris ini memulai nomor item baru di kolom 1 dengan rowspan > 1
             if (isset($grid['origins'][$r][1]) && ($grid['origins'][$r][1]['rowspan'] ?? 1) > 1) {
                 $groupSpan = $grid['origins'][$r][1]['rowspan'];
                 $groupEnd  = min($grid['totalRows'], $r + $groupSpan - 1);
@@ -290,7 +317,7 @@ class PdfGenerator
                 } else {
                     $tdAppData = $doc->createElement('td', '-');
                 }
-                $appTr->appendChild($tdAppData);
+                $appTr->appendChild($appTr->ownerDocument->importNode($tdAppData, true));
             }
             $noteTr->parentNode->insertBefore($appTr, $noteTr);
         }
@@ -356,18 +383,18 @@ class PdfGenerator
         return 1;
     }
 
+    // Render Halaman Tabel Startup (Identitas Kiri + 14 Kolom Data per Halaman, Berhenti di Baris Note)
     private function buildStartupChunkTableHtml(array $grid, int $identityColCount, array $colRange, int $headerRowCount, int $validEndRow, int $PER_PAGE): string
     {
         [$startCol, $endCol] = $colRange;
 
-        // Proporsi lebar: 42% untuk Kolom Identitas (No + Check Item + Standard), 58% untuk 14 Kolom Data
         $colgroup = '<colgroup>';
         $leftTotal = 42;
         for ($c = 1; $c <= $identityColCount; $c++) {
             if ($c === 1) {
                 $w = '3%';
             } elseif ($c === $identityColCount) {
-                $w = '17%'; // Lebar khusus kolom Standard agar kalimat tidak turun banyak baris
+                $w = '17%';
             } else {
                 $midCols = max(1, $identityColCount - 2);
                 $w = round(($leftTotal - 20) / $midCols, 2) . '%';
@@ -445,7 +472,6 @@ class PdfGenerator
         for ($c = 1; $c <= $identityColCount; $c++) $validCols[$c] = true;
         for ($c = $startCol; $c <= $endCol; $c++) $validCols[$c] = true;
 
-        // Proporsi lebar: Kolom identitas kiri mendapat lebar yang pas sesuai isinya (No=2.5%, Date=5.5%, Mch/Model/Lot=4.5%, Operator=7%)
         $colgroup = '<colgroup>';
         $usedWidth = 0.0;
         for ($c = 1; $c <= $identityColCount; $c++) {
@@ -469,7 +495,7 @@ class PdfGenerator
 
         $html = '<table class="table-cs">' . $colgroup . '<thead>';
 
-        // 1. Render Header Tabel (Hanya untuk kolom yang masuk di halaman ini)
+        // 1. Render Header Tabel
         for ($r = 1; $r <= $headerRowCount; $r++) {
             $html .= '<tr>';
             foreach ($validCols as $c => $dummy) {
@@ -487,8 +513,7 @@ class PdfGenerator
                         $html   .= "<th{$rsAttr}{$csAttr}>" . htmlspecialchars($cell['value'], ENT_QUOTES, 'UTF-8') . "</th>";
                     }
                 } elseif (!empty($grid['occupied'][$r][$c])) {
-                    // Cek apakah sel ini merupakan bagian dari header yang titik awalnya (origin) berada di halaman sebelah kiri
-                    // Jika iya, render ulang judul induknya di awal chunk ini agar header atas tidak bolong!
+                    // Jika sel ini adalah lanjutan colspan dari halaman sebelah kiri, cetak ulang judul induknya di awal chunk
                     if ($c === $startCol) {
                         for ($lookLeft = $c - 1; $lookLeft > $identityColCount; $lookLeft--) {
                             if (isset($grid['origins'][$r][$lookLeft])) {

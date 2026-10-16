@@ -4,18 +4,19 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\MachineModel;
+use App\Models\LogActivityModel;
 
 class Machine extends BaseController
 {
     protected $session;
+    protected $logActivityModel;
 
     public function __construct()
     {
-        $this->session = \Config\Services::session();
+        $this->session          = \Config\Services::session();
+        $this->logActivityModel = new LogActivityModel();
     }
 
-    // Ubah nama method dari getList menjadi list agar sesuai dengan URL AJAX
-    // Ganti nama menjadi getList agar aman dari error PHP
     public function getList()
     {
         error_reporting(0);
@@ -27,7 +28,6 @@ class Machine extends BaseController
 
         try {
             $machineModel = new \App\Models\MachineModel();
-            // Menggunakan fungsi pintar dari model Anda
             $mesin = $machineModel->getMachineByProcess($processCode);
             return $this->response->setJSON($mesin);
         } catch (\Throwable $th) {
@@ -35,7 +35,6 @@ class Machine extends BaseController
         }
     }
 
-    // ... (Fungsi index, getProcessesByDevice, save, dll TETAP SAMA SEPERTI SEBELUMNYA) ...
     public function index()
     {
         if (!$this->session->get('isadmin')) {
@@ -46,7 +45,7 @@ class Machine extends BaseController
         $machineModel = new MachineModel();
         
         $data = [
-            'title' => 'Machine Data',
+            'title'   => 'Machine Data',
             'devices' => $db->table('device')->get()->getResultArray(),
             'alldata' => $machineModel->findAll()
         ];
@@ -100,6 +99,13 @@ class Machine extends BaseController
             'machine_name' => $machine_name
         ]);
 
+        // Catat ke Log Activity
+        $this->catatLogMesin(
+            'TAMBAH MESIN',
+            "Menambahkan Machine Number baru '{$machine_name}' pada proses " . strtoupper($process_code),
+            $process_code
+        );
+
         return redirect()->to(base_url('machine'))->with('message', "Sukses! Mesin berhasil ditambahkan.");
     }
 
@@ -110,7 +116,20 @@ class Machine extends BaseController
         }
 
         $machineModel = new MachineModel();
+        $oldData      = $machineModel->find($id);
+
         $machineModel->delete($id);
+
+        // Catat ke Log Activity
+        if ($oldData) {
+            $oldName = $oldData['machine_name'] ?? ('ID ' . $id);
+            $oldProc = $oldData['process_code'] ?? 'machine';
+            $this->catatLogMesin(
+                'HAPUS MESIN',
+                "Menghapus Machine Number '{$oldName}' dari proses " . strtoupper($oldProc),
+                $oldProc
+            );
+        }
         
         return $this->response->setJSON(['status' => 'success']);
     }
@@ -135,17 +154,55 @@ class Machine extends BaseController
             return redirect()->to(base_url('/'));
         }
 
-        $id = $this->request->getPost('id');
+        $id           = $this->request->getPost('id');
         $process_code = $this->request->getPost('process_code');
         $machine_name = strtoupper(trim($this->request->getPost('machine_name')));
 
         $machineModel = new MachineModel();
+        $oldData      = $machineModel->find($id);
         
         $machineModel->update($id, [
             'process_code' => $process_code,
             'machine_name' => $machine_name
         ]);
 
+        // Catat ke Log Activity (lengkap dengan perbandingan data lama -> baru)
+        $oldName = $oldData['machine_name'] ?? '-';
+        $oldProc = isset($oldData['process_code']) ? strtoupper($oldData['process_code']) : '-';
+        $newProc = strtoupper($process_code);
+
+        $this->catatLogMesin(
+            'EDIT MESIN',
+            "Mengubah Machine Number dari '{$oldName}' ({$oldProc}) menjadi '{$machine_name}' ({$newProc})",
+            $process_code
+        );
+
         return redirect()->to(base_url('machine'))->with('message', "Sukses! Data mesin berhasil diperbarui.");
+    }
+
+    // --- HELPER PENCATAT LOG ACTIVITY MESIN ---
+    private function catatLogMesin(string $aksi, string $detail, string $processCode = '')
+    {
+        try {
+            $tableName = $processCode !== '' ? strtoupper($processCode) : 'machine';
+            $pesan     = "[Machine - {$aksi}] {$detail}";
+
+            if (method_exists($this->logActivityModel, 'logAction')) {
+                $res = $this->logActivityModel->logAction($aksi, $pesan, $tableName);
+                if ($res !== false) {
+                    return;
+                }
+            }
+
+            $this->logActivityModel->protect(false)->insert([
+                'emp_id'        => (string)($this->session->get('empid') ?? 'admin'),
+                'type_activity' => $aksi,
+                'activity'      => $pesan,
+                'user'          => (string)($this->session->get('name') ?? $this->session->get('empid') ?? 'admin'),
+                'table_name'    => $tableName,
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal mencatat Log Activity Machine: ' . $e->getMessage());
+        }
     }
 }

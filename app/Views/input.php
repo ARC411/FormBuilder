@@ -245,7 +245,7 @@ $(document).ready(function()
     });
 
     $('#type-process-txt').change(function(){
-        document.getElementById("form-action").action = "/checkseet/" + document.getElementById("type-process-txt").value;
+        document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + document.getElementById("type-process-txt").value;
     });
 
     // Auto-fill shift & group saat halaman dimuat
@@ -411,7 +411,7 @@ function updateInput() {
         typeProcess = "startup";
     }
 
-    document.getElementById("form-action").action = "/checkseet/" + typeProcess;
+    document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + typeProcess;
 
     let cnt_error = document.getElementById("cnt-error-input");
     let submit_button = document.getElementById("submit");
