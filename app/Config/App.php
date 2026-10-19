@@ -16,7 +16,7 @@ class App extends BaseConfig
      *
      * E.g., http://example.com/
      */
-    public string $baseURL = 'https://intra2.fti-foxconn.com/cms/';
+    public string $baseURL = 'https://intra2.fti-foxconn.com/FormBuilder/';
 
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.
