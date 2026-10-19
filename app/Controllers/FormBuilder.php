@@ -46,7 +46,9 @@ class FormBuilder extends BaseController
     {
         $deviceCode = $this->request->getGet('device_code');
         $type       = $this->request->getGet('type');
-        $processes  = $this->processModel->getAll($deviceCode, $type);
+        // Baik startup menurun maupun startup mendatar sama-sama mengambil daftar proses bertipe 'startup'
+        $dbType     = ($type === 'startup_horizontal') ? 'startup' : $type;
+        $processes  = $this->processModel->getAll($deviceCode, $dbType);
         return $this->response->setJSON($processes);
     }
 
@@ -56,12 +58,13 @@ class FormBuilder extends BaseController
         $processCode  = trim((string)$this->request->getPost('process'));
         $selectedType = trim((string)$this->request->getPost('doc_type'));
         $forceReparse = $this->request->getPost('reparse');
+        $switchLayout = trim((string)$this->request->getPost('switch_layout'));
 
         if (!$processCode) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Pilih proses terlebih dahulu!']);
         }
 
-        if (!empty($selectedType) && in_array($selectedType, ['startup', 'production', 'foregoing'])) {
+        if (!empty($selectedType) && in_array($selectedType, ['startup', 'startup_horizontal', 'production', 'foregoing'])) {
             $detectedKategori = $selectedType;
         } else {
             $parts = explode('-', strtolower($processCode));
@@ -84,7 +87,14 @@ class FormBuilder extends BaseController
             $revision = $this->formRevModel->find($revisionId);
         } else {
             $revisionId = $revision['id'];
-            if (($revision['kategori_form'] ?? '') !== $detectedKategori) {
+            // Jika user secara eksplisit mengganti tipe layout (misal dari Startup Menurun <-> Startup Mendatar)
+            if ($switchLayout === 'true' && in_array($detectedKategori, ['startup', 'startup_horizontal'])) {
+                $this->formRevModel->protect(false)->update($revisionId, ['kategori_form' => $detectedKategori]);
+                $revision['kategori_form'] = $detectedKategori;
+            } elseif (!empty($revision['kategori_form']) && in_array($revision['kategori_form'], ['startup', 'startup_horizontal']) && in_array($detectedKategori, ['startup', 'startup_horizontal'])) {
+                // Pertahankan kategori startup/startup_horizontal yang sudah tersimpan di DB
+                $detectedKategori = $revision['kategori_form'];
+            } elseif (($revision['kategori_form'] ?? '') !== $detectedKategori) {
                 $this->formRevModel->protect(false)->update($revisionId, ['kategori_form' => $detectedKategori]);
                 $revision['kategori_form'] = $detectedKategori;
             }
@@ -110,6 +120,8 @@ class FormBuilder extends BaseController
 
         if (empty($rawParams) || $isLegacyFlat || $forceReparse === 'true') {
             $this->parseSingleProcess($processCode, $revisionId, $detectedKategori);
+            $revision = $this->formRevModel->find($revisionId);
+            $detectedKategori = $revision['kategori_form'] ?? $detectedKategori;
             $rawParams = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
 
             if ($forceReparse === 'true') {
@@ -904,10 +916,11 @@ class FormBuilder extends BaseController
             $tbodyRowsRaw = $xpath->query('./tbody/tr | ./tr', $table);
 
             $theadRows = [];
-            foreach ($theadRowsRaw as $tr) {
+            foreach ($theadRowsRaw as $tIdx => $tr) {
                 $cells = $xpath->query('./th | ./td', $tr);
                 if ($cells->length === 0) continue;
-                if ($cells->length === 1 && (int)$cells->item(0)->getAttribute('colspan') > 2) {
+                // Hanya abaikan baris judul mesin utama (1 sel dengan colspan besar >= 10)
+                if ($cells->length === 1 && (int)$cells->item(0)->getAttribute('colspan') >= 10) {
                     continue;
                 }
                 $theadRows[] = $tr;
@@ -1081,7 +1094,22 @@ class FormBuilder extends BaseController
             $processRowGroup($theadRows, true);
             $processRowGroup($tbodyRows, false);
 
-            // --- ARAH 1: STARTUP (VERTIKAL) ---
+            // Deteksi otomatis apakah file Startup ini berformat MENDATAR (Horizontal) seperti sp56-s-ag atau Burn In
+            if ($kategori === 'startup') {
+                $inputsPerRowCount = [];
+                foreach ($cellList as $cNode) {
+                    if ($cNode['isLeaf']) {
+                        $inputsPerRowCount[$cNode['r']] = ($inputsPerRowCount[$cNode['r']] ?? 0) + 1;
+                    }
+                }
+                $maxInputsInOneRow = !empty($inputsPerRowCount) ? max($inputsPerRowCount) : 1;
+                if ($maxInputsInOneRow > 1) {
+                    $kategori = 'startup_horizontal';
+                    $this->formRevModel->protect(false)->update($revisionId, ['kategori_form' => 'startup_horizontal']);
+                }
+            }
+
+            // --- ARAH 1: STARTUP MENURUN (VERTIKAL) ---
             if ($kategori === 'startup') {
                 foreach ($cellList as $cellId => $leafCell) {
                     if (!$leafCell['isLeaf']) continue;
@@ -1121,7 +1149,6 @@ class FormBuilder extends BaseController
                                 'standar_nilai'  => $leafCell['stdNilai'],
                                 'urutan'         => $urutan++
                             ]);
-                            // Jika anak memiliki flag isExclusive, tandai bapak langsungnya sebagai is_exclusive = 1
                             if ($leafCell['isExclusive'] && $parentId) {
                                 $this->formParamModel->protect(false)->update($parentId, ['is_exclusive' => 1]);
                             }
@@ -1142,12 +1169,15 @@ class FormBuilder extends BaseController
                     }
                 }
             }
-            // --- ARAH 2 & 3: PRODUCTION & FOREGOING ---
+            // --- ARAH 2 & 3: STARTUP MENDATAR, PRODUCTION, & FOREGOING ---
             else {
                 $inputsPerCol = [];
                 $firstInputRow = [];
                 foreach ($cellList as $cellId => $node) {
-                    if ($node['isLeaf']) {
+                    // Untuk Startup Mendatar (seperti Burn In), sel teks di tbody (Start up Checking Item / Standard)
+                    // juga diperlakukan sebagai kolom daun (header_only) agar ikut tampil di baris tabel!
+                    $isStaticBodyCol = ($kategori === 'startup_horizontal' && !$node['isHeader'] && !$node['isLeaf'] && $node['name'] !== '');
+                    if ($node['isLeaf'] || $isStaticBodyCol) {
                         $c = $node['c'];
                         $inputsPerCol[$c] = ($inputsPerCol[$c] ?? 0) + 1;
                         if (!isset($firstInputRow[$c]) || $node['r'] < $firstInputRow[$c]) {
@@ -1156,8 +1186,21 @@ class FormBuilder extends BaseController
                     }
                 }
 
-                foreach ($cellList as $cellId => $leafCell) {
-                    if (!$leafCell['isLeaf']) continue;
+                // Urutkan berdasarkan kolom kiri ke kanan agar urutan kolom mendatar selalu presisi
+                $bodyLeaves = [];
+                foreach ($cellList as $cellId => $node) {
+                    $isStaticBodyCol = ($kategori === 'startup_horizontal' && !$node['isHeader'] && !$node['isLeaf'] && $node['name'] !== '');
+                    if ($node['isLeaf'] || $isStaticBodyCol) {
+                        $node['_isStaticBody'] = $isStaticBodyCol;
+                        $bodyLeaves[] = $node;
+                    }
+                }
+                usort($bodyLeaves, function ($a, $b) {
+                    if ($a['c'] === $b['c']) return $a['r'] <=> $b['r'];
+                    return $a['c'] <=> $b['c'];
+                });
+
+                foreach ($bodyLeaves as $leafCell) {
                     $rInput = $leafCell['r'];
                     $c = $leafCell['c'];
                     $topLimit = $firstInputRow[$c] ?? $rInput;
@@ -1183,7 +1226,6 @@ class FormBuilder extends BaseController
                         $isLastHeader = ($idx === $totalChain - 1);
 
                         if ($isLastHeader && !$isMultiRowCol) {
-                            // Deteksi otomatis rumus NG & Yield di Production
                             $autoFormula = null;
                             $isRo = $leafCell['isReadonly'];
                             $dbCol = $leafCell['dbCol'];
@@ -1205,19 +1247,22 @@ class FormBuilder extends BaseController
                                 }
                             }
 
+                            $finalTipeInput = !empty($leafCell['_isStaticBody']) ? 'header_only' : $leafCell['inputType'];
+                            $finalStdNilai  = !empty($leafCell['_isStaticBody']) ? $leafCell['name'] : $leafCell['stdNilai'];
+
                             $this->formParamModel->protect(false)->insert([
                                 'revision_id'     => $revisionId,
                                 'parent_id'       => $parentId,
                                 'nama_parameter'  => $chNode['name'],
                                 'kolom_db'        => $dbCol,
-                                'tipe_input'      => $leafCell['inputType'],
+                                'tipe_input'      => $finalTipeInput,
                                 'batas_min'       => $leafCell['batasMin'],
                                 'batas_max'       => $leafCell['batasMax'],
                                 'satuan_opsi'     => $leafCell['satuanOpsi'],
                                 'is_readonly'     => $isRo,
                                 'rumus_otomatis'  => $autoFormula,
                                 'standar_dinamis' => $chNode['standarDinamis'],
-                                'standar_nilai'   => $leafCell['stdNilai'],
+                                'standar_nilai'   => $finalStdNilai,
                                 'urutan'          => $urutan++
                             ]);
                             $parentId = $this->formParamModel->getInsertID();
@@ -1249,8 +1294,6 @@ class FormBuilder extends BaseController
                             }
                         }
 
-                        // Jika label kiri tidak ketemu tetapi nama kolom DB berakhiran a/b/c/d (seperti par013a, par013b, par013c),
-                        // petakan otomatis menjadi baris matriks (X, Z, θ atau Sample 1, 2, 3) agar TIDAK melebar ke samping!
                         if ($rowLabel === '' && !empty($leafCell['dbCol']) && preg_match('/^par\d+([a-z])$/i', $leafCell['dbCol'], $mSuf)) {
                             $suf = strtolower($mSuf[1]);
                             $defaultAxisMap = ['a' => 'X', 'b' => 'Y', 'c' => 'Z', 'd' => 'θ'];
@@ -1277,9 +1320,9 @@ class FormBuilder extends BaseController
                     }
                 }
             }
-        }
         return true;
     }
+}
 
     private function buildTree(array $elements, $parentId = null)
     {

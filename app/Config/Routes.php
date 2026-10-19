@@ -157,3 +157,12 @@ $routes->post('form-builder/row-save', 'FormBuilder::saveMatrixRow');
 $routes->post('form-builder/row-delete', 'FormBuilder::deleteMatrixRow');
 $routes->post('form-builder/row-move', 'FormBuilder::moveMatrixRow');
 $routes->match(['GET', 'POST'], 'form-builder/render-input', 'FormBuilder::renderOperatorForm');
+
+// ==========================================================
+// 14. MASTER DATA: MODEL LIST
+// ==========================================================
+$routes->get('model/list', 'ModelData::getList');
+$routes->post('model/auto-register', 'ModelData::autoRegister');
+$routes->post('model/save', 'ModelData::saveModel');
+$routes->post('model/save-standards', 'ModelData::saveStandards');
+$routes->post('model/delete', 'ModelData::deleteModel');

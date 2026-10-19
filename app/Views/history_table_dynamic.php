@@ -60,8 +60,15 @@ if (!function_exists('histGetSubtreeDepth')) {
 
 if (!function_exists('histFormatCellValue')) {
     function histFormatCellValue($row, $leaf, $isExport = false) {
+        // Jika kolom teks statis (header_only seperti pada Burn In)
+        if (($leaf['tipe_input'] ?? '') === 'header_only') {
+            return !empty($leaf['standar_nilai']) ? nl2br(esc($leaf['standar_nilai'])) : '-';
+        }
+
         $colDb = trim((string)($leaf['kolom_db'] ?? ''));
-        if ($colDb === '') return '-';
+        if ($colDb === '') {
+            return !empty($leaf['standar_nilai']) ? nl2br(esc($leaf['standar_nilai'])) : '-';
+        }
 
         if (($leaf['tipe_input'] ?? '') === 'std_display') {
             $rawStd = isset($row[$colDb]) ? trim((string)$row[$colDb]) : '';
@@ -207,7 +214,7 @@ $lenData      = count($alldata ?? []);
 
     <?php if ($kategori_form === 'startup'): ?>
         <!-- ================================================================= -->
-        <!-- TABEL HISTORY 1: STARTUP (VERTIKAL, TANGGAL MENYAMPING KE KANAN)  -->
+        <!-- TABEL HISTORY 1: STARTUP MENURUN (VERTIKAL)                       -->
         <!-- ================================================================= -->
         <?php
         $maxDepth = 0;
@@ -223,7 +230,6 @@ $lenData      = count($alldata ?? []);
         $rowIndex = 0;
         histBuildStartupRows($preparedTree, 0, $maxDepth, $verticalRows, $rowIndex, true);
 
-        // Gabungkan sel Standard yang kembar berurutan dalam 1 nomor item yang sama
         $totalVRows = count($verticalRows);
         for ($r = 0; $r < $totalVRows; $r++) {
             if (isset($verticalRows[$r][0]['type']) && $verticalRows[$r][0]['type'] === 'no' && $verticalRows[$r][0]['rowspan'] > 1) {
@@ -373,9 +379,9 @@ $lenData      = count($alldata ?? []);
         </table>
 
     <?php else: ?>
-        <!-- ================================================================= -->
-        <!-- TABEL HISTORY 2 & 3: PRODUCTION & FOREGOING (HORIZONTAL)          -->
-        <!-- ================================================================= -->
+        <!-- ========================================================================= -->
+        <!-- TABEL HISTORY 2 & 3: STARTUP MENDATAR, PRODUCTION, & FOREGOING            -->
+        <!-- ========================================================================= -->
         <?php
         $headerMaxDepth = 0;
         foreach ($preparedTree as $node) {
@@ -421,7 +427,7 @@ $lenData      = count($alldata ?? []);
         }
         $showAutoTimeCols = ($kategori_form === 'production' && !$hasTimeInTree);
 
-        $metaColCount   = ($kategori_form === 'production') ? 9 : 7;
+        $metaColCount   = ($kategori_form === 'production') ? 9 : (($kategori_form === 'startup_horizontal') ? 6 : 7);
         $extraTimeCols  = $showAutoTimeCols ? 2 : 0;
         $extraLabelCol  = !empty($gridRowNames) ? 1 : 0;
         $totalTableCols = $metaColCount + $extraTimeCols + $extraLabelCol + count($headerLeaves);
@@ -449,6 +455,13 @@ $lenData      = count($alldata ?? []);
                                 <?php if ($showAutoTimeCols): ?>
                                     <th colspan="2" rowspan="<?= max(1, $headerMaxDepth - 1) ?>">Time</th>
                                 <?php endif; ?>
+                            <?php elseif ($kategori_form === 'startup_horizontal'): ?>
+                                <th rowspan="<?= $headerMaxDepth ?>">No.</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Date</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Mch. No.</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Operator</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Status Approval</th>
                             <?php else: ?>
                                 <th rowspan="<?= $headerMaxDepth ?>">No.</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Date</th>
@@ -493,7 +506,7 @@ $lenData      = count($alldata ?? []);
                         <?php endfor; ?>
                     </tr>
                 <?php elseif (empty($gridRowNames)): ?>
-                    <!-- BARIS TUNGGAL PER TRANSAKSI (PRODUCTION) -->
+                    <!-- BARIS TUNGGAL PER TRANSAKSI (PRODUCTION & STARTUP MENDATAR) -->
                     <?php for ($i = 0; $i < $lenData; $i++): ?>
                         <?php $row = $alldata[$i]; ?>
                         <tr>
@@ -511,6 +524,12 @@ $lenData      = count($alldata ?? []);
                                     <td align="center"><?= (!empty($row['par008']) && $row['par008'] !== '-') ? date('H:i', strtotime((string)$row['par008'])) : '-' ?></td>
                                     <td align="center"><?= (!empty($row['par009']) && $row['par009'] !== '-') ? date('H:i', strtotime((string)$row['par009'])) : '-' ?></td>
                                 <?php endif; ?>
+                            <?php elseif ($kategori_form === 'startup_horizontal'): ?>
+                                <td align="center"><?= (!empty($row['created_at']) && $row['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$row['created_at'])) : '-' ?></td>
+                                <td align="center"><?= esc((string)($row['machno'] ?? '-')) ?></td>
+                                <td align="center"><?= esc(($row['shift'] ?? '-') . ' / ' . ($row['group'] ?? '-')) ?></td>
+                                <td><?= esc($row['name'] ?? $row['operator'] ?? $row['nama'] ?? '-') ?></td>
+                                <td align="center"><?= esc((string)($row['status'] ?? '-')) ?></td>
                             <?php else: ?>
                                 <td align="center"><?= (!empty($row['created_at']) && $row['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$row['created_at'])) : '-' ?></td>
                                 <td align="center"><?= esc((string)($row['machno'] ?? '-')) ?></td>

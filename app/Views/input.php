@@ -98,11 +98,13 @@
                 </div>
               </div>
 
-              <!-- Model name -->
+              <!-- Model name (Select2 Dropdown + Auto-Register jika ketik model baru) -->
               <div class="mb-3 row">
                 <label for="model-txt" class="col-sm-2 col-form-label">Model Name</label>
                 <div class="col-sm-6">
-                  <input type="text" class="form-control" id="model-txt" name="model-txt" onkeyup="this.value = this.value.toUpperCase()" autofocus>
+                  <select class="form-control" id="model-txt" name="model-txt">
+                    <option value="">-- Ketik atau Pilih Model Name --</option>
+                  </select>
                 </div>
               </div>
 
@@ -242,6 +244,7 @@ $(document).ready(function()
         updateInput();
         updateDocNo();
         updateMachine();
+        updateModelList();
     });
 
     $('#type-process-txt').change(function(){
@@ -250,6 +253,46 @@ $(document).ready(function()
 
     // Auto-fill shift & group saat halaman dimuat
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl');
+
+    // Aktifkan Select2 pada Model Name (Bisa pilih dari daftar ATAU ketik model baru untuk Auto-Register)
+    $('#model-txt').select2({
+        placeholder: "-- Ketik atau Pilih Model Name --",
+        allowClear: true,
+        tags: true,
+        width: '100%',
+        createTag: function (params) {
+            var term = $.trim(params.term).toUpperCase();
+            if (term === '') return null;
+            return {
+                id: term,
+                text: term,
+                newTag: true
+            };
+        }
+    });
+
+    // Saat Operator memilih atau mengetik Model Name
+    $('#model-txt').on('change', function() {
+        var selectedModel = $(this).val();
+        var processCode   = $('#process-txt').val();
+        if (selectedModel && processCode && processCode !== '-') {
+            // Auto-Register ke database jika model belum terdaftar + terapkan standar X, Y, Z, θ
+            $.post("<?= base_url('model/auto-register') ?>", {
+                process_code: processCode,
+                model_name: selectedModel
+            }, function(res) {
+                if (res && res.data && res.data.standards) {
+                    window.activeModelStandards = res.data.standards;
+                } else {
+                    window.activeModelStandards = null;
+                }
+                applyForegoingModelStandards();
+            }, 'json');
+        } else {
+            window.activeModelStandards = null;
+            applyForegoingModelStandards();
+        }
+    });
 });
 
 // FUNGSI PENJAGA FORM
@@ -334,6 +377,7 @@ function populateProcess(data) {
     updateDocNo();
     updateInput();
     updateMachine();
+    updateModelList();
 }
 
 // FUNGSI UPDATE MACHINE
@@ -450,6 +494,7 @@ function updateInput() {
 
                 // 3. Tampilkan Tabel Dinamis & Tombol Submit
                 $('#form-input').html(res.html);
+                applyForegoingModelStandards();
                 $('#submit').show();
 
                 var processValue = document.getElementById("process-txt");
@@ -498,6 +543,98 @@ function updateDocNo() {
         var text = processValue.options[processValue.selectedIndex].text;
         docNo.value = text.split(" ")[0];
     }
+}
+
+// FUNGSI UPDATE DROPDOWN MODEL NAME PER PROSES
+window.modelsCacheByProcess = {};
+window.activeModelStandards = null;
+
+function updateModelList() {
+    var processCode = document.getElementById("process-txt").value;
+    var modelSelect = $('#model-txt');
+    var currentVal  = modelSelect.val();
+
+    modelSelect.empty().append('<option value="">-- Ketik atau Pilih Model Name --</option>');
+
+    if (!processCode || processCode === '-' || processCode === 'null') {
+        modelSelect.trigger('change');
+        return;
+    }
+
+    $.ajax({
+        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode),
+        dataType: 'JSON',
+        success: function(data) {
+            window.modelsCacheByProcess = {};
+            if (data && data.length > 0) {
+                for (let i = 0; i < data.length; i++) {
+                    var mName = data[i].model_name;
+                    window.modelsCacheByProcess[mName] = data[i].standards || null;
+                    var isSel = (mName === currentVal);
+                    modelSelect.append(new Option(mName, mName, isSel, isSel));
+                }
+            }
+            modelSelect.trigger('change');
+        }
+    });
+}
+
+// TERAPKAN STANDAR BATAS MIN/MAX (X, Y, Z, θ) SESUAI MODEL YANG DIPILIH PADA FORM FOREGOING
+function applyForegoingModelStandards() {
+    var selectedModel = $('#model-txt').val();
+    var stdMap = window.activeModelStandards || (selectedModel ? window.modelsCacheByProcess[selectedModel] : null);
+
+    $('#form-input tr[data-grid-row]').each(function() {
+        var rowName = $(this).attr('data-grid-row');
+        var cfg = (stdMap && stdMap[rowName]) ? stdMap[rowName] : null;
+
+        // Hanya ubah input sampel angka (jangan ubah kolom Offset Parameter From/To di sebelah kanan Judge)
+        $(this).find('input.dyn-number-input').each(function() {
+            var el = this;
+            var $td = $(el).closest('td');$td.find('.std-model-hint').remove();
+
+            if (!cfg) {
+                // Kembalikan ke normal jika model belum dipilih / belum punya standar khusus
+                if (!el.hasAttribute('readonly')) {
+                    el.disabled = false;
+                    el.style.backgroundColor = '';
+                }
+                return;
+            }
+
+            if (parseInt(cfg.active) === 0) {
+                // Jika baris ini tidak diukur untuk model tersebut (Contoh: Baris Y pada GH16330A8C)
+                el.value = '';
+                el.disabled = true;
+                el.style.backgroundColor = '#e2e8f0';
+                el.removeAttribute('data-min');
+                el.removeAttribute('data-max');
+                $td.append('<small class="text-muted d-block mt-1 std-model-hint" style="font-size:10px;">Tidak Diukur</small>');
+            } else {
+                el.disabled = false;
+                var minVal = (cfg.min !== null && cfg.min !== undefined && cfg.min !== '') ? cfg.min : '';
+                var maxVal = (cfg.max !== null && cfg.max !== undefined && cfg.max !== '') ? cfg.max : '';
+                el.setAttribute('data-min', minVal);
+                el.setAttribute('data-max', maxVal);
+
+                if (minVal !== '' || maxVal !== '') {
+                    $td.append(`<small class="text-primary fw-semibold d-block mt-1 std-model-hint" style="font-size:10px;">Std: ${minVal !== '' ? minVal : '-∞'} ~ ${maxVal !== '' ? maxVal : '∞'}</small>`);
+                }
+
+                // Cek ulang warna validasi jika kotak sudah terisi angka
+                if (el.value !== '') {
+                    var v = parseFloat(el.value);
+                    if ((minVal !== '' && v < parseFloat(minVal)) || (maxVal !== '' && v > parseFloat(maxVal))) {
+                        el.style.backgroundColor = '#ffcccc';
+                    } else {
+                        el.style.backgroundColor = '';
+                    }
+                } else {
+                    el.style.backgroundColor = '';
+                }
+            }
+        });
+    });
 }
 </script>
 <?= $this->endSection(); ?>
