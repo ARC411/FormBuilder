@@ -32,19 +32,18 @@
                         <?= csrf_field() ?>
                         <?php
                         $session = \Config\Services::session();
+                        $userLevel = (int)$session->get('level');
+                        $canApproveLevel = ($userLevel == 14 || $userLevel == 10 || ($userLevel <= 7 && $userLevel > 0));
+
                         $inputButton = 
                         '<input type="hidden" name="number" value="'.$alldata[$i]['number'].'">'.
                         '<input type="hidden" name="name" value="'.$session->get('name').'">'.
                         '<input type="hidden" name="level" value="'.$session->get('level').'">'.
                         '<button type="submit" class="btn btn-primary" onclick="return confirm(`Apakah kamu yakin?`);">Approve</button>';
 
-                        if($session->get('level') == 14 && $alldata[$i]['foreman'] == null) {
-                            echo $inputButton;
-                        }
-                        else if($session->get('level') == 10 && $alldata[$i]['leader'] == null) {
-                            echo $inputButton;
-                        }
-                        else if($session->get('level') <= 7 && $alldata[$i]['supervisor'] == null) {
+                        // Sekali dokumen di-approve oleh siapapun (User A), maka status bukan lagi Pending
+                        // dan tombol Approve langsung HILANG untuk siapapun (termasuk User B)
+                        if ($canApproveLevel && $alldata[$i]['status'] === 'Pending') {
                             echo $inputButton;
                         }
                         ?>

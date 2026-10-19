@@ -9,6 +9,9 @@ class PdfGenerator
 {
     public function generate(string $htmlString, array $context)
     {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
         extract($context); 
 
         $doc = new \DOMDocument(); 
@@ -30,15 +33,50 @@ class PdfGenerator
             die("Error: Tidak ada elemen <table> sama sekali yang ditemukan di view untuk dijadikan PDF!");
         }
 
-        if (isset($typeProcess) && $typeProcess === 'startup') {
-            $namaApp = isset($namaApprover) ? $namaApprover : '';
-            $allD = isset($alldata) ? $alldata : [];
-            $this->injectApprover($doc, $table, $namaApp, $allD);
-        }
 
         $dataColsCount = count($alldata ?? []);
-        $maxExistingCols = 0;
         $trs = iterator_to_array($table->getElementsByTagName('tr'));
+
+        // Deteksi lebar kolom sebenarnya dari baris yang memiliki multi-sel
+        $contentCols = 0;
+        foreach ($trs as $tr) {
+            $cells = [];
+            foreach ($tr->childNodes as $child) {
+                if ($child instanceof \DOMElement && in_array(strtolower($child->tagName), ['td', 'th'])) {
+                    $cells[] = $child;
+                }
+            }
+            if (count($cells) > 1) {
+                $rowCols = 0;
+                foreach ($cells as $cell) {
+                    $cs = max(1, (int)($cell->getAttribute('colspan') ?: 1));
+                    $rowCols += $cs;
+                }
+                if ($rowCols > $contentCols) {
+                    $contentCols = $rowCols;
+                }
+            }
+        }
+
+        // Jika baris judul (hanya 1 sel) memiliki colspan melebihi lebar kolom konten, sesuaikan ke lebar konten
+        if ($contentCols > 0) {
+            foreach ($trs as $tr) {
+                $cells = [];
+                foreach ($tr->childNodes as $child) {
+                    if ($child instanceof \DOMElement && in_array(strtolower($child->tagName), ['td', 'th'])) {
+                        $cells[] = $child;
+                    }
+                }
+                if (count($cells) === 1) {
+                    $cs = (int)($cells[0]->getAttribute('colspan') ?: 1);
+                    if ($cs > $contentCols) {
+                        $cells[0]->setAttribute('colspan', (string)$contentCols);
+                    }
+                }
+            }
+        }
+
+        $maxExistingCols = 0;
         foreach ($trs as $tr) {
             $cols = 0;
             foreach ($tr->childNodes as $td) {
@@ -52,6 +90,12 @@ class PdfGenerator
             }
         }
         $identityColCount = max(1, $maxExistingCols - $dataColsCount);
+
+        if (isset($typeProcess) && $typeProcess === 'startup') {
+            $namaApp = isset($namaApprover) ? $namaApprover : '';
+            $allD = isset($alldata) ? $alldata : [];
+            $this->injectApprover($doc, $table, $namaApp, $allD, $identityColCount);
+        }
 
         $grid = $this->buildGrid($table);
         $headerRowCount = $this->countHeaderRows($grid);
@@ -124,19 +168,23 @@ class PdfGenerator
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         $procName = isset($process) ? strtoupper($process) : 'REPORT';
         $fileName = 'Report_' . $procName . '_' . date('Ymd_Hi') . '.pdf';
         $dompdf->stream($fileName, ["Attachment" => true]);
         exit();
     }
 
-    private function injectApprover(\DOMDocument $doc, \DOMElement $table, string $namaApprover, array $alldata): void {
+    private function injectApprover(\DOMDocument $doc, \DOMElement $table, string $namaApprover, array $alldata, int $identityColCount = 1): void {
         $trs = iterator_to_array($table->getElementsByTagName('tr'));
         foreach ($trs as $tr) {
             $firstCell = $tr->getElementsByTagName('td')->item(0) ?? $tr->getElementsByTagName('th')->item(0);
             if ($firstCell) {
                 $txt = strtolower(trim($firstCell->textContent));
-                if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false) {
+                if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false || strpos($txt, 'checked') !== false) {
                     $tr->parentNode->removeChild($tr);
                 }
             }
@@ -170,7 +218,9 @@ class PdfGenerator
 
             $opTr = $doc->createElement('tr');
             $tdOpLbl = $doc->createElement('td', 'Operator');
-            
+            if ($identityColCount > 1) {
+                $tdOpLbl->setAttribute('colspan', (string)$identityColCount);
+            }
             $opTr->appendChild($tdOpLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {
@@ -186,7 +236,10 @@ class PdfGenerator
 
             $appTr = $doc->createElement('tr');
             $approverText = ($namaApprover !== '' && $namaApprover !== '-') ? $namaApprover : '-';
-            $tdAppLbl = $doc->createElement('td', htmlspecialchars("Approved by: " . $approverText));
+            $tdAppLbl = $doc->createElement('td', htmlspecialchars("Check by: " . $approverText));
+            if ($identityColCount > 1) {
+                $tdAppLbl->setAttribute('colspan', (string)$identityColCount);
+            }
             $appTr->appendChild($tdAppLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {

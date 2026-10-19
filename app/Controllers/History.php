@@ -210,6 +210,9 @@ class History extends BaseController
 
     public function exportPDF()
     {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
         $typeProcess = $this->request->getGet('typeProcess');
         $process     = $this->request->getGet('process');
         $device      = $this->request->getGet('device');
@@ -223,17 +226,22 @@ class History extends BaseController
         $lotno = $this->request->getGet('lotno') ?? '';
         $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
 
-        $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
-
-        $_SERVER['REQUEST_URI'] = 'exportPDF';
-        $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
         try {
-            $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
-        } catch (\Exception $e) {
-            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
-        }
+            $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
 
-        $pdfGen = new PdfGenerator();
-        $pdfGen->generate($htmlString, $context);
+            $_SERVER['REQUEST_URI'] = 'exportPDF';
+            $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+            $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
+
+            $pdfGen = new PdfGenerator();
+            $pdfGen->generate($htmlString, $context);
+        } catch (\Throwable $e) {
+            log_message('error', 'exportPDF gagal: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            die("<h2>EXPORT PDF GAGAL</h2><p><b>Pesan:</b> " . esc($e->getMessage())
+                . "</p><p><b>Lokasi:</b> " . esc($e->getFile()) . " (Baris: " . $e->getLine() . ")</p>"); 
+        }
     }
 }

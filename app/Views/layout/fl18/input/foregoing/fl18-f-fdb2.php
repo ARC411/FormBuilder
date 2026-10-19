@@ -9,10 +9,15 @@
                 <th colspan="13" scope="col"><?php echo nl2br("DIE BONDING 2 \n PAGE 1")?></th>
             </tr>
             <tr>
-                <th class="input-form" rowspan="2">Pos</th>
-                <th class="input-form" colspan="5" scope="col">Foregoing Check Sample 1</th>
-                <th class="input-form" scope="col">Judge1</th>
+                <th class="input-form" rowspan="3" scope="col">Pos</th>
+                <th class="input-form" colspan="5" rowspan="2" scope="col">Foregoing Check Sample 1</th>
+                <th class="input-form" rowspan="2" scope="col">Judge1</th>
                 <th class="input-form" colspan="6" scope="col">Change Bonding Offset Parameter #1</th>
+            </tr>
+            <tr>
+                <th class="input-form" colspan="2" scope="col">X</th>
+                <th class="input-form" colspan="2" scope="col">Z</th>
+                <th class="input-form" colspan="2" scope="col">q</th>
             </tr>
             <tr>
                 <th class="input-form" scope="col">1</th>
@@ -131,10 +136,15 @@
                 <th colspan="13" scope="col"><?php echo nl2br("DIE BONDING 2 \n PAGE 2")?></th>
             </tr>
             <tr>
-                <th class="input-form" rowspan="2" scope="col">Pos</th>
-                <th class="input-form" colspan="5" scope="col">Foregoing Check Sample 2</th>
-                <th class="input-form" scope="col">Judge2</th>
+                <th class="input-form" rowspan="3" scope="col">Pos</th>
+                <th class="input-form" colspan="5" rowspan="2" scope="col">Foregoing Check Sample 2</th>
+                <th class="input-form" rowspan="2" scope="col">Judge2</th>
                 <th class="input-form" colspan="6" scope="col">Change Bonding Offset Parameter #2</th>
+            </tr>
+            <tr>
+                <th class="input-form" colspan="2" scope="col">X</th>
+                <th class="input-form" colspan="2" scope="col">Z</th>
+                <th class="input-form" colspan="2" scope="col">q</th>
             </tr>
             <tr>
                 <th class="input-form" scope="col">1</th>

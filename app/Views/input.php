@@ -235,7 +235,7 @@ $(document).ready(function()
         alert($('#msgsuccess').html());
     }
 
-    $('#type-process-txt, #process-txt').change(function()
+    $('#process-txt').change(function()
     {
         updateInput();
         updateDocNo();
@@ -449,44 +449,45 @@ function updateInput() {
 
     updateSetting(process);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", "<?php echo base_url();?>"+typeProcess+"/form?device="+device+"&process="+process, true);
-    xhr.onload = (e) => {
-        if (xhr.readyState === 4) {
-            var form_input = document.getElementById('form-input');
-            if (xhr.status === 200 && xhr.responseText.trim() !== "") {
+    $.ajax({
+        url: "<?php echo base_url();?>" + typeProcess + "/form?device=" + encodeURIComponent(device) + "&process=" + encodeURIComponent(process),
+        type: "GET",
+        success: function(response) {
+            if (response && response.trim() !== "") {
                 $('#submit').show();
-                $('#form-input').html(xhr.responseText);
+                $('#form-input').html(response);
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
-                if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+                if(processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
                     header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
                 }
             } else {
                 $('#submit').hide();
-                form_input.innerHTML = "";
+                $('#form-input').empty();
             }
+        },
+        error: function() {
+            $('#submit').hide();
+            $('#form-input').empty();
         }
-    };
-    xhr.send(null);
+    });
 }
 
 function updateSetting(processCode) {
-  if(!processCode || processCode === 'null' || processCode === '-'){
-      document.getElementById('catatan-modal-body').innerHTML = "Pilih proses terlebih dahulu.";
-      return;
-  }
-  const xhr = new XMLHttpRequest();
-  xhr.open("GET", "<?php echo base_url();?>input/note-form/"+processCode, true);
-  xhr.onload = (e) => {
-      var modal_body = document.getElementById('catatan-modal-body');
-      if (xhr.readyState === 4 && xhr.status === 200) {
-          modal_body.innerHTML = xhr.responseText;
-      } else {
-          modal_body.innerHTML = "Catatan tidak ditemukan untuk proses ini.";
-      }
-  };
-  xhr.send(null);
+    if(!processCode || processCode === 'null' || processCode === '-'){
+        $('#catatan-modal-body').html("Pilih proses terlebih dahulu.");
+        return;
+    }
+    $.ajax({
+        url: "<?php echo base_url();?>input/note-form/" + encodeURIComponent(processCode),
+        type: "GET",
+        success: function(response) {
+            $('#catatan-modal-body').html(response);
+        },
+        error: function() {
+            $('#catatan-modal-body').html("Catatan tidak ditemukan untuk proses ini.");
+        }
+    });
 }
 
 function updateDocNo() {

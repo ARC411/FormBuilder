@@ -265,7 +265,7 @@ class ExcelGenerator
                 $firstCell = $tr->getElementsByTagName('td')->item(0) ?? $tr->getElementsByTagName('th')->item(0);
                 if ($firstCell) {
                     $txt = strtolower(trim($firstCell->textContent));
-                    if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false || strpos($txt, 'approved by') !== false) {
+                    if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false || strpos($txt, 'approved by') !== false || strpos($txt, 'checked') !== false) {
                         $tr->parentNode->removeChild($tr);
                     }
                 }

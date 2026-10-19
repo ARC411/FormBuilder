@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use CodeIgniter\Model;
@@ -36,31 +35,30 @@ class StartupModel extends Model
         INNER JOIN `proses` as p ON s.process=p.process_code 
         INNER JOIN `device` as d ON p.device=d.code
         WHERE `par000`='1'";
-        
+
         return $this->query($query)->getResultArray();
     }
 
-    // Perbaikan Logika Update Approval menggunakan Query Builder
     public function updateApproval($number, $name,$level)
     {
-        // Ambil data berdasarkan number
         $data = $this->where('number',$number)->first();
-        
+
         if (!$data) {
+            return false;
+        }
+
+        if (isset($data['status']) &&$data['status'] !== 'Pending') {
             return false;
         }
 
         $updateData = [];
 
-        // Level Foreman
         if ($level == 14) {$updateData['status'] = "Approve by Foreman";
             $updateData['role'] = "foreman";
             $updateData['foreman'] =$name;
         }
-        // Level Leader
         else if ($level == 10) {$updateData['role'] = "leader";
-            
-            // Logika diperbaiki: Jika foreman kosong, Bypass. Jika ada, Approve.
+
             if (empty($data['foreman'])) {$updateData['status'] = "Bypass Leader";
                 $updateData['foreman'] =$name;
                 $updateData['leader'] =$name;
@@ -69,7 +67,6 @@ class StartupModel extends Model
                 $updateData['leader'] =$name;
             }
         }
-        // Level diatas assisten supervisor
         else if ($level <= 7) {$updateData['role'] = "supervisor";
             $updateData['supervisor'] =$name;
 
@@ -83,24 +80,19 @@ class StartupModel extends Model
             }
         }
 
-        // Update semua data (par000 = 1 sampai 5) yang memiliki number tersebut
         return $this->where('number', $number)->set($updateData)->update();
     }
 
     public function addProses($data)
-{
-    $db = \Config\Database::connect();
-    $prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+    {
+        $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
 
-    if ($prosesMaster) {
-        $data['par041'] =$prosesMaster['revisi'];
-        $data['par042'] =$prosesMaster['berlaku'];
-
-        // --- TAMBAHAN BARU: Stempel Otomatis ---
-        $data['docno']  = $prosesMaster['docno'];
-        $data['revisi'] = $prosesMaster['revisi'];
-        // --------------------------------------
-    }
+        if ($prosesMaster) {
+            $data['par041'] =$prosesMaster['revisi'];
+            $data['par042'] =$prosesMaster['berlaku'];
+            $data['docno']  =$prosesMaster['docno'];
+            $data['revisi'] =$prosesMaster['revisi'];
+        }
 
         $query = 'SELECT * FROM startup  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
         $result = $this->query($query)->getRow();
@@ -114,7 +106,6 @@ class StartupModel extends Model
         }
     }
 
-    // Fungsi untuk mengambil data startup berdasarkan ID Mingguan
     public function getByWeeklyId($weekly_id)
     {
         $sql = "SELECT DISTINCT s.id, `number`, s.created_at, `process`, d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `status`, `role`, `foreman`, `leader`, `supervisor`, p.name
@@ -123,7 +114,7 @@ class StartupModel extends Model
         INNER JOIN `device` as d ON p.device=d.code
         WHERE s.weekly_id = '$weekly_id' AND s.par000='1'
         ORDER BY s.created_at ASC";
-        
+
         return $this->query($sql)->getResultArray();
     }
 
@@ -139,7 +130,6 @@ class StartupModel extends Model
 
     public function getAll($dateStart = '1970-01-01', $dateEnd = '2070-01-01',$device = '', $process = '',$model = '', $lotno = '',$machno = '')
     {
-        // Normalisasi format tanggal agar tidak terjadi duplikasi jam (00:00:00 00:00:00)
         $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';$endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
 
         $sql = "SELECT DISTINCT s.*, p.device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
@@ -159,7 +149,7 @@ class StartupModel extends Model
         }
 
         $sql .= " ORDER BY s.created_at ASC";
-        
+
         return $this->query($sql)->getResultArray();
     }
 
@@ -174,14 +164,11 @@ class StartupModel extends Model
         }
     }
 
-    // Perbaikan utama untuk Approval Form
     public function getApprovalData($dateStart = '',$dateEnd = '', $device = '',$process = '')
     {
-        // Pasang Default jika kosong
         $dateStart = empty($dateStart) ? date('Y-m-d', strtotime('-1 month')) : $dateStart;
         $dateEnd = empty($dateEnd) ? date('Y-m-d') : $dateEnd;
 
-        // Perbaikan Batas Waktu (Jam ditambahkan otomatis)
         $start =$dateStart . ' 00:00:00';
         $end =$dateEnd . ' 23:59:59';
 
@@ -202,14 +189,13 @@ class StartupModel extends Model
 
     public function getByNumber($number)
     {
-        // PERBAIKAN: Tambahkan JOIN ke tabel proses dan device untuk mendapatkan nama yang benar
         $query = "SELECT s.*, p.name as process_name, d.name as device_name, p.docno 
                   FROM startup as s
                   LEFT JOIN proses as p ON s.process = p.process_code
                   LEFT JOIN device as d ON p.device = d.code
                   WHERE s.`number` = ? 
                   ORDER BY s.`par000` ASC";
-        
+
         return $this->query($query, [$number])->getResultArray();
     }
 }

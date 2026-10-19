@@ -258,20 +258,6 @@
         </tr> 
 
         <tr>
-            <td colspan="4">Note</td>
-            <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par030'] ?? ''); ?></td>
-            <?php } ?>
-        </tr>
-
-        <tr>
-            <td colspan="4">Status Approval</td>
-            <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= !empty($alldata[$i]['status']) ? (string)$alldata[$i]['status'] : '-'; ?></td>
-            <?php } ?>
-        </tr>
-
-        <tr>
             <td colspan="4">Operator</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
                 <?php
@@ -288,6 +274,35 @@
                         echo '<td colspan="col">-</td>';
                     }
                 ?>
+            <?php } ?>
+        </tr>
+
+        <tr>
+            <td colspan="4">Checked</td>
+            <?php for($i = 0; $i < $lenData; $i++) { ?>
+                <?php
+                    $rawStatus = !empty($alldata[$i]['status']) ? trim((string)$alldata[$i]['status']) : '-';
+                    if ($rawStatus !== '-' && $rawStatus !== '') {
+                        $checkedVal = str_ireplace(
+                            ['Approve by ', 'Approved by ', 'Approve by', 'Approved by', 'Approve ', 'Approved '],
+                            ['Check by ', 'Check by ', 'Check by ', 'Check by ', 'Check by ', 'Check by '],
+                            $rawStatus
+                        );
+                        if (strcasecmp($checkedVal, 'Approve') === 0 || strcasecmp($checkedVal, 'Approved') === 0) {
+                            $checkedVal = 'Check by';
+                        }
+                    } else {
+                        $checkedVal = '-';
+                    }
+                ?>
+                <td colspan="col"><?= $checkedVal; ?></td>
+            <?php } ?>
+        </tr>
+
+        <tr>
+            <td colspan="4">Note</td>
+            <?php for($i = 0; $i < $lenData; $i++) { ?>
+                <td colspan="col"><?= (string)($alldata[$i]['par030'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
