@@ -28,8 +28,6 @@ if (!function_exists('getSubtreeDepth')) {
 if (!function_exists('prepareNodeForModal')) {
     function prepareNodeForModal($node) {
         $copy = $node;
-        // Jika anak-anaknya adalah baris matriks posisi_grid (X, Y, Z, θ),
-        // angkat pengaturan input dari sel pertama ke header kolomnya dan sembunyikan anak posisi_grid dari modal pohon
         if (!empty($copy['children']) && !empty($copy['children'][0]['posisi_grid'])) {
             $firstCell = $copy['children'][0];
             $copy['tipe_input']     = $firstCell['tipe_input'] ?: 'number';
@@ -81,23 +79,27 @@ if (!function_exists('renderActionButtons')) {
 
 if (!function_exists('renderInputPreview')) {
     function renderInputPreview($leaf) {
+        // Jika kolom teks statis (header_only seperti "Start up Checking Item" / "Standard" di Burn In)
+        if (($leaf['tipe_input'] ?? '') === 'header_only' || (empty($leaf['kolom_db']) && empty($leaf['tipe_input']))) {
+            $txt = !empty($leaf['standar_nilai']) ? $leaf['standar_nilai'] : 'Teks Statis';
+            return '<span class="badge bg-secondary mb-1">Teks Statis</span><div class="small fw-semibold text-wrap" style="min-width:120px;">' . nl2br(esc($txt)) . '</div>';
+        }
+
         $html = '<small class="text-primary fw-bold d-block mb-1">[ ' . esc($leaf['kolom_db'] ?: 'Auto DB') . ' ]</small>';
 
-        // Cek satuan_opsi
         $units = [];
         if (!empty($leaf['satuan_opsi'])) {
             $decodedUnits = is_string($leaf['satuan_opsi']) ? json_decode($leaf['satuan_opsi'], true) : $leaf['satuan_opsi'];
             if (is_array($decodedUnits)) $units = $decodedUnits;
         }
 
-        // Cek rumus_otomatis
         $formula = null;
         if (!empty($leaf['rumus_otomatis'])) {
             $formula = is_string($leaf['rumus_otomatis']) ? json_decode($leaf['rumus_otomatis'], true) : $leaf['rumus_otomatis'];
         }
 
         if ($leaf['tipe_input'] === 'dropdown_ok_ng') {
-            $html .= '<select class="form-select form-select-sm text-center" disabled><option>- Pilih -</option><option>OK</option><option>NG</option></select>';
+            $html .= '<select class="form-select form-select-sm text-center" disabled><option>- Pilih -</option><option>OK / V</option><option>NG / X</option></select>';
         } elseif ($leaf['tipe_input'] === 'textarea') {
             $html .= '<textarea class="form-control form-control-sm" rows="2" placeholder="Catatan..." disabled></textarea>';
         } elseif ($leaf['tipe_input'] === 'number') {
@@ -126,7 +128,6 @@ if (!function_exists('renderInputPreview')) {
             $html .= '<input type="text" class="form-control form-control-sm text-center" placeholder="Data" disabled>';
         }
 
-        // Badge Read-Only & Rumus Otomatis
         if (!empty($formula['type'])) {
             $fLbl = ($formula['type'] === 'ng') ? 'Rumus NG ('.($formula['in_col']??'In').' - '.($formula['out_col']??'Out').')' : 'Rumus Yield %';
             $html .= '<span class="badge bg-secondary d-block mt-1" style="font-size:10px;"><i class="fas fa-calculator"></i> '.esc($fLbl).'</span>';
@@ -217,7 +218,7 @@ if (!function_exists('buildHorizontalHeaders')) {
         </h5>
         <div>
             <span class="badge bg-warning text-dark border border-dark me-2">
-                Kategori: <?= strtoupper($kategori_form) ?>
+                Kategori: <?= strtoupper($kategori_form === 'startup_horizontal' ? 'STARTUP (MENDATAR)' : ($kategori_form === 'startup' ? 'STARTUP (MENURUN)' : $kategori_form)) ?>
             </span>
         </div>
     </div>
@@ -230,7 +231,7 @@ if (!function_exists('buildHorizontalHeaders')) {
 
         <?php elseif ($kategori_form === 'startup'): ?>
             <!-- ========================================================== -->
-            <!-- ENGINE 1: STARTUP (TABEL VERTIKAL: NO | ITEM | STD | DATA) -->
+            <!-- ENGINE 1: STARTUP MENURUN (TABEL VERTIKAL)                 -->
             <!-- ========================================================== -->
             <?php
             $verticalRows = [];
@@ -275,9 +276,9 @@ if (!function_exists('buildHorizontalHeaders')) {
             </div>
 
         <?php else: ?>
-            <!-- ================================================================ -->
-            <!-- ENGINE 2 & 3: PRODUCTION (HORIZONTAL) & FOREGOING (MATRIKS GRID) -->
-            <!-- ================================================================ -->
+            <!-- ========================================================================= -->
+            <!-- ENGINE 2 & 3: STARTUP MENDATAR, PRODUCTION, & FOREGOING (MATRIKS GRID)    -->
+            <!-- ========================================================================= -->
             <?php
             $headerMaxDepth = 0;
             foreach ($treeParams as $node) {
@@ -314,7 +315,7 @@ if (!function_exists('buildHorizontalHeaders')) {
             <?php if ($kategori_form === 'foregoing' && empty($gridRowNames)): ?>
                 <div class="mb-2 d-flex justify-content-end">
                     <button type="button" class="btn btn-sm btn-dark btn-add-matrix-row" data-rows='[]'>
-                        <i class="fas fa-list-ol"></i> + Tambah Baris Sample / Label (X, Y, Z, θ)
+                        <i class="fas fa-list-ol"></i> + Tambah Baris Posisi (X, Y, Z, θ)
                     </button>
                 </div>
             <?php endif; ?>
@@ -360,7 +361,6 @@ if (!function_exists('buildHorizontalHeaders')) {
                     </thead>
                     <tbody>
                         <?php if (empty($gridRowNames)): ?>
-                            <!-- BARIS TUNGGAL (PRODUCTION) -->
                             <tr>
                                 <?php foreach ($headerLeaves as $leaf): ?>
                                     <td class="p-3 bg-light">
@@ -369,7 +369,6 @@ if (!function_exists('buildHorizontalHeaders')) {
                                 <?php endforeach; ?>
                             </tr>
                         <?php else: ?>
-                            <!-- BARIS MATRIKS (FOREGOING: SAMPLE / LABEL AKTIF BISA DI-CRUD) -->
                             <?php foreach ($gridRowNames as $rIdx => $rowName): ?>
                                 <tr>
                                     <?php foreach ($headerLeaves as $hIdx => $hLeaf): ?>

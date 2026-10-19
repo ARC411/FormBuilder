@@ -27,14 +27,14 @@ class History extends BaseController
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
-        $this->InputModel     = new InputModel();
+        $this->InputModel      = new InputModel();
         $this->ProductionModel = new ProductionModel();
-        $this->StartupModel   = new StartupModel();
-        $this->ForegoingModel = new ForegoingModel();
-        $this->EmpModel       = new EmpModel();
-        $this->formRevModel   = new FormRevisionModel();
-        $this->formParamModel = new FormParameterModel();
-        $this->session        = \Config\Services::session();
+        $this->StartupModel    = new StartupModel();
+        $this->ForegoingModel  = new ForegoingModel();
+        $this->EmpModel        = new EmpModel();
+        $this->formRevModel    = new FormRevisionModel();
+        $this->formParamModel  = new FormParameterModel();
+        $this->session         = \Config\Services::session();
         $this->session->start();
     }
 
@@ -95,10 +95,6 @@ class History extends BaseController
         return view("/layout/" . $data['alldata'][0]['device'] . "/history/foregoing/" . $data['alldata'][0]['process'], $data);
     }
 
-    // =========================================================================
-    // DAPUR DATA: RESOLVER REVISI, FILTER DATA, & KOP SURAT
-    // =========================================================================
-
     private function getProsesInfo(string $processCode): array
     {
         $db  = \Config\Database::connect();
@@ -151,17 +147,16 @@ class History extends BaseController
 
     private function filterDataByRevisi(array $alldata, string $selectedRevisi, bool $includeEmptyLegacy = false): array
     {
-        if ($selectedRevisi === '' || strtoupper($selectedRevisi) === 'ALL') {
+        if (empty($alldata) || $selectedRevisi === '' || strtoupper($selectedRevisi) === 'ALL') {
             return $alldata;
         }
 
         $filtered = [];
-        $selInt = is_numeric($selectedRevisi) ? (int)$selectedRevisi : null;
+        $selInt   = is_numeric($selectedRevisi) ? (int)$selectedRevisi : null;
 
         foreach ($alldata as $row) {
             $rowRev = isset($row['revisi']) ? trim((string)$row['revisi']) : '';
 
-            // Jika kolom revisi kosong di data transaksi lama, coba baca ujung angka dari kolom docno
             if (($rowRev === '' || $rowRev === '-') && !empty($row['docno']) && $row['docno'] !== '-') {
                 $dParts = explode('-', trim((string)$row['docno']));
                 if (count($dParts) >= 4) {
@@ -170,9 +165,7 @@ class History extends BaseController
             }
 
             if ($rowRev === '' || $rowRev === '-') {
-                if ($includeEmptyLegacy) {
-                    $filtered[] = $row;
-                }
+                $filtered[] = $row;
                 continue;
             }
 
@@ -183,7 +176,7 @@ class History extends BaseController
             }
         }
 
-        return $filtered;
+        return !empty($filtered) ? $filtered : $alldata;
     }
 
     private function resolveExportContext(
@@ -197,7 +190,6 @@ class History extends BaseController
         string $machno = '',
         string $selectedRevisi = ''
     ): array {
-        // 1. Tarik Data Mentah
         $alldata = [];
         if ($typeProcess === 'production') {
             $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process, $model, $lotno, $machno);
@@ -207,7 +199,6 @@ class History extends BaseController
             $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
         }
 
-        // 2. Resolusi Versi Revisi dari Tabel form_revisions
         $revisionsList = $this->ensureProcessRevisions($process, $typeProcess);
         $activeRevRow  = $revisionsList[0] ?? null;
         $oldestRevRow  = !empty($revisionsList) ? end($revisionsList) : null;
@@ -227,7 +218,6 @@ class History extends BaseController
         $isOldestOrSingleRev = (count($revisionsList) <= 1) || ($activeRevRow && $oldestRevRow && $activeRevRow['id'] == $oldestRevRow['id']);
         $alldata = array_values($this->filterDataByRevisi($alldata, $selectedRevisi, $isOldestOrSingleRev));
 
-        // 3. Proses Logika Kop Surat & Data Cleaner
         $latestDate   = 0;
         $namaApprover = '';
 
@@ -260,7 +250,6 @@ class History extends BaseController
         }
         unset($row);
 
-        // 4. Olah Format Kop Surat (No. Dok & Revisi Mengikuti Versi Revisi Terpilih)
         $prosesInfo    = $this->getProsesInfo($process);
         $deviceInfo    = $this->getDeviceInfo($device);
         $namaProduk    = $deviceInfo['name'] ?? strtoupper($device);
@@ -269,7 +258,7 @@ class History extends BaseController
         if ($typeProcess === 'production') {
             $cleanName   = trim(preg_replace('/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i', '', $namaProsesRaw));
             $judulProses = 'Production Process Control Sheet ' . $cleanName;
-        } elseif ($typeProcess === 'startup') {
+        } elseif ($typeProcess === 'startup' || $typeProcess === 'startup_horizontal') {
             $cleanName   = trim(preg_replace('/\s*Start\s*Up\s*Check\s*Sheet.*$/i', '', $namaProsesRaw));
             $judulProses = $cleanName . ' Start Up Check Sheet';
         } else {
@@ -283,7 +272,6 @@ class History extends BaseController
         $revisi = str_pad((string)$activeRevNum, 2, '0', STR_PAD_LEFT);
 
         $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
-        // Sinkronkan ujung angka No. Dok dengan Revisi yang sedang dilihat (contoh: SL-D2-001-2 -> SL-D2-001-3)
         $docParts = explode('-', $noDok);
         if (count($docParts) >= 4) {
             $docParts[count($docParts) - 1] = $revisi;
@@ -309,7 +297,7 @@ class History extends BaseController
         );
     }
 
-    private function renderHistoryHtml(array $context, bool $isExport = false): string
+    private function renderHistoryHtml(array &$context, bool $isExport = false): string
     {
         $activeRevRow = $context['activeRevRow'] ?? null;
         $typeProcess  = $context['typeProcess'];
@@ -319,7 +307,6 @@ class History extends BaseController
         if ($activeRevRow) {
             $rawParams = $this->formParamModel->where('revision_id', $activeRevRow['id'])->orderBy('urutan', 'ASC')->findAll();
 
-            // CEK OTOMATIS: Jika masih kosong ATAU masih data sedotan lama ("Input PAR..." / belum punya induk / Foregoing belum punya posisi_grid)
             $needsReparse = empty($rawParams);
             if (!$needsReparse) {
                 $hasAnyParent = false;
@@ -350,6 +337,8 @@ class History extends BaseController
                     $ref = new \ReflectionMethod($fb, 'parseSingleProcess');
                     $ref->setAccessible(true);
                     $ref->invoke($fb, $process, $activeRevRow['id'], $typeProcess);
+                    $activeRevRow = $this->formRevModel->find($activeRevRow['id']);
+                    $context['activeRevRow'] = $activeRevRow;
                     $rawParams = $this->formParamModel->where('revision_id', $activeRevRow['id'])->orderBy('urutan', 'ASC')->findAll();
                 } catch (\Throwable $e) {
                     log_message('error', 'Auto-reparse di History gagal: ' . $e->getMessage());
@@ -358,10 +347,11 @@ class History extends BaseController
 
             if (!empty($rawParams)) {
                 $treeParams = $this->buildTree($rawParams);
+                $katForm    = $activeRevRow['kategori_form'] ?? $typeProcess;
                 return view('history_table_dynamic', [
                     'process_code'  => $process,
                     'judul_proses'  => $context['judulProses'] ?? $process,
-                    'kategori_form' => $typeProcess,
+                    'kategori_form' => $katForm,
                     'revisi_label'  => $context['revisi'] ?? '00',
                     'treeParams'    => $treeParams,
                     'alldata'       => $context['alldata'],
@@ -370,14 +360,9 @@ class History extends BaseController
             }
         }
 
-        // Fallback ke file view statis jika belum ada parameter di database
         $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
         return view($viewPath, ['alldata' => $context['alldata']]);
     }
-
-    // =========================================================================
-    // EXPORT METHOD INTI (EXCEL & PDF)
-    // =========================================================================
 
     public function exportExcel()
     {
@@ -400,6 +385,11 @@ class History extends BaseController
 
             $_SERVER['REQUEST_URI'] = 'exportExcel';
             $htmlString = $this->renderHistoryHtml($context, true);
+
+            // Jika form ini berformat Startup Mendatar, arahkan ExcelGenerator menggunakan mode horizontal
+            if (($context['activeRevRow']['kategori_form'] ?? '') === 'startup_horizontal') {
+                $context['typeProcess'] = 'startup_horizontal';
+            }
 
             while (ob_get_level() > 0) {
                 ob_end_clean();
@@ -440,6 +430,11 @@ class History extends BaseController
             $htmlString = $this->renderHistoryHtml($context, true);
         } catch (\Throwable $e) {
             die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
+        }
+
+        // Jika form ini berformat Startup Mendatar, arahkan PdfGenerator menggunakan mode horizontal
+        if (($context['activeRevRow']['kategori_form'] ?? '') === 'startup_horizontal') {
+            $context['typeProcess'] = 'startup_horizontal';
         }
 
         $pdfGen = new PdfGenerator();

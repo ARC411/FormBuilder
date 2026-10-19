@@ -76,10 +76,13 @@
             </div>
           </div>
 
+          <!-- Select2 Dropdown Model Name -->
           <div class="mb-3 row">
             <label for="ModelName" class="col-sm-1 col-form-label">Model Name</label>
             <div class="col-sm-3">
-              <input type="text" class="form-control" id="ModelName">
+              <select class="form-control" id="ModelName" name="ModelName">
+                <option value="">-- Semua Model (Tidak Dipilih) --</option>
+              </select>
             </div>
           </div>
 
@@ -142,7 +145,7 @@
     var currentTableXhr = null;
     var updateTimer = null;
 
-    $(document).ready(function() {$('#machno').select2({
+    $(document).ready(function() {$('#machno, #ModelName').select2({
         width: '100%'
       });
 
@@ -182,6 +185,7 @@
       $('#process').change(function() {
         updateRevisiList();
         updateMachine();
+        updateModel();
       });
     });
 
@@ -264,6 +268,36 @@
             } catch (e) {}
           }
           machineSelect.trigger('change');
+        }
+      });
+    }
+
+    function updateModel() {
+      var processCode = document.getElementById("process").value;
+      var modelSelect = $('#ModelName');
+
+      modelSelect.empty();
+      modelSelect.append(new Option("-- Semua Model (Tidak Dipilih) --", "", true, true));
+
+      if (!processCode || processCode === '' || processCode === '-' || processCode === 'null') {
+        modelSelect.trigger('change');
+        return;
+      }
+
+      $.ajax({
+        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode),
+        dataType: 'JSON',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          if (data && data.length > 0) {
+            for (let i = 0; i < data.length; i++) {
+              modelSelect.append(new Option(data[i].model_name, data[i].model_name, false, false));
+            }
+          }
+          modelSelect.trigger('change');
+        },
+        error: function() {
+          modelSelect.trigger('change');
         }
       });
     }
@@ -409,6 +443,7 @@
           }
           updateRevisiList();
           updateMachine();
+          updateModel();
         }
       });
     }
