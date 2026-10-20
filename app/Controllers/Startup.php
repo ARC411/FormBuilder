@@ -107,9 +107,31 @@ class Startup extends BaseController
         try {
             $machno = !empty($data['alldata'][0]['machno']) ? esc($data['alldata'][0]['machno']) : '';
             $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
-            return $machnoHidden . view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
+            $tableHtml = view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data);
+
+            if ($this->request->isAJAX()) {
+                return $machnoHidden . $tableHtml;
+            }
+
+            $firstRow = $data['alldata'][0];
+            return view('startup_detail', [
+                'title'       => 'Detail Form Checksheet - ' . ($firstRow['number'] ?? $number),
+                'device'      => $firstRow['device'] ?? '',
+                'process'     => $firstRow['process'] ?? '',
+                'machno'      => $firstRow['machno'] ?? '',
+                'lotno'       => $firstRow['lotno'] ?? '',
+                'number'      => $firstRow['number'] ?? $number,
+                'created_at'  => $firstRow['created_at'] ?? '',
+                'status'      => $firstRow['status'] ?? '-',
+                'tableHtml'   => $tableHtml,
+                'machnoHidden'=> $machnoHidden,
+                'alldata'     => $data['alldata']
+            ]);
         } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
-            return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
+            if ($this->request->isAJAX()) {
+                return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
+            }
+            return "<div class='container mt-4'><div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div></div>";
         }
     }
 
@@ -172,6 +194,11 @@ class Startup extends BaseController
         $number = $this->request->getVar('number-edit') ? $this->request->getVar('number-edit') : ($this->StartupModel->getLatestId()+1);
         $cnt_input = $this->request->getVar('cnt-proses') ? $this->request->getVar('cnt-proses') : 1; 
 
+        $operatorName = trim((string)$this->request->getVar('name-txt'));
+        if ($operatorName === '' || $operatorName === '-') {
+            $operatorName = trim((string)($this->session->get('name') ?? $this->session->get('username') ?? $this->session->get('empid') ?? ''));
+        }
+
         $par001a = $this->request->getVar('par001a')!==null ? $this->request->getVar('par001a') : ($this->request->getVar('par001')!==null ? $this->request->getVar('par001') : null);
         $par002a = $this->request->getVar('par002a')!==null ? $this->request->getVar('par002a') : ($this->request->getVar('par002')!==null ? $this->request->getVar('par002') : null);
         $par003a = $this->request->getVar('par003a')!==null ? $this->request->getVar('par003a') : ($this->request->getVar('par003')!==null ? $this->request->getVar('par003') : null);
@@ -233,7 +260,7 @@ class Startup extends BaseController
                 'empid' => (string)$this->request->getVar('empid-txt'),
                 'group' => (string)$this->request->getVar('group-txt'),
                 'shift' => (string)$this->request->getVar('shift-txt'),
-                'name' => (string)$this->request->getVar('name-txt'),
+                'name' => $operatorName,
                 'par001' => $par001a,'par002' => $par002a,'par003' => $par003a,'par004' => $par004a,'par005' => $par005a,
                 'par006' => $par006a,'par007' => $par007a,'par008' => $par008a,'par009' => $par009a,'par010' => $par010a,
                 'par011' => $par011a,'par012' => $par012a,'par013' => $par013a,'par014' => $par014a,'par015' => $par015a,
@@ -316,7 +343,7 @@ class Startup extends BaseController
                 'empid' => $this->request->getVar('empid-txt'),
                 'group' => $this->request->getVar('group-txt'),
                 'shift' => $this->request->getVar('shift-txt'),
-                'name' => $this->request->getVar('name-txt'),
+                'name' => $operatorName,
                 'par001' => $par001b,'par002' => $par002b,'par003' => $par003b,'par004' => $par004b,'par005' => $par005b,
                 'par006' => $par006b,'par007' => $par007b,'par008' => $par008b,'par009' => $par009b,'par010' => $par010b,
                 'par011' => $par011b,'par012' => $par012b,'par013' => $par013b,'par014' => $par014b,'par015' => $par015b,
@@ -398,7 +425,7 @@ class Startup extends BaseController
                 'empid' => $this->request->getVar('empid-txt'),
                 'group' => $this->request->getVar('group-txt'),
                 'shift' => $this->request->getVar('shift-txt'),
-                'name' => $this->request->getVar('name-txt'),
+                'name' => $operatorName,
                 'par001' => $par001c,'par002' => $par002c,'par003' => $par003c,'par004' => $par004c,'par005' => $par005c,
                 'par006' => $par006c,'par007' => $par007c,'par008' => $par008c,'par009' => $par009c,'par010' => $par010c,
                 'par011' => $par011c,'par012' => $par012c,'par013' => $par013c,'par014' => $par014c,'par015' => $par015c,
@@ -481,7 +508,7 @@ class Startup extends BaseController
                 'empid' => $this->request->getVar('empid-txt'),
                 'group' => $this->request->getVar('group-txt'),
                 'shift' => $this->request->getVar('shift-txt'),
-                'name' => $this->request->getVar('name-txt'),
+                'name' => $operatorName,
                 'par001' => $par001d,'par002' => $par002d,'par003' => $par003d,'par004' => $par004d,'par005' => $par005d,
                 'par006' => $par006d,'par007' => $par007d,'par008' => $par008d,'par009' => $par009d,'par010' => $par010d,
                 'par011' => $par011d,'par012' => $par012d,'par013' => $par013d,'par014' => $par014d,'par015' => $par015d,
@@ -564,7 +591,7 @@ class Startup extends BaseController
                 'empid' => $this->request->getVar('empid-txt'),
                 'group' => $this->request->getVar('group-txt'),
                 'shift' => $this->request->getVar('shift-txt'),
-                'name' => $this->request->getVar('name-txt'),
+                'name' => $operatorName,
                 'par001' => $par001e,'par002' => $par002e,'par003' => $par003e,'par004' => $par004e,'par005' => $par005e,
                 'par006' => $par006e,'par007' => $par007e,'par008' => $par008e,'par009' => $par009e,'par010' => $par010e,
                 'par011' => $par011e,'par012' => $par012e,'par013' => $par013e,'par014' => $par014e,'par015' => $par015e,

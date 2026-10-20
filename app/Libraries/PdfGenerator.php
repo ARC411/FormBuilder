@@ -9,7 +9,10 @@ class PdfGenerator
 {
     public function generate(string $htmlString, array $context)
     {
-        extract($context);
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
+        extract($context); 
 
         $isStartup = (isset($typeProcess) && strtolower($typeProcess) === 'startup');
         $PER_PAGE  = $isStartup ? 14 : 20;
@@ -30,22 +33,50 @@ class PdfGenerator
             die("Error: Tidak ada elemen <table> yang ditemukan untuk dijadikan PDF!");
         }
 
-        // 1. Hapus baris judul utama di dalam <thead> pertama (karena judul sudah ada di Kop Surat)
-        $theads = $table->getElementsByTagName('thead');
-        if ($theads->length > 0) {
-            $firstThead = $theads->item(0);
-            $firstTr    = $firstThead->getElementsByTagName('tr')->item(0);
-            if ($firstTr) {
-                $firstCell = $firstTr->getElementsByTagName('th')->item(0);
-                if ($firstCell && (int)$firstCell->getAttribute('colspan') > 2) {
-                    $firstTr->parentNode->removeChild($firstTr);
+
+        $dataColsCount = count($alldata ?? []);
+        $trs = iterator_to_array($table->getElementsByTagName('tr'));
+
+        // Deteksi lebar kolom sebenarnya dari baris yang memiliki multi-sel
+        $contentCols = 0;
+        foreach ($trs as $tr) {
+            $cells = [];
+            foreach ($tr->childNodes as $child) {
+                if ($child instanceof \DOMElement && in_array(strtolower($child->tagName), ['td', 'th'])) {
+                    $cells[] = $child;
+                }
+            }
+            if (count($cells) > 1) {
+                $rowCols = 0;
+                foreach ($cells as $cell) {
+                    $cs = max(1, (int)($cell->getAttribute('colspan') ?: 1));
+                    $rowCols += $cs;
+                }
+                if ($rowCols > $contentCols) {
+                    $contentCols = $rowCols;
                 }
             }
         }
 
-        // 2. Hitung jumlah kolom maksimum & kolom identitas
+        // Jika baris judul (hanya 1 sel) memiliki colspan melebihi lebar kolom konten, sesuaikan ke lebar konten
+        if ($contentCols > 0) {
+            foreach ($trs as $tr) {
+                $cells = [];
+                foreach ($tr->childNodes as $child) {
+                    if ($child instanceof \DOMElement && in_array(strtolower($child->tagName), ['td', 'th'])) {
+                        $cells[] = $child;
+                    }
+                }
+                if (count($cells) === 1) {
+                    $cs = (int)($cells[0]->getAttribute('colspan') ?: 1);
+                    if ($cs > $contentCols) {
+                        $cells[0]->setAttribute('colspan', (string)$contentCols);
+                    }
+                }
+            }
+        }
+
         $maxExistingCols = 0;
-        $trs = iterator_to_array($table->getElementsByTagName('tr'));
         foreach ($trs as $tr) {
             $cols = 0;
             foreach ($tr->childNodes as $td) {
@@ -58,10 +89,26 @@ class PdfGenerator
             }
         }
 
-        $dataColsCount = count($allD);
-        if ($isStartup) {
-            $identityColCount = max(1, $maxExistingCols - max(1, $dataColsCount));
-            $this->injectApproverStartup($doc, $table, $identityColCount, $allD, $PER_PAGE);
+        if (isset($typeProcess) && $typeProcess === 'startup') {
+            $namaApp = isset($namaApprover) ? $namaApprover : '';
+            $allD = isset($alldata) ? $alldata : [];
+            $this->injectApprover($doc, $table, $namaApp, $allD, $identityColCount);
+        }
+
+        $grid = $this->buildGrid($table);
+        $headerRowCount = $this->countHeaderRows($grid);
+
+        $colChunks = [];
+        if (isset($typeProcess) && $typeProcess === 'startup') {
+            $totalDataCols = $grid['totalCols'] - $identityColCount; 
+            $start = $identityColCount + 1;
+            $endTotal = $grid['totalCols'];
+            
+            while ($start <= $endTotal) {
+                $end = min($endTotal, $start + 15 - 1);
+                $colChunks[] = [$start, $end];
+                $start = $end + 1;
+            }
         } else {
             $identityColCount = 3;
         }
@@ -76,14 +123,15 @@ class PdfGenerator
 
         // 4. Bangun Kop Surat HTML
         $kopSuratHtml = $this->buildKopSuratHtml(
-            $namaProduk ?? '',
-            $judulProses ?? '',
-            $noDok ?? '',
-            $machNo ?? '',
-            $tglBerlaku ?? '',
-            $namaApp,
-            $revisi ?? '00',
-            $typeProcess ?? ''
+            $namaProduk ?? '', 
+            $judulProses ?? '', 
+            $noDok ?? '', 
+            $machNo ?? '', 
+            $tglBerlaku ?? '', 
+            $namaApprover ?? '', 
+            $revisi ?? '', 
+            $typeProcess ?? '',
+            $weeklyInfo ?? null
         );
 
         // 5. Render Halaman per Chunk
@@ -190,60 +238,23 @@ class PdfGenerator
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         $procName = isset($process) ? strtoupper($process) : 'REPORT';
         $fileName = 'Report_' . $procName . '_' . date('Ymd_Hi') . '.pdf';
         $dompdf->stream($fileName, ["Attachment" => true]);
         exit();
     }
 
-    // Gabungkan sel Standard yang kembar berurutan dalam 1 item nomor yang sama agar tidak berulang-ulang
-    private function mergeDuplicateStandardCells(array &$grid, int $identityColCount): void
-    {
-        if ($identityColCount < 3) return;
-        $stdCol = $identityColCount;
-
-        for ($r = 1; $r <= $grid['totalRows']; $r++) {
-            if (isset($grid['origins'][$r][1]) && ($grid['origins'][$r][1]['rowspan'] ?? 1) > 1) {
-                $groupSpan = $grid['origins'][$r][1]['rowspan'];
-                $groupEnd  = min($grid['totalRows'], $r + $groupSpan - 1);
-
-                $anchorRow = null;
-                $anchorVal = null;
-
-                for ($subR = $r; $subR <= $groupEnd; $subR++) {
-                    if (!isset($grid['origins'][$subR][$stdCol])) continue;
-                    $cell = $grid['origins'][$subR][$stdCol];
-                    if (($cell['rowspan'] ?? 1) !== 1 || ($cell['colspan'] ?? 1) !== 1) {
-                        $anchorRow = null;
-                        continue;
-                    }
-
-                    $val = trim($cell['value']);
-                    if ($anchorRow !== null && $val !== '' && $val === $anchorVal && strlen($val) > 12) {
-                        $grid['origins'][$anchorRow][$stdCol]['rowspan']++;
-                        unset($grid['origins'][$subR][$stdCol]);
-                    } else {
-                        $anchorRow = $subR;
-                        $anchorVal = $val;
-                    }
-                }
-            }
-        }
-    }
-
-    private function injectApproverStartup(\DOMDocument $doc, \DOMElement $table, int $identityCols, array $alldata, int $PER_PAGE): void
-    {
+    private function injectApprover(\DOMDocument $doc, \DOMElement $table, string $namaApprover, array $alldata, int $identityColCount = 1): void {
         $trs = iterator_to_array($table->getElementsByTagName('tr'));
         foreach ($trs as $tr) {
             $firstCell = $tr->getElementsByTagName('td')->item(0) ?? $tr->getElementsByTagName('th')->item(0);
             if ($firstCell) {
                 $txt = strtolower(trim($firstCell->textContent));
-                if (
-                    strpos($txt, 'status approval') !== false ||
-                    strpos($txt, 'operator') !== false ||
-                    strpos($txt, 'approved by') !== false ||
-                    $txt === 'time'
-                ) {
+                if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false || strpos($txt, 'checked') !== false) {
                     $tr->parentNode->removeChild($tr);
                 }
             }
@@ -279,13 +290,15 @@ class PdfGenerator
 
             $opTr    = $doc->createElement('tr');
             $tdOpLbl = $doc->createElement('td', 'Operator');
-            $tdOpLbl->setAttribute('colspan', (string)$identityCols);
+            if ($identityColCount > 1) {
+                $tdOpLbl->setAttribute('colspan', (string)$identityColCount);
+            }
             $opTr->appendChild($tdOpLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {
                 if (isset($alldata[$i])) {
-                    $opName   = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by', 'name', 'nama']);
-                    $tdOpData = $doc->createElement('td', htmlspecialchars((string)$opName));
+                    $opName = function_exists('getOperatorName') ? getOperatorName($alldata[$i]) : $getVal($alldata[$i], ['name', 'operator', 'op_start', 'nama_operator', 'pic', 'created_by', 'empid']);
+                    $tdOpData = $doc->createElement('td', htmlspecialchars($opName));
                 } else {
                     $tdOpData = $doc->createElement('td', '-');
                 }
@@ -293,9 +306,12 @@ class PdfGenerator
             }
             $noteTr->parentNode->insertBefore($opTr, $noteTr);
 
-            $appTr    = $doc->createElement('tr');
-            $tdAppLbl = $doc->createElement('td', 'Checked by');
-            $tdAppLbl->setAttribute('colspan', (string)$identityCols);
+            $appTr = $doc->createElement('tr');
+            $approverText = ($namaApprover !== '' && $namaApprover !== '-') ? $namaApprover : '-';
+            $tdAppLbl = $doc->createElement('td', htmlspecialchars("Check by: " . $approverText));
+            if ($identityColCount > 1) {
+                $tdAppLbl->setAttribute('colspan', (string)$identityColCount);
+            }
             $appTr->appendChild($tdAppLbl);
 
             for ($i = 0; $i < $targetCols; $i++) {
@@ -462,127 +478,27 @@ class PdfGenerator
         return $html;
     }
 
-    // Render Halaman Tabel Production & Foregoing (Proporsi Kolom Identitas Rapi + Anti-Gencet untuk Kolom Banyak)
-    private function buildHorizontalChunkTableHtml(array $grid, int $identityColCount, array $colRange, int $headerRowCount, int $rStart, int $rEnd): string
-    {
-        [$startCol, $endCol] = $colRange;
-        $dataColCount = max(1, $endCol - $startCol + 1);
-
-        $validCols = [];
-        for ($c = 1; $c <= $identityColCount; $c++) $validCols[$c] = true;
-        for ($c = $startCol; $c <= $endCol; $c++) $validCols[$c] = true;
-
-        $colgroup = '<colgroup>';
-        $usedWidth = 0.0;
-        for ($c = 1; $c <= $identityColCount; $c++) {
-            if ($c === 1) {
-                $w = 2.5; // No.
-            } elseif ($c === 2 || $c === 7) {
-                $w = 5.5; // Date / Operator
-            } else {
-                $w = 4.2; // Mch. No, Model, Lot No, Shift/Group, Sample/Label
+    private function buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo = null): string {
+        $kotakTtdHtml = "";
+        
+        if ($typeProcess === "startup") {
+            $qcBox = "";
+            if (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') {
+                $approverQc = htmlspecialchars(!empty($weeklyInfo['approver_qc']) ? $weeklyInfo['approver_qc'] : 'Approved');
+                $dateQc = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime($weeklyInfo['date_qc'])) : '';
+                $qcBox = '<div style="font-size: 6px; line-height: 1.1;">Approved by:<br><b style="font-size: 6.5px;">' . $approverQc . '</b><br>(QC)<br>' . $dateQc . '</div>';
             }
-            $usedWidth += $w;
-            $colgroup .= '<col style="width: ' . $w . '%;">';
-        }
 
-        $remainingWidth = max(35.0, 100.0 - $usedWidth);
-        $dataColWidth   = round($remainingWidth / $dataColCount, 2);
-        for ($c = $startCol; $c <= $endCol; $c++) {
-            $colgroup .= '<col style="width: ' . $dataColWidth . '%;">';
-        }
-        $colgroup .= '</colgroup>';
-
-        $html = '<table class="table-cs">' . $colgroup . '<thead>';
-
-        // 1. Render Header Tabel
-        for ($r = 1; $r <= $headerRowCount; $r++) {
-            $html .= '<tr>';
-            foreach ($validCols as $c => $dummy) {
-                if (isset($grid['origins'][$r][$c])) {
-                    $cell = $grid['origins'][$r][$c];
-                    $actualColspan = 0;
-                    $maxC = min($c + $cell['colspan'] - 1, $grid['totalCols']);
-                    for ($i = $c; $i <= $maxC; $i++) {
-                        if (isset($validCols[$i])) $actualColspan++;
-                    }
-                    if ($actualColspan > 0) {
-                        $rowspan = min($cell['rowspan'], $headerRowCount - $r + 1);
-                        $csAttr  = $actualColspan > 1 ? ' colspan="' . $actualColspan . '"' : '';
-                        $rsAttr  = $rowspan > 1 ? ' rowspan="' . $rowspan . '"' : '';
-                        $html   .= "<th{$rsAttr}{$csAttr}>" . htmlspecialchars($cell['value'], ENT_QUOTES, 'UTF-8') . "</th>";
-                    }
-                } elseif (!empty($grid['occupied'][$r][$c])) {
-                    // Jika sel ini adalah lanjutan colspan dari halaman sebelah kiri, cetak ulang judul induknya di awal chunk
-                    if ($c === $startCol) {
-                        for ($lookLeft = $c - 1; $lookLeft > $identityColCount; $lookLeft--) {
-                            if (isset($grid['origins'][$r][$lookLeft])) {
-                                $origCell = $grid['origins'][$r][$lookLeft];
-                                $origEnd  = $lookLeft + $origCell['colspan'] - 1;
-                                if ($origEnd >= $c) {
-                                    $remSpan = min($origEnd, $endCol) - $c + 1;
-                                    $rowspan = min($origCell['rowspan'], $headerRowCount - $r + 1);
-                                    $csAttr  = $remSpan > 1 ? ' colspan="' . $remSpan . '"' : '';
-                                    $rsAttr  = $rowspan > 1 ? ' rowspan="' . $rowspan . '"' : '';
-                                    $html   .= "<th{$rsAttr}{$csAttr}>" . htmlspecialchars($origCell['value'], ENT_QUOTES, 'UTF-8') . "</th>";
-                                }
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    $html .= '<th></th>';
-                }
+            $prodBox = "";
+            if (!empty($weeklyInfo['status_production']) && strtolower($weeklyInfo['status_production']) === 'approve') {
+                $approverProd = htmlspecialchars(!empty($weeklyInfo['approver_production']) ? $weeklyInfo['approver_production'] : 'Approved');
+                $dateProd = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime($weeklyInfo['date_production'])) : '';
+                $prodBox = '<div style="font-size: 6px; line-height: 1.1;">Approved by:<br><b style="font-size: 6.5px;">' . $approverProd . '</b><br>(Prod)<br>' . $dateProd . '</div>';
             }
-            $html .= '</tr>';
-        }
 
-        $html .= '</thead><tbody>';
-
-        // 2. Render Baris Data
-        for ($r = $rStart; $r <= $rEnd; $r++) {
-            $html .= '<tr style="height: 16px;">';
-            if ($r <= $grid['totalRows']) {
-                foreach ($validCols as $c => $dummy) {
-                    if (isset($grid['origins'][$r][$c])) {
-                        $cell = $grid['origins'][$r][$c];
-                        $actualColspan = 0;
-                        $maxC = min($c + $cell['colspan'] - 1, $grid['totalCols']);
-                        for ($i = $c; $i <= $maxC; $i++) {
-                            if (isset($validCols[$i])) $actualColspan++;
-                        }
-                        if ($actualColspan > 0) {
-                            $rowspan = min($cell['rowspan'], min($rEnd, $grid['totalRows']) - $r + 1);
-                            $tag     = $cell['isHeader'] ? 'th' : 'td';
-                            $csAttr  = $actualColspan > 1 ? ' colspan="' . $actualColspan . '"' : '';
-                            $rsAttr  = $rowspan > 1 ? ' rowspan="' . $rowspan . '"' : '';
-                            $html   .= "<{$tag}{$rsAttr}{$csAttr}>" . htmlspecialchars($cell['value'], ENT_QUOTES, 'UTF-8') . "</{$tag}>";
-                        }
-                    } elseif (empty($grid['occupied'][$r][$c])) {
-                        $html .= '<td>-</td>';
-                    }
-                }
-            } else {
-                foreach ($validCols as $c => $dummy) {
-                    $html .= '<td>-</td>';
-                }
-            }
-            $html .= '</tr>';
-        }
-
-        $html .= '</tbody></table>';
-        return $html;
-    }
-
-    private function buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess): string
-    {
-        $revisiFormatted = ($revisi !== '' && $revisi !== null) ? str_pad((string)$revisi, 2, '0', STR_PAD_LEFT) : '00';
-        $kotakTtdHtml    = '';
-
-        if (strtolower((string)$typeProcess) === 'startup') {
             $kotakTtdHtml = '
-                <tr><td style="width: 50%; text-align: center; padding: 1px; font-weight: bold;">QC</td><td style="width: 50%; text-align: center; padding: 1px; font-weight: bold;">Production</td></tr>
-                <tr><td style="height: 16px;"></td><td style="height: 16px;"></td></tr>';
+                <tr><td style="width: 50%; text-align: center; padding: 2px;">QC</td><td style="text-align: center; padding: 2px;">Production</td></tr>
+                <tr><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $qcBox . '</td><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $prodBox . '</td></tr>';
         } else {
             $ttd = ($namaApprover !== '' && $namaApprover !== '-')
                 ? '<span style="font-size: 7px;">Approved by:<br><b>' . nl2br(htmlspecialchars($namaApprover)) . '</b></span>'

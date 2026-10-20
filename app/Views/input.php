@@ -238,7 +238,6 @@ $(document).ready(function()
         alert($('#msgsuccess').html());
     }
 
-    // Hanya pantau perubahan dropdown #process-txt (karena #type-process-txt sudah di-handle oleh updateDevice)
     $('#process-txt').change(function()
     {
         updateInput();
@@ -315,15 +314,16 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
 
     $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empid })
         .done(function (d) {
-            if (d.found && d.acc && d.groupid) {
-                if (!$(shiftTag).val()) $(shiftTag).val(d.acc);
-                if (!$(groupTag).val()) $(groupTag).val(d.groupid);
-                warn.removeClass('visible').addClass('invisible');
-            } else {
-                if (d.found) {
-                    if (d.acc && !$(shiftTag).val()) $(shiftTag).val(d.acc);
-                    if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
+            if (d.found) {
+                if (d.acc && !$(shiftTag).val()) $(shiftTag).val(d.acc);
+                if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
+                if (d.name && (!$(nameTag).val() || $(nameTag).val() === '-')) $(nameTag).val(d.name);
+                if (d.acc && d.groupid) {
+                    warn.removeClass('visible').addClass('invisible');
+                } else {
+                    warn.removeClass('invisible').addClass('visible');
                 }
+            } else {
                 warn.removeClass('invisible').addClass('visible');
             }
         })
@@ -464,74 +464,43 @@ function updateInput() {
 
     updateSetting(process);
 
-    // PANGGIL MESIN TABEL DINAMIS DARI FORM BUILDER (1 Panggilan JSON Cepat)
-    $('#form-input').html('<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin"></i> Memuat form...</div>');
-
     $.ajax({
-        url: "<?= base_url('form-builder/render-input') ?>",
-        type: "POST",
-        data: {
-            process: process,
-            doc_type: typeProcess
-        },
-        dataType: "json",
-        success: function(res) {
-            if (res && res.status === 'success' && res.html) {
-                // 1. Isi nomor Revisi terbaru dari tabel form_revisions
-                if (revField) {
-                    revField.value = res.revisi;
-                }
-
-                // 2. Sinkronkan ujung angka Doc. No dengan Revisi terbaru (opsional jika formatnya SL-D2-001-2)
-                var docNoEl = document.getElementById("docno");
-                if (docNoEl && docNoEl.value && docNoEl.value !== '-') {
-                    var dParts = docNoEl.value.split('-');
-                    if (dParts.length >= 4) {
-                        dParts[dParts.length - 1] = res.revisi;
-                        docNoEl.value = dParts.join('-');
-                    }
-                }
-
-                // 3. Tampilkan Tabel Dinamis & Tombol Submit
-                $('#form-input').html(res.html);
-                applyForegoingModelStandards();
+        url: "<?php echo base_url();?>" + typeProcess + "/form?device=" + encodeURIComponent(device) + "&process=" + encodeURIComponent(process),
+        type: "GET",
+        success: function(response) {
+            if (response && response.trim() !== "") {
                 $('#submit').show();
-
+                $('#form-input').html(response);
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
-                if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+                if(processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
                     header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
                 }
             } else {
                 $('#submit').hide();
-                $('#form-input').html('<div class="alert alert-warning text-center">Form tidak ditemukan.</div>');
+                $('#form-input').empty();
             }
         },
-        error: function(xhr) {
-            console.error("Gagal memuat form dinamis:", xhr.responseText);
+        error: function() {
             $('#submit').hide();
-            $('#form-input').html('<div class="alert alert-danger text-center">Gagal memuat form. Pastikan rute form-builder/render-input sudah terdaftar.</div>');
+            $('#form-input').empty();
         }
     });
 }
 
 function updateSetting(processCode) {
     if(!processCode || processCode === 'null' || processCode === '-'){
-        document.getElementById('catatan-modal-body').innerHTML = "Pilih proses terlebih dahulu.";
+        $('#catatan-modal-body').html("Pilih proses terlebih dahulu.");
         return;
     }
     $.ajax({
-        url: "<?= base_url('input/note-form') ?>/" + processCode,
+        url: "<?php echo base_url();?>input/note-form/" + encodeURIComponent(processCode),
         type: "GET",
-        dataType: "html",
-        success: function(res) {
-            // Bersihkan script debugbar CI4 jika ada agar tidak memicu stack overflow newXHR
-            var cleanHtml = res.replace(/<script\b[^>]*src=[^>]*debugbar[^>]*><\/script>/gi, '')
-                               .replace(/<script\b[^>]*id="debugbar_loader"[\s\S]*?<\/script>/gi, '');
-            document.getElementById('catatan-modal-body').innerHTML = cleanHtml;
+        success: function(response) {
+            $('#catatan-modal-body').html(response);
         },
         error: function() {
-            document.getElementById('catatan-modal-body').innerHTML = "Catatan tidak ditemukan untuk proses ini.";
+            $('#catatan-modal-body').html("Catatan tidak ditemukan untuk proses ini.");
         }
     });
 }

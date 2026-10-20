@@ -4,7 +4,7 @@
   <table class="table table-bordered table-hover" id="table1">
     <thead align="center">
       <tr>
-        <th colspan="35" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
+        <th colspan="33" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
       </tr>
       <tr>
         <th rowspan="4" >No.</th>   

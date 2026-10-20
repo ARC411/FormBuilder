@@ -3,7 +3,7 @@
     <table class="table table-bordered table-hover" id="table1">
         <thead align="center">
             <tr>
-            <th colspan="32" scope="col"><?php echo nl2br("LD DIE BONDING 2 MACHINE")?></th>
+            <th colspan="31" scope="col"><?php echo nl2br("LD DIE BONDING 2 MACHINE")?></th>
             </tr>
             <tr>
                 <th rowspan="3" >No.</th>
@@ -16,7 +16,6 @@
                 <th rowspan="3" >Lot No.</th> 
                 <th rowspan="3" >Date (dd/mm/yyyy)</th>
                 <th colspan="3" scope="col" >Quantity</th>
-                <th rowspan="3" >Yield (%)</th>
                 <th colspan="2" scope="col" >Time</th>
                 <th colspan="4" scope="col" >Foregoing (5 pcs/head/lot)</th>
                 <th colspan="4" scope="col" >Vis Insp (10%/lot)</th>
@@ -24,15 +23,15 @@
                 <th rowspan="3" >Judge</th>
             </tr>
             <tr>
-                <th  rowspan="2">Input</th>
-                <th  rowspan="2">Output</th>
-                <th  rowspan="2">NG</th>
-                <th  rowspan="2">IN</th>
-                <th  rowspan="2">OUT</th>
-                <th  colspan="2" scope="col">MSP Chip</th>
-                <th  colspan="2" scope="col">LD Chip</th>
-                <th  colspan="2" scope="col">MSP Chip</th>
-                <th  colspan="2" scope="col">LD Chip</th>
+                <th rowspan="2">Input</th>
+                <th rowspan="2">Output</th>
+                <th rowspan="2">NG</th>
+                <th rowspan="2">IN</th>
+                <th rowspan="2">OUT</th>
+                <th colspan="2" scope="col">MSP Chip</th>
+                <th colspan="2" scope="col">LD Chip</th>
+                <th colspan="2" scope="col">MSP Chip</th>
+                <th colspan="2" scope="col">LD Chip</th>
             </tr>
             <tr>
                 <th scope="col">Crack</th>
@@ -88,7 +87,6 @@
             <td rowspan="1" ><?= (string)$c['par013']; ?></td>
             <td rowspan="1" ><?= (string)$c['par014']; ?></td>
             <td rowspan="1" ><?= (string)$c['par015']; ?></td>
-            <td rowspan="1" ><?= (string)$c['par016']; ?></td>
             <td rowspan="1" ><?= date('H:i', strtotime((string)$c['par008'])); ?></td>
             <td rowspan="1" >
                 <?php 
@@ -116,7 +114,5 @@
             </tr>
             <?php endforeach; ?>
         </tbody>
-        
-        
     </table>
 </div>

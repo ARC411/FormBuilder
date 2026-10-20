@@ -290,11 +290,60 @@ class History extends BaseController
             $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
         }
 
-        return compact(
-            'alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin',
-            'prosesInfo', 'typeProcess', 'process', 'device', 'tglBerlaku', 'namaApprover',
-            'revisi', 'activeRevRow'
-        );
+        // Ambil data approval mingguan (Weekly Approval) khusus untuk startup berbasis Periode Minggu
+        $weeklyInfo = null;
+        if ($typeProcess === 'startup') {
+            $weeklyModel = new \App\Models\WeeklyApprovalModel();
+            
+            // 1. Cek jika data dokumen yang difilter sudah memiliki weekly_id
+            $weeklyId = null;
+            if (!empty($alldata)) {
+                foreach ($alldata as $r) {
+                    if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
+                        $weeklyId = $r['weekly_id'];
+                        break;
+                    }
+                }
+            }
+            if ($weeklyId) {
+                $weeklyInfo = $weeklyModel->find($weeklyId);
+            }
+
+            // 2. Konsistensi Periode Minggu (Fallback untuk rentang tanggal sebagian maupun penuh)
+            // Tanpa membatasi nama device, proses, atau machine number
+            if (!$weeklyInfo) {
+                $refDate = '';
+                if (!empty($alldata[0]['created_at']) && $alldata[0]['created_at'] !== '-') {
+                    $refDate = $alldata[0]['created_at'];
+                } elseif (!empty($dateStart)) {
+                    $refDate = $dateStart;
+                } elseif (!empty($dateEnd)) {
+                    $refDate = $dateEnd;
+                }
+
+                if (!empty($refDate)) {
+                    $time = strtotime($refDate);
+                    $monday = date('Y-m-d', strtotime('monday this week', $time));
+                    $sunday = date('Y-m-d', strtotime('sunday this week', $time));
+
+                    // Prioritaskan weekly approval umum (device is null), atau ambil yang ada untuk periode tersebut
+                    $weeklyInfo = $weeklyModel->where('period_start', $monday)
+                                              ->where('period_end', $sunday)
+                                              ->where('device', null)
+                                              ->first();
+
+                    if (!$weeklyInfo) {
+                        $weeklyInfo = $weeklyModel->where('period_start', $monday)
+                                                  ->where('period_end', $sunday)
+                                                  ->orderBy('id', 'DESC')
+                                                  ->first();
+                    }
+                }
+            }
+        }
+
+        // --- Variabel $nama_mesin dan $weeklyInfo ditambahkan ke return compact ---
+        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi', 'weeklyInfo');
     }
 
     private function renderHistoryHtml(array &$context, bool $isExport = false): string
@@ -409,6 +458,9 @@ class History extends BaseController
 
     public function exportPDF()
     {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
         $typeProcess = $this->request->getGet('typeProcess');
         $process     = $this->request->getGet('process');
         $device      = $this->request->getGet('device');
@@ -423,21 +475,22 @@ class History extends BaseController
         $lotno  = $this->request->getGet('lotno') ?? '';
         $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
 
-        $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno, $revisi);
-
-        $_SERVER['REQUEST_URI'] = 'exportPDF';
         try {
-            $htmlString = $this->renderHistoryHtml($context, true);
+            $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno);
+
+            $_SERVER['REQUEST_URI'] = 'exportPDF';
+            $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+            $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
+
+            $pdfGen = new PdfGenerator();
+            $pdfGen->generate($htmlString, $context);
         } catch (\Throwable $e) {
-            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
+            log_message('error', 'exportPDF gagal: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            die("<h2>EXPORT PDF GAGAL</h2><p><b>Pesan:</b> " . esc($e->getMessage())
+                . "</p><p><b>Lokasi:</b> " . esc($e->getFile()) . " (Baris: " . $e->getLine() . ")</p>"); 
         }
-
-        // Jika form ini berformat Startup Mendatar, arahkan PdfGenerator menggunakan mode horizontal
-        if (($context['activeRevRow']['kategori_form'] ?? '') === 'startup_horizontal') {
-            $context['typeProcess'] = 'startup_horizontal';
-        }
-
-        $pdfGen = new PdfGenerator();
-        $pdfGen->generate($htmlString, $context);
     }
 }

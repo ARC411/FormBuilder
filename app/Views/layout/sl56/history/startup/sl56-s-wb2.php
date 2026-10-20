@@ -164,14 +164,7 @@
         <tr>
             <td colspan="5">Operator</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <?php
-                    $roleKey = (string)$alldata[$i]['role']; if($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey])){
-                        echo '<td colspan="6">'. (string)$alldata[$i][(string)$alldata[$i]['role']] . '</td>';
-                    } 
-                    else{
-                        echo '<td colspan="6">  </td>';
-                    }
-                ?>
+                <td colspan="6"><?= esc(getOperatorName($alldata[$i] ?? null)); ?></td>
             <?php } ?>
         </tr>
 

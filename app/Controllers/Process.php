@@ -39,6 +39,33 @@ class Process extends BaseController
         }
     }
 
+    public function detail()
+    {
+        error_reporting(0);
+        try {
+            $processCode = $this->request->getGet('process_code');
+            if (empty($processCode)) {
+                return $this->response->setJSON(['status' => false, 'message' => 'Process code required']);
+            }
+            $process = $this->ProcessModel->where('process_code', $processCode)->first();
+            if (!$process) {
+                return $this->response->setStatusCode(404)->setJSON(['status' => false, 'message' => 'Process not found']);
+            }
+            $docno = $process['docno'] ?? '';
+            $revisi = '-';
+            if (!empty($docno)) {
+                $parts = explode('-', $docno);
+                if (count($parts) > 1) {
+                    $revisi = end($parts);
+                }
+            }
+            $process['revisi'] = $revisi;
+            return $this->response->setJSON($process);
+        } catch (\Throwable $th) {
+            return $this->response->setStatusCode(500)->setJSON(['status' => false, 'message' => $th->getMessage()]);
+        }
+    }
+
     public function index()
     {
         $data = [

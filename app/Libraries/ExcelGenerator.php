@@ -55,7 +55,7 @@ class ExcelGenerator
             
             for ($p = 0; $p < $totalPages; $p++) {
                 // 1. Gambar ulang Kop Surat secara vertikal untuk setiap halaman baru
-                $this->insertKopSuratVertical($sheet, $currentRow, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE);
+                $this->insertKopSuratVertical($sheet, $currentRow, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE, $weeklyInfo ?? null);
                 
                 // 2. Gambar Tabel (Kolom Identitas statis + 14 Kolom Data)
                 $tableStartRowChunk = $currentRow + 4; // Jarak baris setelah Kop Surat
@@ -113,7 +113,7 @@ class ExcelGenerator
             $lastRow = $currentRow - 2;
         } else {
             $totalDataCols = max(1, $grid['totalCols'] - $identityCols);
-            $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols);
+            $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols, $weeklyInfo ?? null);
             
             $this->writeBlockFromGrid($grid, $sheet, $tableStartRow, $grid['totalCols'], $totalDataCols, $identityCols, 0, $totalDataCols, 1);
              
@@ -298,7 +298,7 @@ class ExcelGenerator
                 $firstCell = $tr->getElementsByTagName('td')->item(0) ?? $tr->getElementsByTagName('th')->item(0);
                 if ($firstCell) {
                     $txt = strtolower(trim($firstCell->textContent));
-                    if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false || strpos($txt, 'approved by') !== false) {
+                    if (strpos($txt, 'status approval') !== false || strpos($txt, 'operator') !== false || strpos($txt, 'approved by') !== false || strpos($txt, 'checked') !== false) {
                         $tr->parentNode->removeChild($tr);
                     }
                 }
@@ -332,7 +332,7 @@ class ExcelGenerator
 
                 for ($i = 0; $i < $targetCols; $i++) {
                     if (isset($alldata[$i])) {
-                        $opName = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by', 'name']);
+                        $opName = function_exists('getOperatorName') ? getOperatorName($alldata[$i]) : $getVal($alldata[$i], ['name', 'operator', 'op_start', 'nama_operator', 'pic', 'created_by', 'empid']);
                         $tdOpData = $doc->createElement('td', htmlspecialchars($opName));
                     } else {
                         $tdOpData = $doc->createElement('td', '-');
@@ -419,7 +419,7 @@ class ExcelGenerator
         return 1;
     }
 
-    private function insertKopSuratHorizontal($sheet, int $startRow, int $targetDataCols, string $namaProduk, string $judulProses, string $noDok, string $machNo, string $tglBerlaku, string $namaApprover, string $revisi, string $typeProcess, int $identityCols, int $PER_PAGE) {
+    private function insertKopSuratHorizontal($sheet, int $startRow, int $targetDataCols, string $namaProduk, string $judulProses, string $noDok, string $machNo, string $tglBerlaku, string $namaApprover, string $revisi, string $typeProcess, int $identityCols, int $PER_PAGE, $weeklyInfo = null) {
         $r1 = $startRow; $r2 = $startRow + 1; $r3 = $startRow + 2; $r4 = $startRow + 3;
 
         $isStartup = (strtolower($typeProcess) === 'startup');
@@ -448,13 +448,13 @@ class ExcelGenerator
                 $chunkEndCol = $chunkStartCol + $PER_PAGE - 1;
                 $docStartCol = $chunkEndCol - 2;
 
-                $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+                $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo);
             }
         } else {
             $chunkStartCol = $spanKiri + 1;
             $chunkEndCol = max($chunkStartCol + 3, $totalEndCol);
             $docStartCol = max($chunkStartCol + 1, $chunkEndCol - 2);
-            $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+            $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo);
         }
 
         for ($r = $r1; $r <= $r3; $r++) {
@@ -463,7 +463,11 @@ class ExcelGenerator
         $sheet->getRowDimension($r4)->setRowHeight(60);
     }
 
+<<<<<<< HEAD
     private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $centerStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess) {
+=======
+    private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo = null) {
+>>>>>>> ba8ca53db7ace9995c2132bd84acc42099457ffb
         $docStartLetter = Coordinate::stringFromColumnIndex($docStartCol);
         $docMidLetter   = Coordinate::stringFromColumnIndex($docStartCol + 1);
         $docEndLetter   = Coordinate::stringFromColumnIndex($chunkEndCol);
@@ -481,10 +485,24 @@ class ExcelGenerator
         $sheet->mergeCells("{$docMidLetter}{$r3}:{$docEndLetter}{$r3}");
 
         if ($typeProcess === 'startup') {
-            $sheet->setCellValue("{$docStartLetter}{$r4}", "QC");
-            $sheet->setCellValue("{$docMidLetter}{$r4}", "Production");
+            $qcText = "QC";
+            if (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') {
+                $approverQc = !empty($weeklyInfo['approver_qc']) ? $weeklyInfo['approver_qc'] : 'Approved';
+                $dateQc = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime($weeklyInfo['date_qc'])) : '';
+                $qcText = "QC\n\nApproved by:\n" . $approverQc . "\n(QC)\n" . $dateQc;
+            }
+
+            $prodText = "Production";
+            if (!empty($weeklyInfo['status_production']) && strtolower($weeklyInfo['status_production']) === 'approve') {
+                $approverProd = !empty($weeklyInfo['approver_production']) ? $weeklyInfo['approver_production'] : 'Approved';
+                $dateProd = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime($weeklyInfo['date_production'])) : '';
+                $prodText = "Production\n\nApproved by:\n" . $approverProd . "\n(Prod)\n" . $dateProd;
+            }
+
+            $sheet->setCellValue("{$docStartLetter}{$r4}", $qcText);
+            $sheet->setCellValue("{$docMidLetter}{$r4}", $prodText);
             $sheet->mergeCells("{$docMidLetter}{$r4}:{$docEndLetter}{$r4}");
-            $sheet->getStyle("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         } else {
             $ttdText = $namaApprover !== '' ? "Checked\n\nApproved by: " . $namaApprover : "Checked";
             $sheet->setCellValue("{$docStartLetter}{$r4}", $ttdText);
@@ -608,7 +626,7 @@ class ExcelGenerator
         }
     }
 
-    private function insertKopSuratVertical($sheet, $startRow, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE) {
+    private function insertKopSuratVertical($sheet, $startRow, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE, $weeklyInfo = null) {
         $r1 = $startRow; $r2 = $startRow + 1; $r3 = $startRow + 2; $r4 = $startRow + 3;
         $lastIdentityLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
 
@@ -627,7 +645,7 @@ class ExcelGenerator
         $docStartCol = $chunkEndCol - 2; 
 
         // Pakai ulang fungsi kop surat
-        $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess);
+        $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo);
 
         for ($r = $r1; $r <= $r3; $r++) $sheet->getRowDimension($r)->setRowHeight(20);
         $sheet->getRowDimension($r4)->setRowHeight(38); 
