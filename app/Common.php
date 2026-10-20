@@ -13,3 +13,30 @@
  *
  * @see: https://codeigniter.com/user_guide/extending/common.html
  */
+
+if (!function_exists('getOperatorName')) {
+    /**
+     * Mengambil nama user yang menginput checksheet form (Operator).
+     * Kolom utama di database adalah 'name'.
+     * Bukan nama approver/role.
+     */
+    function getOperatorName($row)
+    {
+        if (empty($row) || !is_array($row)) {
+            return '-';
+        }
+        if (!empty($row['name']) && $row['name'] !== '-') {
+            return (string)$row['name'];
+        }
+        if (!empty($row['operator']) && $row['operator'] !== '-') {
+            return (string)$row['operator'];
+        }
+        if (!empty($row['nama']) && $row['nama'] !== '-') {
+            return (string)$row['nama'];
+        }
+        if (!empty($row['empid']) && $row['empid'] !== '-') {
+            return (string)$row['empid'];
+        }
+        return '-';
+    }
+}

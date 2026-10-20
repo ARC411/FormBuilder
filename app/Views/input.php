@@ -271,15 +271,16 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
 
     $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empid })
         .done(function (d) {
-            if (d.found && d.acc && d.groupid) {
-                if (!$(shiftTag).val()) $(shiftTag).val(d.acc);
-                if (!$(groupTag).val()) $(groupTag).val(d.groupid);
-                warn.removeClass('visible').addClass('invisible');
-            } else {
-                if (d.found) { // terisi sebagian
-                    if (d.acc && !$(shiftTag).val()) $(shiftTag).val(d.acc);
-                    if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
+            if (d.found) {
+                if (d.acc && !$(shiftTag).val()) $(shiftTag).val(d.acc);
+                if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
+                if (d.name && (!$(nameTag).val() || $(nameTag).val() === '-')) $(nameTag).val(d.name);
+                if (d.acc && d.groupid) {
+                    warn.removeClass('visible').addClass('invisible');
+                } else {
+                    warn.removeClass('invisible').addClass('visible');
                 }
+            } else {
                 warn.removeClass('invisible').addClass('visible');
             }
         })

@@ -222,27 +222,7 @@
         <tr>
             <td colspan="4">Operator</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <?php
-                    // 1. Ambil role, pangkas spasi, dan paksa jadi huruf kecil (menghindari error case-sensitive)
-                    $roleKey = strtolower(trim((string)$alldata[$i]['role']));
-                    
-                    // 2. Prioritas Utama: Cari berdasarkan Role-nya (misal: 'operator', 'leader')
-                    if ($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey]) && $alldata[$i][$roleKey] !== '-') {
-                        echo '<td colspan="col">'. (string)$alldata[$i][$roleKey] . '</td>';
-                    } 
-                    // 3. Fallback 1: Jika gagal, langsung cari ke kolom 'operator'
-                    elseif (isset($alldata[$i]['operator']) && $alldata[$i]['operator'] !== '-') {
-                        echo '<td colspan="col">'. (string)$alldata[$i]['operator'] . '</td>';
-                    }
-                    // 4. Fallback 2: Jika masih gagal, cari ke kolom 'nama'
-                    elseif (isset($alldata[$i]['nama']) && $alldata[$i]['nama'] !== '-') {
-                        echo '<td colspan="col">'. (string)$alldata[$i]['nama'] . '</td>';
-                    }
-                    // 5. Jika memang benar-benar kosong dari database, baru cetak strip
-                    else {
-                        echo '<td colspan="col">-</td>';
-                    }
-                ?>
+                <td colspan="col"><?= esc(getOperatorName($alldata[$i] ?? null)); ?></td>
             <?php } ?>
         </tr>
 

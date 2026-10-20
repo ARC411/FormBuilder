@@ -6,7 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\StartupModel;
 use App\Models\LogActivityModel;
 use App\Models\WeeklyApprovalModel;
-use App\Models\ProductionModel; // Pastikan model ini dipanggil karena dipakai di approvalById
+use App\Models\ProductionModel;
 
 class Approval extends BaseController
 {
@@ -18,7 +18,7 @@ class Approval extends BaseController
     {
         date_default_timezone_set('Asia/Jakarta');
         $this->StartupModel = new StartupModel();
-        $this->ProductionModel = new ProductionModel(); // Deklarasikan jika digunakan
+        $this->ProductionModel = new ProductionModel();
         $this->session = \Config\Services::session();
         $this->session->start();
     }
@@ -42,8 +42,6 @@ class Approval extends BaseController
             return redirect()->to(base_url().'login');
         }
         
-        // Perbaikan: Gunakan getGet() untuk mencegah error jika parameter URL kosong
-        // Default menampilkan data 1 bulan terakhir hingga hari ini
         $dateStart = $this->request->getGet('dateStart') ?? date('Y-m-d', strtotime('-1 month'));
         $dateEnd = $this->request->getGet('dateEnd') ?? date('Y-m-d');
 
@@ -87,17 +85,25 @@ class Approval extends BaseController
 
         $weeklyModel = new WeeklyApprovalModel();
         
+        $role = strtolower(trim((string)$this->session->get('role')));
+        $isAdmin = !empty($this->session->get('isadmin'));
+
+        $is_qc = ($role === 'qc' || $role === 'qa' || $role === 'all' || $isAdmin);
+        $is_prod = ($role === 'production' || in_array($role, ['fl', 'sl', 'all']) || $isAdmin);
+
         $data = [
-            'title' => 'Weekly Approval | Startup Management',
+            'title'       => 'Weekly Approval | Startup Management',
             'weekly_data' => $weeklyModel->getWeeklyList(),
-            'user_role' => $this->session->get('role'),
-            'is_admin' => $this->session->get('isadmin') // Asumsi: session role menyimpan 'qc' atau 'production'
+            'user_role'   => $this->session->get('role'),
+            'is_admin'    => $isAdmin,
+            'is_qc'       => $is_qc,
+            'is_prod'     => $is_prod
         ];
 
         return view('weekly_approval', $data);
     }
 
-    // 2. Fungsi untuk memproses tombol Approve
+    // Fungsi untuk memproses tombol Approve Weekly (QC / Production)
     public function processWeekly()
     {
         if(!$this->session->has('name')){
@@ -106,20 +112,64 @@ class Approval extends BaseController
 
         $weeklyModel = new WeeklyApprovalModel();
         
-        $weekly_id = $this->request->getPost('weekly_id');
-        $action = $this->request->getPost('action'); // isinya: 'Approve' atau 'Reject'
-        $departemen = $this->request->getPost('departemen'); // isinya: 'qc' atau 'production'
+        $weekly_id  = $this->request->getPost('weekly_id');
+        $action     = $this->request->getPost('action'); // 'Approve' atau 'Reject'
+        $departemen = strtolower(trim((string)$this->request->getPost('departemen'))); // 'qc' atau 'production'
+
+        $role    = strtolower(trim((string)$this->session->get('role')));
+        $isAdmin = !empty($this->session->get('isadmin'));
+        $canQc   = ($role === 'qc' || $role === 'qa' || $role === 'all' || $isAdmin);
+        $canProd = ($role === 'production' || in_array($role, ['fl', 'sl', 'all']) || $isAdmin);
+
+        // 1. Validasi Otoritas Akses Departemen
+        if ($departemen === 'qc' && !$canQc) {
+            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan QC.');
+            return redirect()->to(base_url().'approval/weekly');
+        }
+        if ($departemen === 'production' && !$canProd) {
+            $this->session->setFlashdata('error', 'Akses ditolak: Anda tidak memiliki otoritas persetujuan Production.');
+            return redirect()->to(base_url().'approval/weekly');
+        }
+
+        // 2. Syarat Wajib Lengkap:
+        // Weekly approval hanya dapat dilakukan jika semua dokumen startup harian di minggu tersebut
+        // sudah selesai di-approve daily (oleh Foreman/Leader/Spv).
+        if ($action === 'Approve') {
+            $db = \Config\Database::connect();
+            $pendingDaily = $db->table('startup')
+                ->where('weekly_id', $weekly_id)
+                ->where('par000', '1')
+                ->groupStart()
+                    ->where('status', 'Pending')
+                    ->orWhere('status IS NULL')
+                    ->orWhere('status', '')
+                    ->orWhere('status', '-')
+                ->groupEnd()
+                ->countAllResults();
+
+            if ($pendingDaily > 0) {
+                $this->session->setFlashdata('error', "Persetujuan ditolak: Masih terdapat {$pendingDaily} checksheet startup harian pada minggu ini yang belum di-approve oleh Foreman/Leader/Supervisor. Selesaikan daily approval terlebih dahulu.");
+                return redirect()->to(base_url().'approval/weekly');
+            }
+        }
+
+        $approverName = $this->session->get('name') ?? 'Approver';
+        $now = date('Y-m-d H:i:s');
 
         $updateData = [];
         if ($departemen === 'qc') {
-            $updateData['status_qc'] = $action;
+            $updateData['status_qc']   = $action;
+            $updateData['approver_qc'] = $approverName;
+            $updateData['date_qc']     = $now;
         } else if ($departemen === 'production') {
-            $updateData['status_production'] = $action;
+            $updateData['status_production']   = $action;
+            $updateData['approver_production'] = $approverName;
+            $updateData['date_production']     = $now;
         }
 
         if (!empty($updateData)) {
             $weeklyModel->update($weekly_id, $updateData);
-            $this->session->setFlashdata('message', "Data mingguan berhasil di-$action oleh $departemen");
+            $this->session->setFlashdata('message', "Data mingguan #{$weekly_id} berhasil di-{$action} oleh {$approverName} (" . strtoupper($departemen) . ").");
         }
 
         return redirect()->to(base_url().'approval/weekly');
@@ -139,13 +189,29 @@ class Approval extends BaseController
             return "Data mingguan tidak ditemukan.";
         }
 
+        $db = \Config\Database::connect();
+        $deviceInfo = !empty($dataMingguan['device']) ? $db->table('device')->where('code', $dataMingguan['device'])->get()->getRowArray() : null;
+        $processInfo = !empty($dataMingguan['process']) ? $db->table('proses')->where('process_code', $dataMingguan['process'])->get()->getRowArray() : null;
+
+        $alldata = $this->StartupModel->getByWeeklyId($id);
+
+        $pendingDaily = 0;
+        foreach ($alldata as $doc) {
+            $st = trim((string)($doc['status'] ?? ''));
+            if ($st === 'Pending' || $st === '' || $st === '-') {
+                $pendingDaily++;
+            }
+        }
+
         $data = [
-            'title' => 'Detail Mingguan | Startup Management',
-            'mingguan' => $dataMingguan,
-            'alldata' => $this->StartupModel->getByWeeklyId($id)
+            'title'         => 'Detail Mingguan | Startup Management',
+            'mingguan'      => $dataMingguan,
+            'device_info'   => $deviceInfo,
+            'process_info'  => $processInfo,
+            'pending_daily' => $pendingDaily,
+            'alldata'       => $alldata
         ];
 
         return view('weekly_detail', $data);
     }
-
 }

@@ -161,8 +161,60 @@ class History extends BaseController
             $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
         }
 
-        // --- Variabel $nama_mesin ditambahkan ke return compact ---
-        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi');
+        // Ambil data approval mingguan (Weekly Approval) khusus untuk startup berbasis Periode Minggu
+        $weeklyInfo = null;
+        if ($typeProcess === 'startup') {
+            $weeklyModel = new \App\Models\WeeklyApprovalModel();
+            
+            // 1. Cek jika data dokumen yang difilter sudah memiliki weekly_id
+            $weeklyId = null;
+            if (!empty($alldata)) {
+                foreach ($alldata as $r) {
+                    if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
+                        $weeklyId = $r['weekly_id'];
+                        break;
+                    }
+                }
+            }
+            if ($weeklyId) {
+                $weeklyInfo = $weeklyModel->find($weeklyId);
+            }
+
+            // 2. Konsistensi Periode Minggu (Fallback untuk rentang tanggal sebagian maupun penuh)
+            // Tanpa membatasi nama device, proses, atau machine number
+            if (!$weeklyInfo) {
+                $refDate = '';
+                if (!empty($alldata[0]['created_at']) && $alldata[0]['created_at'] !== '-') {
+                    $refDate = $alldata[0]['created_at'];
+                } elseif (!empty($dateStart)) {
+                    $refDate = $dateStart;
+                } elseif (!empty($dateEnd)) {
+                    $refDate = $dateEnd;
+                }
+
+                if (!empty($refDate)) {
+                    $time = strtotime($refDate);
+                    $monday = date('Y-m-d', strtotime('monday this week', $time));
+                    $sunday = date('Y-m-d', strtotime('sunday this week', $time));
+
+                    // Prioritaskan weekly approval umum (device is null), atau ambil yang ada untuk periode tersebut
+                    $weeklyInfo = $weeklyModel->where('period_start', $monday)
+                                              ->where('period_end', $sunday)
+                                              ->where('device', null)
+                                              ->first();
+
+                    if (!$weeklyInfo) {
+                        $weeklyInfo = $weeklyModel->where('period_start', $monday)
+                                                  ->where('period_end', $sunday)
+                                                  ->orderBy('id', 'DESC')
+                                                  ->first();
+                    }
+                }
+            }
+        }
+
+        // --- Variabel $nama_mesin dan $weeklyInfo ditambahkan ke return compact ---
+        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi', 'weeklyInfo');
     }
 
     // =========================================================================

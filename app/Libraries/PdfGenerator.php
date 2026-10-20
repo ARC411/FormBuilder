@@ -123,7 +123,8 @@ class PdfGenerator
             $tglBerlaku ?? '', 
             $namaApprover ?? '', 
             $revisi ?? '', 
-            $typeProcess ?? ''
+            $typeProcess ?? '',
+            $weeklyInfo ?? null
         );
 
         $pagesHtml = '';
@@ -225,7 +226,7 @@ class PdfGenerator
 
             for ($i = 0; $i < $targetCols; $i++) {
                 if (isset($alldata[$i])) {
-                    $opName = $getVal($alldata[$i], ['operator', 'op_start', 'nama_operator', 'pic', 'created_by']);
+                    $opName = function_exists('getOperatorName') ? getOperatorName($alldata[$i]) : $getVal($alldata[$i], ['name', 'operator', 'op_start', 'nama_operator', 'pic', 'created_by', 'empid']);
                     $tdOpData = $doc->createElement('td', htmlspecialchars($opName));
                 } else {
                     $tdOpData = $doc->createElement('td', '-');
@@ -362,13 +363,27 @@ class PdfGenerator
         return $html;
     }
 
-    private function buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess): string {
+    private function buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo = null): string {
         $kotakTtdHtml = "";
         
         if ($typeProcess === "startup") {
+            $qcBox = "";
+            if (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') {
+                $approverQc = htmlspecialchars(!empty($weeklyInfo['approver_qc']) ? $weeklyInfo['approver_qc'] : 'Approved');
+                $dateQc = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime($weeklyInfo['date_qc'])) : '';
+                $qcBox = '<div style="font-size: 6px; line-height: 1.1;">Approved by:<br><b style="font-size: 6.5px;">' . $approverQc . '</b><br>(QC)<br>' . $dateQc . '</div>';
+            }
+
+            $prodBox = "";
+            if (!empty($weeklyInfo['status_production']) && strtolower($weeklyInfo['status_production']) === 'approve') {
+                $approverProd = htmlspecialchars(!empty($weeklyInfo['approver_production']) ? $weeklyInfo['approver_production'] : 'Approved');
+                $dateProd = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime($weeklyInfo['date_production'])) : '';
+                $prodBox = '<div style="font-size: 6px; line-height: 1.1;">Approved by:<br><b style="font-size: 6.5px;">' . $approverProd . '</b><br>(Prod)<br>' . $dateProd . '</div>';
+            }
+
             $kotakTtdHtml = '
                 <tr><td style="width: 50%; text-align: center; padding: 2px;">QC</td><td style="text-align: center; padding: 2px;">Production</td></tr>
-                <tr><td style="height: 25px;"></td><td style="height: 25px;"></td></tr>';
+                <tr><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $qcBox . '</td><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $prodBox . '</td></tr>';
         } else {
             $ttd = $namaApprover !== "" ? '<span style="font-size: 8px;">Approved by:<br><b>' . htmlspecialchars($namaApprover) . '</b></span>' : '';
             $kotakTtdHtml = '

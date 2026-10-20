@@ -260,20 +260,7 @@
         <tr>
             <td colspan="4">Operator</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <?php
-                    $roleKey = strtolower(trim((string)($alldata[$i]['role'] ?? '')));
-                    if (!empty($alldata[$i]['name']) && $alldata[$i]['name'] !== '-') {
-                        echo '<td colspan="col">' . (string)$alldata[$i]['name'] . '</td>';
-                    } elseif ($roleKey && $roleKey !== '-' && isset($alldata[$i][$roleKey]) && $alldata[$i][$roleKey] !== '-') {
-                        echo '<td colspan="col">' . (string)$alldata[$i][$roleKey] . '</td>';
-                    } elseif (isset($alldata[$i]['operator']) && $alldata[$i]['operator'] !== '-') {
-                        echo '<td colspan="col">' . (string)$alldata[$i]['operator'] . '</td>';
-                    } elseif (isset($alldata[$i]['nama']) && $alldata[$i]['nama'] !== '-') {
-                        echo '<td colspan="col">' . (string)$alldata[$i]['nama'] . '</td>';
-                    } else {
-                        echo '<td colspan="col">-</td>';
-                    }
-                ?>
+                <td colspan="col"><?= esc(getOperatorName($alldata[$i] ?? null)); ?></td>
             <?php } ?>
         </tr>
 

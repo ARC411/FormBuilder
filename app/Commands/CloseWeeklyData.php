@@ -11,10 +11,10 @@ class CloseWeeklyData extends BaseCommand
 {
     protected $group       = 'Cronjob';
     protected $name        = 'cronjob:closeweeklydata';
-    protected $description = 'Menutup data startup mingguan dan memasukkannya ke tabel Weekly Approval.';
+    protected $description = 'Menutup data startup mingguan berbasis Periode Minggu ke tabel Weekly Approval.';
     protected $usage       = 'cronjob:closeweeklydata [options]';
     protected $options     = [
-        '--all'       => 'Tarik semua data startup yang belum memiliki weekly_id dan kelompokkan per minggu',
+        '--all'       => 'Tarik semua data startup yang belum memiliki weekly_id dan kelompokkan per Periode Minggu',
         '--last-week' => 'Tutup data minggu lalu (Senin s/d Minggu lalu)',
     ];
 
@@ -30,7 +30,7 @@ class CloseWeeklyData extends BaseCommand
 
         if ($isAll) {
             $unassigned = $db->table('startup')
-                ->select("MIN(created_at) as min_date, MAX(created_at) as max_date, COUNT(*) as total")
+                ->select("COUNT(*) as total")
                 ->where('weekly_id', null)
                 ->get()->getRowArray();
 
@@ -64,14 +64,25 @@ class CloseWeeklyData extends BaseCommand
             }
 
             foreach ($weeks as $wKey => $wData) {
+                // Cari apakah sudah ada weekly approval untuk periode minggu ini (tanpa filter device/process)
                 $existing = $weeklyModel->where('period_start', $wData['start'])
                                         ->where('period_end', $wData['end'])
+                                        ->where('device', null)
                                         ->first();
+
+                // Jika belum ada yang null device, cari yang pertama untuk periode tersebut
+                if (!$existing) {
+                    $existing = $weeklyModel->where('period_start', $wData['start'])
+                                            ->where('period_end', $wData['end'])
+                                            ->first();
+                }
 
                 if ($existing) {
                     $weeklyId = $existing['id'];
                 } else {
                     $weeklyId = $weeklyModel->insert([
+                        'device'            => null,
+                        'process'           => null,
                         'period_start'      => $wData['start'],
                         'period_end'        => $wData['end'],
                         'status_qc'         => 'Pending',
@@ -84,10 +95,10 @@ class CloseWeeklyData extends BaseCommand
                     $db->table('startup')->whereIn('id', $chunk)->update(['weekly_id' => $weeklyId]);
                 }
 
-                CLI::write("Periode " . $wData['start'] . " s/d " . $wData['end'] . " -> Weekly ID #" . $weeklyId . " (Total: " . count($wData['ids']) . " baris)", 'green');
+                CLI::write("Periode {$wData['start']} s/d {$wData['end']} -> Weekly ID #{$weeklyId} (" . count($wData['ids']) . " baris)", 'green');
             }
 
-            CLI::write("Selesai memproses seluruh data mingguan.", 'green');
+            CLI::write("Selesai memproses seluruh data mingguan berbasis periode minggu.", 'green');
             return;
         }
 
@@ -99,6 +110,9 @@ class CloseWeeklyData extends BaseCommand
             $endOfWeek   = date('Y-m-d 23:59:59', strtotime('sunday this week'));
         }
 
+        $periodStart = date('Y-m-d', strtotime($startOfWeek));
+        $periodEnd   = date('Y-m-d', strtotime($endOfWeek));
+
         $builder = $db->table('startup');
         $builder->where('created_at >=', $startOfWeek);
         $builder->where('created_at <=', $endOfWeek);
@@ -107,16 +121,22 @@ class CloseWeeklyData extends BaseCommand
         $pendingData = $builder->countAllResults(false);
 
         if ($pendingData > 0) {
-            $periodStart = date('Y-m-d', strtotime($startOfWeek));
-            $periodEnd   = date('Y-m-d', strtotime($endOfWeek));
-
             $existing = $weeklyModel->where('period_start', $periodStart)
                                     ->where('period_end', $periodEnd)
+                                    ->where('device', null)
                                     ->first();
+            if (!$existing) {
+                $existing = $weeklyModel->where('period_start', $periodStart)
+                                        ->where('period_end', $periodEnd)
+                                        ->first();
+            }
+
             if ($existing) {
                 $newWeeklyId = $existing['id'];
             } else {
                 $newWeeklyId = $weeklyModel->insert([
+                    'device'            => null,
+                    'process'           => null,
                     'period_start'      => $periodStart,
                     'period_end'        => $periodEnd,
                     'status_qc'         => 'Pending',
