@@ -343,15 +343,26 @@ class History extends BaseController
         }
 
         // --- Variabel $nama_mesin dan $weeklyInfo ditambahkan ke return compact ---
-        return compact('alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin', 'prosesInfo', 'typeProcess', 'process', 'tglBerlaku', 'namaApprover', 'revisi', 'weeklyInfo');
+        return compact(
+            'alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin',
+            'prosesInfo', 'typeProcess', 'process', 'device', 'tglBerlaku', 'namaApprover',
+            'revisi', 'activeRevRow'
+        );
     }
 
     private function renderHistoryHtml(array &$context, bool $isExport = false): string
     {
+        $process      = $context['process'] ?? '';
+        $typeProcess  = $context['typeProcess'] ?? 'production';
+        $device       = !empty($context['device']) ? $context['device'] : (explode('-', $process)[0] ?? '');
         $activeRevRow = $context['activeRevRow'] ?? null;
-        $typeProcess  = $context['typeProcess'];
-        $process      = $context['process'];
-        $device       = $context['device'];
+
+        // Jika activeRevRow belum terbawa dari resolveExportContext (akibat merge git pull), ambil otomatis
+        if (!$activeRevRow && $process !== '') {
+            $revs = $this->ensureProcessRevisions($process, $typeProcess);
+            $activeRevRow = $revs[0] ?? null;
+            $context['activeRevRow'] = $activeRevRow;
+        }
 
         if ($activeRevRow) {
             $rawParams = $this->formParamModel->where('revision_id', $activeRevRow['id'])->orderBy('urutan', 'ASC')->findAll();
