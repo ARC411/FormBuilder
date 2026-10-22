@@ -11,6 +11,7 @@ class Foregoing extends BaseController
 {
     protected $session;
     private $ForegoingModel;
+
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
@@ -19,16 +20,35 @@ class Foregoing extends BaseController
         $this->session->start();
     }
 
-    public function index(): string
+    // Helper untuk mengecek apakah user yang login adalah Operator biasa
+    private function isRegularOperator(): bool
     {
+        $pos = (string) $this->session->get('positionid');
+        $isAdmin = (bool) $this->session->get('isadmin');
+        if ($isAdmin) {
+            return false;
+        }
+        return (stripos($pos, 'operator') !== false);
+    }
+
+    public function index()
+    {
+        if (!$this->session->has('empid')) {
+            return redirect()->to(base_url('login'));
+        }
+
+        // Jika Operator biasa, hanya tampilkan data dari inputan operator itu sendiri
+        $empFilter = $this->isRegularOperator() ? (string) $this->session->get('empid') : null;
+
         $data = [
-            'title' => 'Data Startup | Startup Management',
-            'alldata' => $this->ForegoingModel->getAllData()
+            'title'      => 'Data Foregoing | Startup Management',
+            'alldata'    => $this->ForegoingModel->getAllData($empFilter),
+            'isOperator' => $this->isRegularOperator(),
         ];
         return view('foregoing', $data);
     }
 
- public function data()
+    public function data()
     {
         $data = [
             'title' => 'History | Startup Management',
@@ -57,18 +77,90 @@ class Foregoing extends BaseController
 
     public function edit($number)
     {
+        if (!$this->session->has('empid')) {
+            return redirect()->to(base_url('login'));
+        }
+
+        $alldata = $this->ForegoingModel->getByNumber($number);
+        if (empty($alldata)) {
+            return redirect()->to(base_url('foregoing'))->with('message', 'Data tidak ditemukan.');
+        }
+
+        // Jika Operator biasa: pastikan data miliknya sendiri DAN sudah diizinkan Foreman (edit_status == 2)
+        if ($this->isRegularOperator()) {
+            if ((string)$alldata[0]['empid'] !== (string)$this->session->get('empid')) {
+                return redirect()->to(base_url('foregoing'))->with('message', 'Akses ditolak: Anda hanya dapat mengedit data milik Anda sendiri.');
+            }
+            if ((int)($alldata[0]['edit_status'] ?? 0) !== 2) {
+                return redirect()->to(base_url('foregoing'))->with('message', 'Data masih terkunci! Silakan minta izin Foreman terlebih dahulu.');
+            }
+        }
+
         $data = [
-            'title' => 'History | Foregoing Management',
+            'title'      => 'History | Startup Management',
             'validation' => \Config\Services::validation(),
-            'alldata' => $this->ForegoingModel->getByNumber($number)
+            'alldata'    => $alldata
         ];
         
         return view('edit-foregoing', $data);
     }
 
+    public function requestEdit($number)
+    {
+        if (!$this->session->has('empid')) {
+            return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+        }
+
+        $alldata = $this->ForegoingModel->getByNumber($number);
+        if (empty($alldata) || (string)$alldata[0]['empid'] !== (string)$this->session->get('empid')) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Anda hanya bisa meminta izin untuk data Anda sendiri.']);
+        }
+
+        $this->ForegoingModel->requestEdit($number);
+        return $this->response->setJSON(['status' => 'success', 'message' => 'Permintaan izin edit telah dikirim ke Foreman.']);
+    }
+
+    public function unlockEdit($number)
+    {
+        if (!$this->session->has('empid') || $this->isRegularOperator()) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Hanya Foreman / Atasan / Admin yang dapat memberikan izin edit.']);
+        }
+
+        $approverName = (string)($this->session->get('name') ?: $this->session->get('empid'));
+        $this->ForegoingModel->unlockEdit($number, $approverName);
+        return $this->response->setJSON(['status' => 'success', 'message' => 'Kunci edit dibuka! Operator sekarang dapat mengedit data ini.']);
+    }
+
+    public function deleteForegoing($number)
+    {
+        if(!$this->session->has('empid')){
+            session()->setFlashdata('message', 'Login terlebih dahulu');
+            return redirect()->to(base_url()."login");
+        }
+        $result = $this->ForegoingModel->deleteByNumber($number);
+        if ($result) {
+            return "berhasil";
+        }
+        return "gagal";
+    }
+
+    public function foregoingByNumber($number)
+    {
+        $data = ['alldata' => $this->ForegoingModel->getByNumber($number)];
+        if(empty($data['alldata'])) return "Data tidak ditemukan.";
+        
+        $folder = 'foregoing';
+        try {
+            $machno = !empty($data['alldata'][0]['machno']) ? esc($data['alldata'][0]['machno']) : '';
+            $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
+            return $machnoHidden . view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
+        }
+    }
+
     public function formInputForegoing()
     {
-        // jika belum login tidak dapat membuka form startup
         if(!$this->session->has('empid')){
             return redirect()->to(base_url()."login");
         }
@@ -94,7 +186,6 @@ class Foregoing extends BaseController
             'title' => 'Create Foregoing',
             'validation' => \Config\Services::validation()
         ];
-        
 
         $number = $this->request->getVar('number-edit') ? $this->request->getVar('number-edit') : ($this->ForegoingModel->getLatestId()+1);
         $cnt_input = $this->request->getVar('cnt-proses') ? $this->request->getVar('cnt-proses') : 1; 
@@ -174,13 +265,9 @@ class Foregoing extends BaseController
         );
 
         if($cnt_input==1){
-            if ($resulta)
-            {
-                
+            if ($resulta) {
                 session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
             return redirect()->to(base_url());
@@ -261,13 +348,9 @@ class Foregoing extends BaseController
         );
 
         if($cnt_input==2){
-            if ($resultb)
-            {
-                
+            if ($resultb) {
                 session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
             return redirect()->to(base_url());
@@ -347,13 +430,9 @@ class Foregoing extends BaseController
         );
 
         if($cnt_input==3){
-            if ($resultc)
-            {
-                
+            if ($resultc) {
                 session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
             return redirect()->to(base_url());
@@ -434,13 +513,9 @@ class Foregoing extends BaseController
         );
 
         if($cnt_input==4){
-            if ($resultd)
-            {
-                
+            if ($resultd) {
                 session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
             return redirect()->to(base_url());
@@ -521,44 +596,12 @@ class Foregoing extends BaseController
         );
 
         if($cnt_input==5){
-            if ($resulte)
-            {
-                
+            if ($resulte) {
                 session()->setFlashdata('message', 'Input success!');
-            }
-            else
-            {
+            } else {
                 session()->setFlashdata('message', 'Input Failed!'); 
             }
             return redirect()->to(base_url());
-        }
-    }
-
-    public function deleteForegoing($number)
-    {
-        if(!$this->session->has('empid')){
-            session()->setFlashdata('message', 'Login terlebih dahulu');
-            return redirect()->to(base_url()."login");
-        }
-        $result = $this->ForegoingModel->deleteByNumber($number);
-        if ($result) {
-            return "berhasil";
-        }
-        return "gagal";
-    }
-
-    public function foregoingByNumber($number)
-    {
-        $data = ['alldata' => $this->ForegoingModel->getByNumber($number)];
-        if(empty($data['alldata'])) return "Data tidak ditemukan.";
-        
-        $folder = 'foregoing';
-        try {
-            $machno = !empty($data['alldata'][0]['machno']) ? esc($data['alldata'][0]['machno']) : '';
-            $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
-            return $machnoHidden . view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
-        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
-            return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
         }
     }
 }

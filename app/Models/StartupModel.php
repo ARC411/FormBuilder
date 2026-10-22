@@ -17,8 +17,30 @@ class StartupModel extends Model
         'par037','par038','par039','par040','par041','par042','par043','par044',
         'status','role','foreman','leader','supervisor','name', 'docno', 'revisi',
         'par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 
-        'par021_unit'
+        'par021_unit', 'weekly_id', 'edit_status', 'unlocked_by', 'reject_reason', 'reject_by', 'reject_date'
     ];
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema(): void
+    {
+        try {
+            $db = \Config\Database::connect();
+            $check = $db->query("SHOW COLUMNS FROM `startup` LIKE 'reject_reason'")->getRow();
+            if (!$check) {
+                $db->query("ALTER TABLE `startup` 
+                    ADD COLUMN `reject_reason` TEXT NULL AFTER `status`,
+                    ADD COLUMN `reject_by` VARCHAR(100) NULL AFTER `reject_reason`,
+                    ADD COLUMN `reject_date` DATETIME NULL AFTER `reject_by`");
+            }
+        } catch (\Throwable $e) {
+            // Kolom sudah ada atau query gagal tanpa menghentikan eksekusi
+        }
+    }
 
     public function getCsheet($slug = false)
     {
@@ -28,55 +50,118 @@ class StartupModel extends Model
         return $this->where(['slug' =>$slug])->first();
     }
 
+    // Mengambil jumlah checksheet startup yang di-reject milik operator login
+    public function getRejectedCountByOperator($empid = '', $name = '')
+    {
+        $builder = $this->db->table($this->table);
+        $builder->where('status', 'Reject');
+        $builder->where('par000', '1');
+        
+        $hasEmp = !empty(trim((string)$empid));
+        $hasName = !empty(trim((string)$name));
+
+        if ($hasEmp || $hasName) {
+            $builder->groupStart();
+            if ($hasEmp) {
+                $builder->where('empid', trim((string)$empid));
+            }
+            if ($hasName) {
+                if ($hasEmp) {
+                    $builder->orWhere('name', trim((string)$name));
+                } else {
+                    $builder->where('name', trim((string)$name));
+                }
+            }
+            $builder->groupEnd();
+        }
+        
+        return $builder->countAllResults();
+    }
+
     public function getAllData()
     {
-        $query = "SELECT DISTINCT s.id,`number`, s.created_at, `process`,d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group` ,`status`,`role`, `foreman` , `leader` , `supervisor`, p.name
+        $query = "SELECT DISTINCT s.id, `number`, s.created_at, `process`, d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `status`, `role`, `foreman`, `leader`, `supervisor`, s.name, p.name as process_name, s.edit_status, s.unlocked_by, s.reject_reason, s.reject_by, s.reject_date
         FROM `startup` as s
         INNER JOIN `proses` as p ON s.process=p.process_code 
         INNER JOIN `device` as d ON p.device=d.code
-        WHERE `par000`='1'";
+        WHERE `par000`='1'
+        ORDER BY CASE WHEN s.status = 'Reject' THEN 0 ELSE 1 END, s.created_at DESC";
 
         return $this->query($query)->getResultArray();
     }
 
-    public function updateApproval($number, $name,$level)
+    public function updateApproval($number, $name, $level, $action = 'Approve', $rejectReason = '')
     {
-        $data = $this->where('number',$number)->first();
+        $data = $this->where('number', $number)->first();
 
         if (!$data) {
             return false;
         }
 
-        if (isset($data['status']) &&$data['status'] !== 'Pending') {
+        // Jika sudah di-approve sebelumnya (bukan Pending dan bukan Reject), jangan timpa
+        if (isset($data['status']) && $data['status'] !== 'Pending' && $data['status'] !== 'Reject' && $data['status'] !== '' && $data['status'] !== '-') {
             return false;
         }
 
         $updateData = [];
 
-        if ($level == 14) {$updateData['status'] = "Approve by Foreman";
-            $updateData['role'] = "foreman";
-            $updateData['foreman'] =$name;
-        }
-        else if ($level == 10) {$updateData['role'] = "leader";
+        if ($action === 'Reject') {
+            $roleName = 'foreman';
+            if ($level == 10) {
+                $roleName = 'leader';
+            } elseif ($level <= 7 && $level > 0) {
+                $roleName = 'supervisor';
+            }
 
-            if (empty($data['foreman'])) {$updateData['status'] = "Bypass Leader";
-                $updateData['foreman'] =$name;
-                $updateData['leader'] =$name;
+            $updateData = [
+                'status'        => 'Reject',
+                'role'          => $roleName,
+                'reject_reason' => $rejectReason,
+                'reject_by'     => $name,
+                'reject_date'   => date('Y-m-d H:i:s'),
+                'foreman'       => ($roleName === 'foreman') ? $name : null,
+                'leader'        => ($roleName === 'leader') ? $name : null,
+                'supervisor'    => ($roleName === 'supervisor') ? $name : null,
+            ];
+
+            return $this->where('number', $number)->set($updateData)->update();
+        }
+
+        // Action: Approve
+        $updateData['reject_reason'] = null;
+        $updateData['reject_by']     = null;
+        $updateData['reject_date']   = null;
+
+        if ($level == 14) {
+            $updateData['status'] = "Approve by Foreman";
+            $updateData['role'] = "foreman";
+            $updateData['foreman'] = $name;
+        }
+        else if ($level == 10) {
+            $updateData['role'] = "leader";
+
+            if (empty($data['foreman'])) {
+                $updateData['status'] = "Bypass Leader";
+                $updateData['foreman'] = $name;
+                $updateData['leader'] = $name;
             } else {
                 $updateData['status'] = "Approve Leader";
-                $updateData['leader'] =$name;
+                $updateData['leader'] = $name;
             }
         }
-        else if ($level <= 7) {$updateData['role'] = "supervisor";
-            $updateData['supervisor'] =$name;
+        else if ($level <= 7 && $level > 0) {
+            $updateData['role'] = "supervisor";
+            $updateData['supervisor'] = $name;
 
-            if (!empty($data['leader'])) {$updateData['status'] = "Approve Supervisor";
-            } else if (!empty($data['foreman'])) {$updateData['status'] = "Bypass Supervisor";
-                $updateData['leader'] =$name;
+            if (!empty($data['leader'])) {
+                $updateData['status'] = "Approve Supervisor";
+            } else if (!empty($data['foreman'])) {
+                $updateData['status'] = "Bypass Supervisor";
+                $updateData['leader'] = $name;
             } else {
                 $updateData['status'] = "Bypass Supervisor";
-                $updateData['foreman'] =$name;
-                $updateData['leader'] =$name;
+                $updateData['foreman'] = $name;
+                $updateData['leader'] = $name;
             }
         }
 
@@ -85,35 +170,90 @@ class StartupModel extends Model
 
     public function addProses($data)
     {
-        $db = \Config\Database::connect();$prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+        $db = \Config\Database::connect();
+        $prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
 
         if ($prosesMaster) {
-            $data['par041'] =$prosesMaster['revisi'];
-            $data['par042'] =$prosesMaster['berlaku'];
-            $data['docno']  =$prosesMaster['docno'];
-            $data['revisi'] =$prosesMaster['revisi'];
+            $data['par041'] = $prosesMaster['revisi'];
+            $data['par042'] = $prosesMaster['berlaku'];
+            $data['docno']  = $prosesMaster['docno'];
+            $data['revisi'] = $prosesMaster['revisi'];
         }
 
-        $query = 'SELECT * FROM startup  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
+        $query = 'SELECT * FROM startup WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
         $result = $this->query($query)->getRow();
 
         if ($result == null) {
             $this->insert($data);
             return "Add Startup";
         } else {
-            $this->update($result->id,$data);
+            // Jika dokumen ini sebelumnya berstatus Reject, kembalikan ke Pending & reset edit_status
+            if (($result->status ?? '') === 'Reject') {
+                $data['status'] = 'Pending';
+                $data['reject_reason'] = null;
+                $data['reject_by'] = null;
+                $data['reject_date'] = null;
+                $data['edit_status'] = 0;
+            }
+            $this->update($result->id, $data);
             return "Update Startup";
         }
     }
 
-    public function getByWeeklyId($weekly_id)
+    public function getByWeeklyId($weekly_id, $periodStart = null, $periodEnd = null)
     {
-        $sql = "SELECT DISTINCT s.id, `number`, s.created_at, `process`, d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `status`, `role`, `foreman`, `leader`, `supervisor`, p.name
+        $whereWeekly = "s.weekly_id = " . $this->db->escape($weekly_id);
+        if (!empty($periodStart) && !empty($periodEnd)) {
+            $startStr = date('Y-m-d', strtotime($periodStart)) . ' 00:00:00';
+            $endStr   = date('Y-m-d', strtotime($periodEnd)) . ' 23:59:59';
+            $whereWeekly = "(s.weekly_id = " . $this->db->escape($weekly_id) . " OR (s.created_at >= '$startStr' AND s.created_at <= '$endStr'))";
+        }
+
+        $sql = "SELECT DISTINCT s.id, s.number, s.created_at, s.process, s.device, COALESCE(s.device, p.device) as final_device, d.name as device_name, s.machno, s.model, s.lotno, s.empid, s.shift, s.group, s.status, s.role, s.foreman, s.leader, s.supervisor, p.name as process_name, s.reject_reason, s.reject_by, s.reject_date
         FROM `startup` as s
         INNER JOIN `proses` as p ON s.process=p.process_code 
         INNER JOIN `device` as d ON p.device=d.code
-        WHERE s.weekly_id = '$weekly_id' AND s.par000='1'
-        ORDER BY s.created_at ASC";
+        WHERE {$whereWeekly} AND s.par000='1'
+        ORDER BY s.created_at ASC, s.id ASC";
+
+        return $this->query($sql)->getResultArray();
+    }
+
+    public function getWeeklyChecksheetData($weeklyId = null, $device = '', $process = '', $machno = '', $periodStart = '', $periodEnd = '')
+    {
+        $sql = "SELECT DISTINCT s.*, p.device as p_device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
+                FROM `startup` as s
+                INNER JOIN `proses` as p ON s.process = p.process_code 
+                INNER JOIN `device` as d ON p.device = d.code
+                WHERE 1=1";
+
+        if (!empty($process)) {
+            $sql .= " AND s.process = " . $this->db->escape($process);
+        }
+
+        if (!empty($device)) {
+            $sql .= " AND (s.device = " . $this->db->escape($device) . " OR p.device = " . $this->db->escape($device) . ")";
+        }
+
+        if (!empty($weeklyId) && !empty($periodStart) && !empty($periodEnd)) {
+            $startStr = date('Y-m-d', strtotime($periodStart)) . ' 00:00:00';
+            $endStr   = date('Y-m-d', strtotime($periodEnd)) . ' 23:59:59';
+            $sql .= " AND (s.weekly_id = " . $this->db->escape($weeklyId) . " OR (s.created_at >= '$startStr' AND s.created_at <= '$endStr'))";
+        } elseif (!empty($weeklyId)) {
+            $sql .= " AND s.weekly_id = " . $this->db->escape($weeklyId);
+        } elseif (!empty($periodStart) && !empty($periodEnd)) {
+            $startStr = date('Y-m-d', strtotime($periodStart)) . ' 00:00:00';
+            $endStr   = date('Y-m-d', strtotime($periodEnd)) . ' 23:59:59';
+            $sql .= " AND s.created_at >= '$startStr' AND s.created_at <= '$endStr'";
+        }
+
+        if ($machno !== '' && $machno !== 'ALL' && $machno !== 'null' && $machno !== '-') {
+            $sql .= " AND s.machno = " . $this->db->escape($machno);
+        } elseif ($machno === '-' || $machno === '') {
+            $sql .= " AND (s.machno = '' OR s.machno IS NULL OR s.machno = '-')";
+        }
+
+        $sql .= " ORDER BY s.created_at ASC, s.id ASC";
 
         return $this->query($sql)->getResultArray();
     }
@@ -130,7 +270,8 @@ class StartupModel extends Model
 
     public function getAll($dateStart = '1970-01-01', $dateEnd = '2070-01-01',$device = '', $process = '',$model = '', $lotno = '',$machno = '')
     {
-        $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';$endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
+        $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';
+        $endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
 
         $sql = "SELECT DISTINCT s.*, p.device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
                 FROM `startup` as s
@@ -138,7 +279,7 @@ class StartupModel extends Model
                 INNER JOIN `device` as d ON p.device = d.code
                 WHERE s.created_at >= '$startStr' 
                 AND s.created_at <= '$endStr' 
-                AND s.device LIKE '%$device%' 
+                AND (s.device LIKE '%$device%' OR p.device LIKE '%$device%') 
                 AND s.process LIKE '%$process%'";
 
         if ($model !== '') {$sql .= " AND s.model LIKE '%$model%'";
@@ -172,17 +313,17 @@ class StartupModel extends Model
         $start =$dateStart . ' 00:00:00';
         $end =$dateEnd . ' 23:59:59';
 
-        $query = "SELECT DISTINCT *
+        $query = "SELECT DISTINCT s.*, p.device as proc_device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
         FROM `startup` as s
-        INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code 
-        INNER JOIN (SELECT code, name as device_name FROM device ) as d ON p.device=d.code
+        INNER JOIN `proses` as p ON s.process = p.process_code 
+        INNER JOIN `device` as d ON p.device = d.code
         WHERE 
         s.created_at >= '$start' AND 
         s.created_at <= '$end' AND
-        s.device LIKE '%$device%' AND
+        (s.device LIKE '%$device%' OR p.device LIKE '%$device%') AND
         s.process LIKE '%$process%' AND
         s.par000 = 1
-        ORDER BY s.created_at DESC";
+        ORDER BY CASE WHEN s.status = 'Reject' THEN 0 WHEN s.status = 'Pending' OR s.status IS NULL OR s.status = '' THEN 1 ELSE 2 END, s.created_at DESC";
 
         return $this->query($query)->getResultArray();
     }
