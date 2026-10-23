@@ -48,6 +48,7 @@ $routes->get('/startup/startupByNumber/(:num)', 'Startup::startupByNumber/$1');
 $routes->delete('/startup/(:num)', 'Startup::deleteStartup/$1');
 $routes->post('startup/request-edit/(:num)', 'Startup::requestEdit/$1');
 $routes->post('startup/unlock-edit/(:num)', 'Startup::unlockEdit/$1');
+$routes->post('startup/request-reject/(:num)', 'Startup::requestReject/$1');
 
 // ==========================================================
 // 4. CORE MODULES: FOREGOING
@@ -65,6 +66,7 @@ $routes->get('/foregoing/history/(:num)', 'History::foregoingByNumber/$1');
 $routes->delete('/foregoing/(:num)', 'Foregoing::deleteForegoing/$1');
 $routes->post('foregoing/request-edit/(:num)', 'Foregoing::requestEdit/$1');
 $routes->post('foregoing/unlock-edit/(:num)', 'Foregoing::unlockEdit/$1');
+$routes->post('foregoing/request-reject/(:num)', 'Foregoing::requestReject/$1');
 
 // ==========================================================
 // 5. GENERAL FEATURES (Input, History, Log Activity)
