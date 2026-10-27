@@ -6,6 +6,24 @@ use CodeIgniter\Model;
 
 class ProductionModel extends Model
 {
+        public function __construct()
+    {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema(): void
+    {
+        try {
+            $db = \Config\Database::connect();
+            if ($db->tableExists($this->table) && !$db->fieldExists('weekly_id', $this->table)) {
+                $db->query("ALTER TABLE `production` ADD COLUMN `weekly_id` INT(11) UNSIGNED NULL DEFAULT NULL AFTER `revisi`, ADD INDEX `idx_prod_weekly_id` (`weekly_id`)");
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika kolom sudah ada
+        }
+    }
+
     protected $table = 'production';
     protected $useTimestamps = true;
     protected $allowedFields = [
@@ -17,7 +35,7 @@ class ProductionModel extends Model
         'par022', 'par023', 'par024', 'par025', 'par026', 'par027', 'par028',
         'par029', 'par030', 'par031', 'par032', 'par033', 'par034', 'par035',
         'par036', 'par037', 'par038', 'par039', 'par040', 'par041', 'par042',
-        'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor', 'docno', 'revisi'
+        'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor', 'docno', 'revisi', 'weekly_id'
     ];
 
     public function getCsheet($slug = false)
@@ -215,5 +233,16 @@ class ProductionModel extends Model
             [$number, $par]
         );
         return $result->getRow()->id;
+    }
+
+        public function getByWeeklyId($weeklyId)
+    {
+        $query = "SELECT pr.*, p.name AS process_name, d.name AS device_name, p.docno 
+                  FROM production AS pr
+                  LEFT JOIN proses AS p ON pr.process = p.process_code
+                  LEFT JOIN device AS d ON pr.device = d.code
+                  WHERE pr.`weekly_id` = ? 
+                  ORDER BY pr.`created_at` ASC, pr.`number` ASC, pr.`par001` ASC";
+        return $this->query($query, [(int)$weeklyId])->getResultArray();
     }
 }

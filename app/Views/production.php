@@ -11,6 +11,11 @@
             color: #007bff;
             cursor: pointer;
         }
+        <?php if (!session()->get('isadmin')): ?>
+        .delete-button {
+            display: none !important;
+        }
+        <?php endif; ?>
     </style>
 
     <div class="container-fluid">
@@ -134,34 +139,30 @@
             });
         });
 
+        // Tombol Edit boleh diakses oleh siapapun
         $('#table-approval').on('click', '.edit-button', function(e) {
-            if (!isAdmin) {
-                e.preventDefault();
-                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
-                return false;
-            }
             var number = $(this).data('number');
             window.open("<?= base_url('production/edit'); ?>/" + number, '_blank');
         });
 
+        // Tombol Delete hanya untuk Admin
         $('#table-approval').on('click', '.delete-button', function(e) {
             if (!isAdmin) {
                 e.preventDefault();
-                alert('Button ini hanya bisa di lakukan oleh admin, silahkan hubungi admin');
                 return false;
             }
             var number = $(this).data('number');
-            if (confirm('Apakah kamu yakin?')) {
+            if (confirm('Apakah kamu yakin ingin menghapus data ini?')) {
                 $.ajax({
                     url: "<?= base_url('production'); ?>/" + number,
                     type: 'DELETE',
                     success: function(result) {
                         alert('Berhasil menghapus');
-                        $('#table-approval').DataTable().ajax.reload(null, false);
+                        location.reload();
                     },
                     error: function(err) {
                         console.log(err);
-                        alert('Error deleting device.');
+                        alert('Error deleting data.');
                     }
                 });
             }

@@ -38,44 +38,56 @@
         <?php
           // Cek jika user sudah login (punya empid)
           if ($session->get('empid')) {
-              // Ambil raw string positionid dari session (misal: "14,Foreman (Prod.)" atau "18,Operator")
               $position_string = (string)$session->get('positionid');
               $is_admin = $session->get('isadmin');
-              
-              // Mengecek apakah ada kata "Operator" di dalam string jabatan (case-insensitive)
-              // Jika hasilnya !== false, berarti dia adalah operator.
               $is_operator = (stripos($position_string, 'operator') !== false);
 
-              // Tampilkan menu Approve HANYA JIKA BUKAN Operator ATAU dia adalah Admin
+              // Ambil jumlah checksheet startup yang di-reject khusus untuk user yang login
+              $startupModel = new \App\Models\StartupModel();
+              $myRejectedCount = $startupModel->getRejectedCountByOperator($session->get('empid'), $session->get('name'));
+
+              $badgeOperations = '';
+              $badgeStartup = '';
+              if ($myRejectedCount > 0) {
+                  $badgeOperations = ' <span class="badge bg-danger rounded-pill ms-1" title="' . $myRejectedCount . ' Form Checksheet Di-Reject">' . $myRejectedCount . '</span>';
+                  $badgeStartup = ' <span class="badge bg-danger rounded-pill ms-auto">' . $myRejectedCount . ' Reject</span>';
+              }
+
+              // Tampilkan menu Approval HANYA JIKA BUKAN Operator ATAU dia adalah Admin
               if ( !$is_operator || $is_admin ) {
                   echo '<li class="nav-item dropdown hover-dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownApproval" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                       <i class="fas fa-thumbs-up"></i> Approval
                     </a>
                     <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarDropdownApproval">
-                      <li><a class="dropdown-item py-2" href="'.base_url().'approve"><i class="fas fa-calendar-day text-primary me-2"></i> Daily / Startup</a></li>
-                      <li><a class="dropdown-item py-2" href="'.base_url().'approval/weekly"><i class="fas fa-calendar-week text-success me-2"></i> Weekly Approval</a></li>
+                      <li><a class="dropdown-item py-2" href="' . base_url() . 'approve"><i class="fas fa-calendar-day text-primary me-2"></i> Daily / Startup</a></li>
+                      <li><a class="dropdown-item py-2" href="' . base_url() . 'approval/weekly"><i class="fas fa-th-large text-success me-2"></i> Pusat Approval Checksheet</a></li>
                     </ul>
                   </li>';
               }
+
+              // Menu Operations (Production, Startup, Foregoing) dibuka untuk semua user yang login (termasuk Operator biasa)
+              echo '<li class="nav-item dropdown hover-dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownProcess" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fas fa-layer-group me-1"></i> Operations' . $badgeOperations . '
+                </a>
+                <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarDropdownProcess">
+                  <li><a class="dropdown-item py-2" href="'.base_url().'production"><i class="fas fa-industry text-primary me-2"></i> Production</a></li>
+                  <li>
+                    <a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="'.base_url().'startup">
+                      <span><i class="fas fa-rocket text-success me-2"></i> Startup</span>' . $badgeStartup . '
+                    </a>
+                  </li>
+                  <li><a class="dropdown-item py-2" href="'.base_url().'foregoing"><i class="fas fa-clipboard-check text-warning me-2"></i> Foregoing</a></li>
+                </ul>
+              </li>';
           } else {
-              // Jika belum login, tampilkan tombol Login
               echo '<li class="nav-item">
                 <a class="nav-link" href="'.base_url().'login"><i class="fas fa-sign-in-alt"></i> Login</a>
               </li>';
           }
           
           if($session->get('isadmin')){
-            echo '<li class="nav-item dropdown hover-dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownProcess" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-layer-group"></i> Operations
-              </a>
-              <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarDropdownProcess">
-                <li><a class="dropdown-item py-2" href="'.base_url().'production"><i class="fas fa-industry text-primary me-2"></i> Production</a></li>
-                <li><a class="dropdown-item py-2" href="'.base_url().'startup"><i class="fas fa-rocket text-success me-2"></i> Startup</a></li>
-                <li><a class="dropdown-item py-2" href="'.base_url().'foregoing"><i class="fas fa-clipboard-check text-warning me-2"></i> Foregoing</a></li>
-              </ul>
-            </li>';
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url().'log-activity"><i class="fas fa-clipboard-list"></i> Log Activity</a>
             </li>';
@@ -88,12 +100,10 @@
             echo '<li class="nav-item">
               <a class="nav-link" href="'.base_url('machine').'"><i class="fas fa-server"></i> Machine</a>
             </li>';
-            
-            // --- MENU BARU: FORM BUILDER ---
             echo '<li class="nav-item">
               <a class="nav-link text-warning" href="'.base_url('form-builder').'"><i class="fas fa-hammer"></i> Form Builder</a>
             </li>';       
-        }
+          }
 
           if($session->get('empid')){
             echo '<li class="nav-item">
@@ -101,7 +111,7 @@
                 <i class="fas fa-sign-out-alt"></i> Log Out
               </a>
             </li>';
-        }
+          }
         ?>
       </ul>
     </div>

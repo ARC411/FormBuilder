@@ -14,7 +14,7 @@
 
     <div class="card shadow mb-5">
       <div class="card-header py-3">
-        <h3 class="m-0 font-weight-bold">Input Checksheet Complete</h5>
+        <h3 class="m-0 font-weight-bold">Input Checksheet Complete</h3>
       </div>
 
       <div class="card-body">
@@ -62,9 +62,8 @@
                 <input type="text" class="form-control" id="docno" value="<?php echo $alldata[0]["docno"] ?? '' ?>" readonly>
               </div>
             </div>
-
-            
           </div>
+
           <div class="col-md-6">
             <!-- Lot Number -->
             <div class="mb-3 row">
@@ -80,7 +79,6 @@
                 <input type="text" class="form-control" id="machno-txt" name="machno-txt" onkeyup="this.value = this.value.toUpperCase()" value="<?php echo $alldata[0]["machno"] ?? '' ?>" >
               </div>
             </div>
-
 
             <div class="mb-3 row">
               <?php
@@ -199,26 +197,24 @@
             if (session()->getFlashdata('message')){ 
               echo '<p id=msgsuccess class="invisible">' . session()->getFlashdata('message').'</p>'; 
             }else{ 
-              echo '<p id=msgsuccess class="invisible">Kosong</p>'; ;}
+              echo '<p id=msgsuccess class="invisible">Kosong</p>';
+            }
           ?>
 
           <!-- Input Form inject using javascript -->
-          <div id="modal" class="">
-            
-          </div>
+          <div id="modal" class=""></div>
 
-          </div>
-
-          <div class="d-flex justify-content-center">
-            <button type="submit" class="btn btn-lg btn-primary btn-block mx-auto" id="submit" onclick="return confirm('Apakah kamu yakin?');">Submit</button>
-          </div>
-          
         </div>
-      </div>
 
+        <div class="w-100 text-center d-flex justify-content-center my-4" style="width: 100%; text-align: center;">
+          <button type="submit" class="btn btn-lg btn-primary mx-auto" id="submit" style="display: block; margin: 0 auto; min-width: 140px;" onclick="return confirm('Apakah kamu yakin?');">Submit</button>
+        </div>
+        
+      </div>
     </div>
 
   </div>
+</form>
   <link rel="stylesheet" href="<?= base_url('assets/css/jquery-ui.css'); ?>">
   <link rel="stylesheet" href="<?= base_url('assets/css/global.css'); ?>">
   <script src="<?= base_url('assets/js/jquery-3.7.1.js'); ?>"></script>
@@ -226,5 +222,13 @@
   <script src="<?= base_url('assets/js/jquery-ui.js'); ?>"></script>
   <script src="<?= base_url('assets/js/edit.js?v=' . time()); ?>"></script>
   <script src="<?= base_url('assets/js/form/test.js'); ?>"></script>
+  <script>
+    $(document).ready(function() {
+        $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
+        $(document).ajaxComplete(function() {
+            $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
+        });
+    });
+  </script>
 </main>
 <?= $this->endSection(); ?>

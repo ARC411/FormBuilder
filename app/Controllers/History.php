@@ -82,104 +82,58 @@ class History extends BaseController
 
     public function dataForegoing()
     {
+        $req = $this->request;
+        $dStart = $req->getGet('dateStart');
+        $dEnd = $req->getGet('dateEnd');
+        $dev = $req->getGet('device');
+        $proc = $req->getGet('process');
+
+        $alldata = $this->ForegoingModel->getAll(
+            $dStart,
+            $dEnd,
+            $dev,
+            $proc
+        );
+
         $data = [
             'title'   => 'History | Startup Management',
-            'alldata' => $this->ForegoingModel->getAll($_GET['dateStart'], $_GET['dateEnd'], $_GET['device'], $_GET['process'])
+            'alldata' => $alldata,
         ];
-        return view("/layout/" . $_GET['device'] . "/history/foregoing/" . $_GET['process'], $data);
+        $viewPath = "/layout/" . $dev . "/history/foregoing/" . $proc;
+        return view($viewPath, $data);
     }
 
     public function foregoingByNumber($number)
     {
-        $data = ['alldata' => $this->ForegoingModel->getByNumber($number)];
-        return view("/layout/" . $data['alldata'][0]['device'] . "/history/foregoing/" . $data['alldata'][0]['process'], $data);
+        $rows = $this->ForegoingModel->getByNumber($number);
+        $data = ['alldata' => $rows];
+        $dev = $rows[0]['device'];
+        $proc = $rows[0]['process'];
+        $viewPath = "/layout/" . $dev . "/history/foregoing/" . $proc;
+        return view($viewPath, $data);
     }
 
     private function getProsesInfo(string $processCode): array
     {
-        $db  = \Config\Database::connect();
-        $row = $db->table('proses')->where('process_code', $processCode)->get()->getRowArray();
+        $db = \Config\Database::connect();
+        $row = $db->table('proses')
+            ->where('process_code', $processCode)
+            ->get()
+            ->getRowArray();
         return $row ?: [];
     }
 
     private function getDeviceInfo(string $deviceCode): array
     {
-        $db  = \Config\Database::connect();
-        $row = $db->table('device')->where('code', $deviceCode)->get()->getRowArray();
+        $db = \Config\Database::connect();
+        $row = $db->table('device')
+            ->where('code', $deviceCode)
+            ->get()
+            ->getRowArray();
         return $row ?: [];
     }
 
-    private function ensureProcessRevisions(string $processCode, string $docType = ''): array
-    {
-        if (empty($docType)) {
-            $parts = explode('-', strtolower($processCode));
-            $typeKode = $parts[1] ?? 'p';
-            $docType = ($typeKode === 's') ? 'startup' : (($typeKode === 'f') ? 'foregoing' : 'production');
-        }
-
-        $revisions = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->findAll();
-        if (empty($revisions)) {
-            $prosesInfo = $this->getProsesInfo($processCode);
-            $revDefault = $prosesInfo['revisi'] ?? '0';
-            $this->formRevModel->protect(false)->insert([
-                'process_code'  => $processCode,
-                'revisi'        => (string)$revDefault,
-                'kategori_form' => $docType,
-                'created_at'    => date('Y-m-d H:i:s')
-            ]);
-            $revisions = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->findAll();
-        }
-        return $revisions;
-    }
-
-    private function buildTree(array $elements, $parentId = null): array
-    {
-        $branch = [];
-        foreach ($elements as $element) {
-            if ($element['parent_id'] == $parentId) {
-                $children = $this->buildTree($elements, $element['id']);
-                $element['children'] = $children ?: [];
-                $branch[] = $element;
-            }
-        }
-        return $branch;
-    }
-
-    private function filterDataByRevisi(array $alldata, string $selectedRevisi, bool $includeEmptyLegacy = false): array
-    {
-        if (empty($alldata) || $selectedRevisi === '' || strtoupper($selectedRevisi) === 'ALL') {
-            return $alldata;
-        }
-
-        $filtered = [];
-        $selInt   = is_numeric($selectedRevisi) ? (int)$selectedRevisi : null;
-
-        foreach ($alldata as $row) {
-            $rowRev = isset($row['revisi']) ? trim((string)$row['revisi']) : '';
-
-            if (($rowRev === '' || $rowRev === '-') && !empty($row['docno']) && $row['docno'] !== '-') {
-                $dParts = explode('-', trim((string)$row['docno']));
-                if (count($dParts) >= 4) {
-                    $rowRev = end($dParts);
-                }
-            }
-
-            if ($rowRev === '' || $rowRev === '-') {
-                $filtered[] = $row;
-                continue;
-            }
-
-            if ($selInt !== null && is_numeric($rowRev) && (int)$rowRev === $selInt) {
-                $filtered[] = $row;
-            } elseif (strcasecmp($rowRev, $selectedRevisi) === 0) {
-                $filtered[] = $row;
-            }
-        }
-
-        return !empty($filtered) ? $filtered : $alldata;
-    }
-
-    private function resolveExportContext(
+        private function resolveExportContext(
         string $typeProcess,
         string $process,
         string $device,
@@ -188,37 +142,45 @@ class History extends BaseController
         string $model = '',
         string $lotno = '',
         string $machno = '',
-        string $selectedRevisi = ''
+        $weeklyIdParam = null
     ): array {
         $alldata = [];
         if ($typeProcess === 'production') {
-            $alldata = $this->ProductionModel->getAll($dateStart, $dateEnd, $process, $model, $lotno, $machno);
-        } elseif ($typeProcess === 'foregoing') {
-            $alldata = $this->ForegoingModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
-        } else {
-            $alldata = $this->StartupModel->getAll($dateStart, $dateEnd, $device, $process, $model, $lotno, $machno);
-        }
-
-        $revisionsList = $this->ensureProcessRevisions($process, $typeProcess);
-        $activeRevRow  = $revisionsList[0] ?? null;
-        $oldestRevRow  = !empty($revisionsList) ? end($revisionsList) : null;
-
-        if ($selectedRevisi !== '' && strtoupper($selectedRevisi) !== 'ALL') {
-            foreach ($revisionsList as $revItem) {
-                if (
-                    strcasecmp((string)$revItem['revisi'], $selectedRevisi) === 0 ||
-                    (is_numeric($revItem['revisi']) && is_numeric($selectedRevisi) && (int)$revItem['revisi'] === (int)$selectedRevisi)
-                ) {
-                    $activeRevRow = $revItem;
-                    break;
-                }
+            if (!empty($weeklyIdParam)) {
+                $alldata = $this->ProductionModel->getByWeeklyId($weeklyIdParam);
+            } else {
+                $alldata = $this->ProductionModel->getAll(
+                    $dateStart,
+                    $dateEnd,
+                    $process,
+                    $model,
+                    $lotno,
+                    $machno
+                );
             }
+        } elseif ($typeProcess === 'foregoing') {
+            $alldata = $this->ForegoingModel->getAll(
+                $dateStart,
+                $dateEnd,
+                $device,
+                $process,
+                $model,
+                $lotno,
+                $machno
+            );
+        } else {
+            $alldata = $this->StartupModel->getAll(
+                $dateStart,
+                $dateEnd,
+                $device,
+                $process,
+                $model,
+                $lotno,
+                $machno
+            );
         }
 
-        $isOldestOrSingleRev = (count($revisionsList) <= 1) || ($activeRevRow && $oldestRevRow && $activeRevRow['id'] == $oldestRevRow['id']);
-        $alldata = array_values($this->filterDataByRevisi($alldata, $selectedRevisi, $isOldestOrSingleRev));
-
-        $latestDate   = 0;
+        $latestDate = 0;
         $namaApprover = '';
 
         foreach ($alldata as &$row) {
@@ -233,155 +195,195 @@ class History extends BaseController
             }
 
             if ($namaApprover === '') {
-                if (!empty($row['supervisor']) && $row['supervisor'] !== '-') { 
-                    $namaApprover = trim($row['supervisor']) . "\n(Supervisor)"; 
-                } elseif (!empty($row['leader']) && $row['leader'] !== '-') { 
-                    $namaApprover = trim($row['leader']) . "\n(Leader)"; 
-                } elseif (!empty($row['foreman']) && $row['foreman'] !== '-') { 
-                    $namaApprover = trim($row['foreman']) . "\n(Foreman)"; 
+                $spvVal = trim((string) ($row['supervisor'] ?? ''));
+                $ldrVal = trim((string) ($row['leader'] ?? ''));
+                $frmVal = trim((string) ($row['foreman'] ?? ''));
+
+                if ($spvVal !== '' && $spvVal !== '-') { 
+                    $namaApprover = $spvVal . "\n(Supervisor)"; 
+                } elseif ($ldrVal !== '' && $ldrVal !== '-') { 
+                    $namaApprover = $ldrVal . "\n(Leader)"; 
+                } elseif ($frmVal !== '' && $frmVal !== '-') { 
+                    $namaApprover = $frmVal . "\n(Foreman)"; 
+                }
+            }
+
+            // Poin 1: Jika Production dan Operator Finish (empid2 / name2) kosong, kosongkan Waktu Out (par009 & par010) menjadi '-'
+            if ($typeProcess === 'production') {
+                $emp2Check = trim((string) ($row['empid2'] ?? ''));
+                $name2Check = trim((string) ($row['name2'] ?? ''));
+                $noOpFinish = (($emp2Check === '' || $emp2Check === '-') && ($name2Check === '' || $name2Check === '-'));
+                if ($noOpFinish) {
+                    $row['empid2'] = '-';
+                    $row['name2']  = '-';
+                    $row['shift2'] = '-';
+                    $row['group2'] = '-';
+                    $row['par009'] = '-';
+                    $row['par010'] = '-';
                 }
             }
 
             foreach ($row as $key => $value) {
-                if ($value === null || trim((string)$value) === '') {
+                if ($value === null || trim((string) $value) === '') {
                     $row[$key] = '-';
                 }
             }
         }
         unset($row);
 
-        $prosesInfo    = $this->getProsesInfo($process);
-        $deviceInfo    = $this->getDeviceInfo($device);
-        $namaProduk    = $deviceInfo['name'] ?? strtoupper($device);
+        $prosesInfo = $this->getProsesInfo($process);
+        $deviceInfo = $this->getDeviceInfo($device);
+
+        $namaProduk = $deviceInfo['name'] ?? strtoupper($device);
         $namaProsesRaw = $prosesInfo['name'] ?? strtoupper($process);
 
         if ($typeProcess === 'production') {
-            $cleanName   = trim(preg_replace('/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i', '', $namaProsesRaw));
+            $pattern = '/^(Production\s+Process\s+Control\s+Sheet|Production\s+Control\s+Sheet|Produciton\s+Control\s+Sheet\s+of|Produciton\s+Control\s+Sheet)\s*/i';
+            $cleanName = trim(preg_replace($pattern, '', $namaProsesRaw));
             $judulProses = 'Production Process Control Sheet ' . $cleanName;
         } elseif ($typeProcess === 'startup' || $typeProcess === 'startup_horizontal') {
             $cleanName   = trim(preg_replace('/\s*Start\s*Up\s*Check\s*Sheet.*$/i', '', $namaProsesRaw));
             $judulProses = $cleanName . ' Start Up Check Sheet';
+        } elseif ($typeProcess === 'foregoing') {
+            $cleanName = trim(preg_replace('/^(Foregoing\s+Check\s+Sheet\s+of|Foregoing\s+Check\s+Sheet|Foregoing)\s+/i', '', $namaProsesRaw));
+            $cleanName = trim(preg_replace('/\s*Foregoing\s*Check\s*Sheet.*$/i', '', $cleanName));
+            $judulProses = $cleanName . ' Foregoing Check Sheet';
         } else {
             $judulProses = $namaProsesRaw;
         }
 
-        $activeRevNum = $activeRevRow['revisi'] ?? ($prosesInfo['revisi'] ?? '0');
-        if ($selectedRevisi !== '' && strtoupper($selectedRevisi) !== 'ALL') {
-            $activeRevNum = $selectedRevisi;
-        }
-        $revisi = str_pad((string)$activeRevNum, 2, '0', STR_PAD_LEFT);
-
-        $noDok = $prosesInfo['docno'] ?? ('FF-' . strtoupper(explode('-', $process)[2] ?? '001') . '-001');
-        $docParts = explode('-', $noDok);
-        if (count($docParts) >= 4) {
-            $docParts[count($docParts) - 1] = $revisi;
-            $noDok = implode('-', $docParts);
-        }
-
-        $machNo     = ($machno !== '' && $machno !== 'null' && $machno !== 'ALL') ? strtoupper($machno) : 'ALL MACHINES';
+        $procParts = explode('-', $process);
+        $fallbackCode = strtoupper($procParts[2] ?? '001');
+        $noDok = $prosesInfo['docno'] ?? ('FF-' . $fallbackCode . '-001');
+        $revRaw = !empty($prosesInfo['revisi']) ? $prosesInfo['revisi'] : 0;
+        $revisi = str_pad((string) $revRaw, 2, '0', STR_PAD_LEFT);
+        
+        $isValidMach = ($machno !== '' && $machno !== 'null' && $machno !== 'ALL');
+        $machNo = $isValidMach ? strtoupper($machno) : 'ALL MACHINES';
         $nama_mesin = $machNo;
 
         $tglBerlaku = '-';
-        $bulanIndo  = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        $bulanIndo = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
         if ($latestDate > 0) {
-            $tglBerlaku = date('d', $latestDate) . ' ' . $bulanIndo[date('n', $latestDate) - 1] . ' ' . date('Y', $latestDate);
+            $mIdx = (int) date('n', $latestDate) - 1;
+            $tglBerlaku = date('d', $latestDate) . ' ' . $bulanIndo[$mIdx] . ' ' . date('Y', $latestDate);
         } elseif (!empty($prosesInfo['berlaku']) && $prosesInfo['berlaku'] !== '0000-00-00') {
-            $ts         = strtotime($prosesInfo['berlaku']);
-            $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[date('n', $ts) - 1] . ' ' . date('Y', $ts);
+            $ts = strtotime($prosesInfo['berlaku']);
+            $mIdx = (int) date('n', $ts) - 1;
+            $tglBerlaku = date('d', $ts) . ' ' . $bulanIndo[$mIdx] . ' ' . date('Y', $ts);
         }
 
-        return compact(
-            'alldata', 'namaProduk', 'judulProses', 'noDok', 'machNo', 'nama_mesin',
-            'prosesInfo', 'typeProcess', 'process', 'device', 'tglBerlaku', 'namaApprover',
-            'revisi', 'activeRevRow'
-        );
-    }
-
-    private function renderHistoryHtml(array &$context, bool $isExport = false): string
-    {
-        $activeRevRow = $context['activeRevRow'] ?? null;
-        $typeProcess  = $context['typeProcess'];
-        $process      = $context['process'];
-        $device       = $context['device'];
-
-        if ($activeRevRow) {
-            $rawParams = $this->formParamModel->where('revision_id', $activeRevRow['id'])->orderBy('urutan', 'ASC')->findAll();
-
-            $needsReparse = empty($rawParams);
-            if (!$needsReparse) {
-                $hasAnyParent = false;
-                $hasAnyGrid   = false;
-                foreach ($rawParams as $rp) {
-                    if (!empty($rp['parent_id'])) $hasAnyParent = true;
-                    if (!empty($rp['posisi_grid'])) $hasAnyGrid = true;
-                    if (
-                        preg_match('/^(Input\s+)?PAR\d+[a-z]?$/i', trim($rp['nama_parameter'])) ||
-                        strpos($rp['nama_parameter'], 'COL_') === 0 ||
-                        $rp['nama_parameter'] === 'Elemen Kosong'
-                    ) {
-                        $needsReparse = true;
+        $weeklyInfo = null;
+        if ($typeProcess === 'startup') {
+            $weeklyModel = new \App\Models\WeeklyApprovalModel();
+            
+            $weeklyId = null;
+            if (!empty($alldata)) {
+                foreach ($alldata as $r) {
+                    if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
+                        $weeklyId = $r['weekly_id'];
                         break;
                     }
                 }
-                if (!$hasAnyParent && count($rawParams) > 1) {
-                    $needsReparse = true;
-                }
-                if ($typeProcess === 'foregoing' && !$hasAnyGrid) {
-                    $needsReparse = true;
-                }
+            }
+            if ($weeklyId) {
+                $weeklyInfo = $weeklyModel->find($weeklyId);
             }
 
-            if ($needsReparse) {
-                try {
-                    $fb  = new \App\Controllers\FormBuilder();
-                    $ref = new \ReflectionMethod($fb, 'parseSingleProcess');
-                    $ref->setAccessible(true);
-                    $ref->invoke($fb, $process, $activeRevRow['id'], $typeProcess);
-                    $activeRevRow = $this->formRevModel->find($activeRevRow['id']);
-                    $context['activeRevRow'] = $activeRevRow;
-                    $rawParams = $this->formParamModel->where('revision_id', $activeRevRow['id'])->orderBy('urutan', 'ASC')->findAll();
-                } catch (\Throwable $e) {
-                    log_message('error', 'Auto-reparse di History gagal: ' . $e->getMessage());
+            if (!$weeklyInfo) {
+                $refDate = '';
+                $firstCreated = $alldata[0]['created_at'] ?? '';
+                if (!empty($firstCreated) && $firstCreated !== '-') {
+                    $refDate = $firstCreated;
+                } elseif (!empty($dateStart)) {
+                    $refDate = $dateStart;
+                } elseif (!empty($dateEnd)) {
+                    $refDate = $dateEnd;
+                }
+
+                if (!empty($refDate)) {
+                    $time = strtotime($refDate);
+                    $monday = date('Y-m-d', strtotime('monday this week', $time));
+                    $sunday = date('Y-m-d', strtotime('sunday this week', $time));
+
+                    $weeklyInfo = $weeklyModel->where('period_start', $monday)
+                        ->where('period_end', $sunday)
+                        ->where('device', null)
+                        ->first();
+
+                    if (!$weeklyInfo) {
+                        $weeklyInfo = $weeklyModel->where('period_start', $monday)
+                            ->where('period_end', $sunday)
+                            ->orderBy('id', 'DESC')
+                            ->first();
+                    }
                 }
             }
-
-            if (!empty($rawParams)) {
-                $treeParams = $this->buildTree($rawParams);
-                $katForm    = $activeRevRow['kategori_form'] ?? $typeProcess;
-                return view('history_table_dynamic', [
-                    'process_code'  => $process,
-                    'judul_proses'  => $context['judulProses'] ?? $process,
-                    'kategori_form' => $katForm,
-                    'revisi_label'  => $context['revisi'] ?? '00',
-                    'treeParams'    => $treeParams,
-                    'alldata'       => $context['alldata'],
-                    'is_export'     => $isExport
-                ]);
+        } elseif ($typeProcess === 'production') {
+            $weeklyModel = new \App\Models\WeeklyApprovalModel();
+            $targetWeeklyId = !empty($weeklyIdParam) ? $weeklyIdParam : null;
+            if (!$targetWeeklyId && !empty($alldata)) {
+                foreach ($alldata as $r) {
+                    if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
+                        $targetWeeklyId = $r['weekly_id'];
+                        break;
+                    }
+                }
+            }
+            if ($targetWeeklyId) {
+                $weeklyInfo = $weeklyModel->find($targetWeeklyId);
             }
         }
 
-        $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
-        return view($viewPath, ['alldata' => $context['alldata']]);
+        return compact(
+            'alldata',
+            'namaProduk',
+            'judulProses',
+            'noDok',
+            'machNo',
+            'nama_mesin',
+            'prosesInfo',
+            'typeProcess',
+            'process',
+            'tglBerlaku',
+            'namaApprover',
+            'revisi',
+            'weeklyInfo'
+        );
     }
 
     public function exportExcel()
     {
-        $typeProcess = $this->request->getGet('typeProcess');
-        $process     = $this->request->getGet('process');
-        $device      = $this->request->getGet('device');
-        $revisi      = $this->request->getGet('revisi') ?? '';
+        $req = $this->request;
+        $typeProcess = (string) $req->getGet('typeProcess');
+        $process     = (string) $req->getGet('process');
+        $device      = (string) $req->getGet('device');
 
-        $rawStart  = $this->request->getGet('dateStart');
-        $rawEnd    = $this->request->getGet('dateEnd');
+        $rawStart = $req->getGet('dateStart');
+        $rawEnd   = $req->getGet('dateEnd');
         $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) . ' 00:00:00' : '';
         $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) . ' 23:59:59' : '';
 
-        $model  = $this->request->getGet('model') ?? '';
-        $lotno  = $this->request->getGet('lotno') ?? '';
-        $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
-
+        $model = (string) ($req->getGet('model') ?? '');
+        $lotno = (string) ($req->getGet('lotno') ?? '');
+        $rawMach = $req->getGet('machno');
+        $machno = ($rawMach === 'null') ? '' : (string) ($rawMach ?? '');
+        $weeklyId = $req->getGet('weekly_id');
         try {
-            $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno, $revisi);
+            $context = $this->resolveExportContext(
+                $typeProcess,
+                $process,
+                $device,
+                $dateStart,
+                $dateEnd,
+                $model,
+                $lotno,
+                $machno,
+                $weeklyId
+            );
 
             $_SERVER['REQUEST_URI'] = 'exportExcel';
             $htmlString = $this->renderHistoryHtml($context, true);
@@ -398,46 +400,59 @@ class History extends BaseController
             $excelGen = new ExcelGenerator();
             $excelGen->generate($htmlString, $context);
         } catch (\Throwable $e) {
-            log_message('error', 'exportExcel gagal: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            log_message('error', 'exportExcel gagal: ' . $e->getMessage());
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
-            die("<h2>EXPORT EXCEL GAGAL</h2><p><b>Pesan:</b> " . esc($e->getMessage())
-                . "</p><p><b>Lokasi:</b> " . esc($e->getFile()) . " (Baris: " . $e->getLine() . ")</p>");
+            die("<h2>EXPORT EXCEL GAGAL</h2><p><b>Pesan:</b> " . esc($e->getMessage()) . "</p>");
         }
     }
 
     public function exportPDF()
     {
-        $typeProcess = $this->request->getGet('typeProcess');
-        $process     = $this->request->getGet('process');
-        $device      = $this->request->getGet('device');
-        $revisi      = $this->request->getGet('revisi') ?? '';
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
 
-        $rawStart  = $this->request->getGet('dateStart');
-        $rawEnd    = $this->request->getGet('dateEnd');
+        $req = $this->request;
+        $typeProcess = (string) $req->getGet('typeProcess');
+        $process     = (string) $req->getGet('process');
+        $device      = (string) $req->getGet('device');
+
+        $rawStart = $req->getGet('dateStart');
+        $rawEnd   = $req->getGet('dateEnd');
         $dateStart = $rawStart ? date('Y-m-d', strtotime($rawStart)) . ' 00:00:00' : '';
         $dateEnd   = $rawEnd ? date('Y-m-d', strtotime($rawEnd)) . ' 23:59:59' : '';
 
-        $model  = $this->request->getGet('model') ?? '';
-        $lotno  = $this->request->getGet('lotno') ?? '';
-        $machno = $this->request->getGet('machno') === 'null' ? '' : ($this->request->getGet('machno') ?? '');
-
-        $context = $this->resolveExportContext($typeProcess, $process, $device, $dateStart, $dateEnd, $model, $lotno, $machno, $revisi);
-
-        $_SERVER['REQUEST_URI'] = 'exportPDF';
+        $model = (string) ($req->getGet('model') ?? '');
+        $lotno = (string) ($req->getGet('lotno') ?? '');
+        $rawMach = $req->getGet('machno');
+        $machno = ($rawMach === 'null') ? '' : (string) ($rawMach ?? '');
+        $weeklyId = $req->getGet('weekly_id');
         try {
-            $htmlString = $this->renderHistoryHtml($context, true);
+            $context = $this->resolveExportContext(
+                $typeProcess,
+                $process,
+                $device,
+                $dateStart,
+                $dateEnd,
+                $model,
+                $lotno,
+                $machno,
+                $weeklyId
+            );
+
+            $_SERVER['REQUEST_URI'] = 'exportPDF';
+            $viewPath = "/layout/" . $device . "/history/" . $typeProcess . "/" . $process;
+            $htmlString = view($viewPath, ['alldata' => $context['alldata']]);
+
+            $pdfGen = new PdfGenerator();
+            $pdfGen->generate($htmlString, $context);
         } catch (\Throwable $e) {
-            die("<h2>SYSTEM ERROR DALAM VIEW HTML:</h2><p><b>Pesan:</b> " . $e->getMessage() . "</p><p><b>Lokasi:</b> " . $e->getFile() . " (Baris: " . $e->getLine() . ")</p>"); 
+            log_message('error', 'exportPDF gagal: ' . $e->getMessage());
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            die("<h2>EXPORT PDF GAGAL</h2><p><b>Pesan:</b> " . esc($e->getMessage()) . "</p>"); 
         }
-
-        // Jika form ini berformat Startup Mendatar, arahkan PdfGenerator menggunakan mode horizontal
-        if (($context['activeRevRow']['kategori_form'] ?? '') === 'startup_horizontal') {
-            $context['typeProcess'] = 'startup_horizontal';
-        }
-
-        $pdfGen = new PdfGenerator();
-        $pdfGen->generate($htmlString, $context);
     }
 }

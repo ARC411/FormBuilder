@@ -1,4 +1,8 @@
+
+administrator@ssi-missvr-22:~$ cd /var/www/checkseet
+
 -- phpMyAdmin SQL Dump
+
 -- version 5.1.1deb5ubuntu1
 -- https://www.phpmyadmin.net/
 --

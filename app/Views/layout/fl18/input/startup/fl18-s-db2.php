@@ -93,34 +93,36 @@ if (!function_exists('getValUnit')) {
             </td>
         </tr>
 
+        <!-- ITEM 6: TEKS BIASA (TIDAK WAJIB DIISI / BISA DIKOSONGKAN) -->
         <tr>
             <td >6</td>
             <td colspan="3">* Checking contact probe (Check jika patah atau bengkok ganti yang baru)</td>
             <td >
-                <select class="form-control text-center" id="par007" name="par007" required>
-                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
-                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par007'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
-                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par007'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
-                </select>
+                <input class="form-control text-center" type="text" id="par007" name="par007" placeholder="" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par007'] ?? '').'"';} ?>>
             </td>
         </tr>
 
-        <!-- ITEM 7: COLLET LOAD DENGAN PILIHAN SATUAN (N / gr) -->
+        <!-- ITEM 7: COLLET LOAD DENGAN PILIHAN SATUAN (N / gr) - WAJIB DIISI + VALIDASI MIN-MAX -->
         <tr>
             <td >7</td>
             <td colspan="2">@ Colled Load</td>
             <td >0.60 ~ 1.00N (60 ~ 100 gr)</td>
-            <?php $p008 = getValUnit(isset($alldata) ? $alldata : null, 'par008'); ?>
+            <?php 
+                $p008 = getValUnit(isset($alldata) ? $alldata : null, 'par008'); 
+                $initUnit = ($p008['unit'] === 'gr') ? 'gr' : 'N';
+                $initMin  = ($initUnit === 'gr') ? '60' : '0.60';
+                $initMax  = ($initUnit === 'gr') ? '100' : '1.00';
+            ?>
             <td >
                 <div class="input-group">
                     <input type="hidden" id="par008" name="par008" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par008'] ?? '') : '' ?>">
-                    <input class="form-control" type="number" step="0.000000001" id="par008_val" value="<?= htmlspecialchars($p008['val']) ?>" 
+                    <input class="form-control" type="number" step="0.000000001" min="<?= $initMin ?>" max="<?= $initMax ?>" id="par008_val" name="par008_val" value="<?= htmlspecialchars($p008['val']) ?>" 
                            oninput="combineData('par008')" 
-                           onchange="combineData('par008'); validateDynamicUnit('par008')" placeholder="">
-                           <select class="form-control" id="par008_unit" onchange="combineData('par008'); validateDynamicUnit('par008')" style="max-width: 80px; padding: 0.375rem;">
-                                <option value="N" data-min="0.60" data-max="1.00" <?= $p008['unit'] == 'N' ? 'selected' : '' ?>>N</option>
-                                <option value="gr" data-min="60" data-max="100" <?= $p008['unit'] == 'gr' ? 'selected' : '' ?>>gr</option>
-                            </select>
+                           onchange="validateDynamicUnit('par008'); combineData('par008')" placeholder="Wajib diisi" required>
+                    <select class="form-control" id="par008_unit" name="par008_unit" onchange="validateDynamicUnit('par008'); combineData('par008')" style="max-width: 80px; padding: 0.375rem;" required>
+                        <option value="N" data-min="0.60" data-max="1.00" <?= $initUnit == 'N' ? 'selected' : '' ?>>N</option>
+                        <option value="gr" data-min="60" data-max="100" <?= $initUnit == 'gr' ? 'selected' : '' ?>>gr</option>
+                    </select>
                 </div>
             </td>
         </tr>
@@ -163,10 +165,15 @@ if (!function_exists('getValUnit')) {
             </td>
         </tr>
 
+        <!-- ITEM 9 TERAKHIR: DROPDOWN OK / NG -->
         <tr>
             <td colspan="2">Nilai Air pressure, Dispenser time , vacuum pressure disesuaikan agar mendapatkan nilai <br>/hasil ag paste yg standard</td>
             <td>
-                <input class="form-control" type="text" id="par024" name="par024" placeholder="" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par024'] ?? '').'"';} ?>>
+                <select class="form-control text-center" id="par024" name="par024" required>
+                    <option value="" disabled <?php echo (!isset($alldata) || empty($alldata[0]['par024'])) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && ($alldata[0]['par024'] ?? '') == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && ($alldata[0]['par024'] ?? '') == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 
@@ -315,3 +322,83 @@ if (!function_exists('getValUnit')) {
         </p>
     </div>
 </div>
+
+<script>
+// Fungsi penggabung nilai + satuan untuk Item 7 (par008)
+window.combineData = function(paramId) {
+    var valEl  = document.getElementById(paramId + '_val');
+    var unitEl = document.getElementById(paramId + '_unit');
+    var hidEl  = document.getElementById(paramId);
+    if (!valEl || !hidEl) return;
+
+    var rawVal  = String(valEl.value || '').trim().replace(',', '.');
+    var unitVal = unitEl ? String(unitEl.value || '').trim() : '';
+
+    if (rawVal !== '') {
+        hidEl.value = unitVal !== '' ? (rawVal + ' ' + unitVal) : rawVal;
+    } else {
+        hidEl.value = '';
+    }
+};
+
+// Fungsi validasi min-max dinamis sesuai satuan (N: 0.60~1.00, gr: 60~100)
+window.validateDynamicUnit = function(paramId) {
+    var valEl  = document.getElementById(paramId + '_val');
+    var unitEl = document.getElementById(paramId + '_unit');
+    if (!valEl || !unitEl) return;
+
+    var selectedOpt = unitEl.options[unitEl.selectedIndex];
+    var minVal = parseFloat(selectedOpt.getAttribute('data-min'));
+    var maxVal = parseFloat(selectedOpt.getAttribute('data-max'));
+
+    // Update atribut min & max HTML5 secara dinamis mengikuti satuan yang dipilih
+    if (!isNaN(minVal)) valEl.setAttribute('min', minVal);
+    if (!isNaN(maxVal)) valEl.setAttribute('max', maxVal);
+
+    if (valEl.value === '') {
+        window.combineData(paramId);
+        return;
+    }
+
+    // Panggil fungsi changeRange bawaan sistem (sama seperti Item 1, 2, 3, 4, 9)
+    if (typeof window.changeRange === 'function') {
+        window.changeRange(paramId + '_val', minVal, maxVal);
+    } else {
+        // Fallback jika changeRange belum termuat
+        var numVal = parseFloat(String(valEl.value).replace(',', '.'));
+        if (!isNaN(numVal) && (numVal < minVal || numVal > maxVal)) {
+            alert('Nilai di luar standar (' + minVal + ' ~ ' + maxVal + ' ' + unitEl.value + ')!');
+            valEl.value = '';
+        }
+    }
+
+    // Sinkronkan kembali nilai ke input hidden par008 setelah divalidasi changeRange
+    window.combineData(paramId);
+};
+
+// Pastikan saat form di-submit, Item 7 terisi dan sesuai range satuan yang dipilih
+(function() {
+    window.validateDynamicUnit('par008');
+    window.combineData('par008');
+
+    var valEl  = document.getElementById('par008_val');
+    var unitEl = document.getElementById('par008_unit');
+    var formEl = valEl ? valEl.closest('form') : null;
+
+    if (formEl) {
+        formEl.addEventListener('submit', function(e) {
+            window.validateDynamicUnit('par008');
+            window.combineData('par008');
+
+            var hidEl = document.getElementById('par008');
+            if (!valEl.value || String(valEl.value).trim() === '' || !hidEl || String(hidEl.value).trim() === '') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                alert('Item 7 (@ Colled Load) wajib diisi sesuai standar (0.60 ~ 1.00 N atau 60 ~ 100 gr)!');
+                valEl.focus();
+                return false;
+            }
+        }, true);
+    }
+})();
+</script>
