@@ -18,7 +18,20 @@
             <div class="card-header py-3">
                 <h3 class="m-0 font-weight-bold">Approval </h3>
             </div>
-            <div class="card-body">
+                        <div class="card-body">
+                <?php if(session()->getFlashdata('message')): ?>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-1"></i> <?= session()->getFlashdata('message') ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php if(session()->getFlashdata('error')): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-1"></i> <?= session()->getFlashdata('error') ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
                 <div class="container-fluid collapse show" id="menu">
                     <!-- Date input automatic -->
                     <div class="mb-3 row">
@@ -57,6 +70,46 @@
             </div>
         </div>
     </div>
+    <!-- Modal Reject Checksheet -->
+    <div class="modal fade" id="modalReject" tabindex="-1" aria-labelledby="modalRejectLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content shadow border-0">
+                <form action="<?= base_url('approve') ?>" method="post">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="number" id="reject-number" value="">
+                    <input type="hidden" name="name" value="<?= esc(session()->get('name')) ?>">
+                    <input type="hidden" name="level" value="<?= esc(session()->get('level')) ?>">
+                    <input type="hidden" name="action" value="Reject">
+                    
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title font-weight-bold" id="modalRejectLabel">
+                            <i class="fas fa-times-circle me-2"></i>Reject Checksheet Harian
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning py-2 small mb-3">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Anda akan menolak checksheet <strong id="reject-info-text">#0</strong>. Operator akan melihat notifikasi badge merah pada navbar <strong>Operations</strong> dan dapat langsung memperbaiki form ini.
+                        </div>
+                        <div class="mb-3">
+                            <label for="reject-reason" class="form-label font-weight-bold">
+                                Alasan Penolakan / Catatan Perbaikan <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="reject-reason" name="reject_reason" rows="4" required placeholder="Contoh: Parameter transfer air pressure di bawah standar toleransi. Harap cek dan ukur ulang."></textarea>
+                            <div class="form-text text-muted">Catatan ini akan langsung ditampilkan kepada operator di form edit.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-danger font-weight-bold">
+                            <i class="fas fa-times me-1"></i> Konfirmasi Reject
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </main>
 <script src="assets/js/tableToExcel.js"></script>
 <script src="assets/js/jquery.min.js"></script>
@@ -90,6 +143,35 @@
             }, cb);
 
         cb(start, end);
+
+        $('#modalReject').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var number = button.data('number');
+            var process = button.data('process');
+            var machno = button.data('machno');
+            var modal = $(this);
+            modal.find('#reject-number').val(number);
+            modal.find('#reject-info-text').text('#' + number + ' (' + process + (machno && machno !== '-' ? ' - Mesin ' + machno : '') + ')');
+            modal.find('#reject-reason').val('');
+        });
+
+        $(document).on('click', '.btn-open-reject', function() {
+            var number = $(this).data('number');
+            var process = $(this).data('process');
+            var machno = $(this).data('machno');
+            $('#reject-number').val(number);
+            $('#reject-info-text').text('#' + number + ' (' + process + (machno && machno !== '-' ? ' - Mesin ' + machno : '') + ')');
+            $('#reject-reason').val('');
+        });
+
+        $('#modalReject form').on('submit', function() {
+            var num = $('#reject-number').val();
+            if (!num || num === '' || num === '0') {
+                alert('Nomor checksheet tidak ditemukan. Silakan klik ulang tombol Reject pada baris tabel.');
+                return false;
+            }
+            return true;
+        });
         
 
         $('#exampleModal').on('show.bs.modal', function (event) {

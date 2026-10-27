@@ -139,10 +139,14 @@
         $('#modalEdit').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget); 
             var id = button.data('id'); 
-            console.log("asd ",id)
             var modal = $(this);
+            
+            // Tampilkan pesan loading sebelum AJAX selesai
+            modal.find('#modal-body-edit').html('<div id="loading">Loading data...</div>');
+            
             $.ajax({
-                url: "/device/edit/" + id, 
+                // Menggunakan base_url agar URL-nya dinamis
+                url: "<?= base_url('device/edit/') ?>" + id, 
                 dataType: 'html',
                 success: function(data) {
                     modal.find('#modal-body-edit').html(data);

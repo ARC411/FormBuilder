@@ -232,12 +232,42 @@
         </tr>
 
         <tr>
+            <td colspan="4">Operator</td>
+            <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
+                <td colspan="col"><?= esc(getOperatorName($alldata[$i] ?? null)); ?></td>
+            <?php } ?>
+        </tr>
+
+        <tr>
+            <td colspan="4">Checked</td>
+            <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
+                <?php
+                    $rawStatus = !empty($alldata[$i]['status']) ? trim((string)$alldata[$i]['status']) : '-';
+                    if ($rawStatus !== '-' && $rawStatus !== '') {
+                        $checkedVal = str_ireplace(
+                            ['Approve by ', 'Approved by ', 'Approve by', 'Approved by', 'Approve ', 'Approved '],
+                            ['Check by ', 'Check by ', 'Check by ', 'Check by ', 'Check by ', 'Check by '],
+                            $rawStatus
+                        );
+                        if (strcasecmp($checkedVal, 'Approve') === 0 || strcasecmp($checkedVal, 'Approved') === 0) {
+                            $checkedVal = 'Check by';
+                        }
+                    } else {
+                        $checkedVal = '-';
+                    }
+                ?>
+                <td colspan="col"><?= $checkedVal; ?></td>
+            <?php } ?>
+        </tr>
+
+        <tr>
             <td colspan="4">Note</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
                 <td colspan="col"><?= (string)($alldata[$i]['par023'] ?? '-'); ?></td>
             <?php } ?>
         </tr>
 
+<<<<<<< HEAD
         <tr>
             <td colspan="4">Status Approval</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
@@ -280,6 +310,8 @@
             <?php } ?>
         </tr>
 =======
+=======
+>>>>>>> ba8ca53db7ace9995c2132bd84acc42099457ffb
 
 >>>>>>> 16e0f8e3cc94470898f083d8e9c97e8e2f874487
     </tbody>   

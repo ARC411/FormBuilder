@@ -85,14 +85,7 @@
         <tr>
             <td colspan="3">Operator</td>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <?php
-                    if($alldata[$i]['role']){
-                        echo '<td colspan="col">'. $alldata[$i][$alldata[$i]['role']] . '</td>';
-                    } 
-                    else{
-                        echo '<td>  </td>';
-                    }
-                ?>
+                <td colspan="col"><?= esc(getOperatorName($alldata[$i] ?? null)); ?></td>
             <?php } ?>
         </tr>
 

@@ -189,8 +189,13 @@
             var button = $(event.relatedTarget); 
             var id = button.data('id'); 
             var modal = $(this);
+            
+            // Tampilkan pesan loading sebelum AJAX selesai
+            modal.find('#modal-body-edit').html('<div id="loading">Loading data...</div>');
+
             $.ajax({
-                url: "/process/edit/" + id, 
+                // Menggunakan base_url agar URL-nya dinamis
+                url: "<?= base_url('process/edit/') ?>" + id, 
                 dataType: 'html',
                 success: function(data) {
                     modal.find('#modal-body-edit').html(data);

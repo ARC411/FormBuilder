@@ -18,198 +18,558 @@ class StartupModel extends Model
         'par037','par038','par039','par040','par041','par042','par043','par044',
         'status','role','foreman','leader','supervisor','name', 'docno', 'revisi',
         'par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 
-        'par021_unit'
+        'par021_unit', 'weekly_id', 'edit_status', 'unlocked_by', 'reject_reason', 'reject_by', 'reject_date'
     ];
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema(): void
+    {
+        try {
+            $db = \Config\Database::connect();
+            if (!$db->fieldExists('reject_reason', 'startup')) {
+                $db->query("ALTER TABLE `startup` 
+                    ADD COLUMN `reject_reason` TEXT NULL AFTER `status`,
+                    ADD COLUMN `reject_by` VARCHAR(100) NULL AFTER `reject_reason`,
+                    ADD COLUMN `reject_date` DATETIME NULL AFTER `reject_by`");
+            }
+            if (!$db->fieldExists('edit_status', 'startup')) {
+                $db->query("ALTER TABLE `startup` 
+                    ADD COLUMN `edit_status` TINYINT(1) NOT NULL DEFAULT 0 AFTER `revisi`,
+                    ADD COLUMN `unlocked_by` VARCHAR(100) NULL DEFAULT NULL AFTER `edit_status`");
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika kolom sudah ada
+        }
+    }
 
     public function getCsheet($slug = false)
     {
         if ($slug == false) {
-            return $this->findall();
+            return $this->findAll();
         }
-        return $this->where(['slug' =>$slug])->first();
+        return $this->where(
+            ['slug' => $slug]
+        )->first();
     }
 
-    public function getAllData()
-    {
-        $query = "SELECT DISTINCT s.id,`number`, s.created_at, `process`,d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group` ,`status`,`role`, `foreman` , `leader` , `supervisor`, p.name
-        FROM `startup` as s
-        INNER JOIN `proses` as p ON s.process=p.process_code 
-        INNER JOIN `device` as d ON p.device=d.code
-        WHERE `par000`='1'";
-        
-        return $this->query($query)->getResultArray();
+    public function getRejectedCountByOperator(
+        $empid = '',
+        $name = ''
+    ) {
+        $builder = $this->db->table(
+            $this->table
+        );
+        $builder->where('status', 'Reject');
+        $builder->where('par000', '1');
+
+        $cleanEmp = trim((string) $empid);
+        $cleanName = trim((string) $name);
+        $hasEmp = !empty($cleanEmp);
+        $hasName = !empty($cleanName);
+
+        if ($hasEmp) {
+            $builder->groupStart();
+            $builder->where('empid', $cleanEmp);
+            if ($hasName) {
+                $builder->orWhere('name', $cleanName);
+            }
+            $builder->groupEnd();
+        } elseif ($hasName) {
+            $builder->where('name', $cleanName);
+        }
+
+        return $builder->countAllResults();
     }
 
-    // Perbaikan Logika Update Approval menggunakan Query Builder
-    public function updateApproval($number, $name,$level)
+    public function getAllData(
+        $empid = null,
+        $name = null
+    ) {
+        $whereEmp = "";
+        $conds = [];
+
+        if (!empty($empid)) {
+            $escEmp = $this->db->escape(
+                trim((string) $empid)
+            );
+            $conds[] = "TRIM(s.empid) = " . $escEmp;
+        }
+        if (!empty($name)) {
+            $escName = $this->db->escape(
+                trim((string) $name)
+            );
+            $conds[] = "TRIM(s.name) = " . $escName;
+        }
+        if (!empty($conds)) {
+            $whereEmp = " AND (" . implode(" OR ", $conds) . ")";
+        }
+
+        $query = "SELECT DISTINCT s.id, s.`number`, s.created_at, s.`process`, d.name as device_name, 
+                  s.`machno`, s.`model`, s.`lotno`, s.`empid`, s.`shift`, s.`group`, s.`status`, s.`role`, 
+                  s.`foreman`, s.`leader`, s.`supervisor`, s.name, p.name as process_name, 
+                  s.edit_status, s.unlocked_by, s.reject_reason, s.reject_by, s.reject_date
+                  FROM `startup` as s
+                  INNER JOIN `proses` as p ON s.process = p.process_code 
+                  INNER JOIN `device` as d ON p.device = d.code
+                  WHERE s.`par000` = '1' "
+                  . $whereEmp
+                  . " ORDER BY CASE WHEN s.status = 'Reject' THEN 0 ELSE 1 END, s.created_at DESC";
+
+        return $this->query(
+            $query
+        )->getResultArray();
+    }
+
+    public function markRejectRequested($number)
     {
-        // Ambil data berdasarkan number
-        $data = $this->where('number',$number)->first();
-        
+        $builder = $this->db->table(
+            $this->table
+        );
+        return $builder
+            ->where('number', (int) $number)
+            ->update(['edit_status' => 1]);
+    }
+
+    public function updateApproval(
+        $number,
+        $name,
+        $level,
+        $action = 'Approve',
+        $rejectReason = ''
+    ) {
+        $data = $this->where(
+            'number',
+            $number
+        )->first();
+
         if (!$data) {
+            return false;
+        }
+
+        $curStatus = (string) ($data['status'] ?? '');
+        $allowedStatuses = ['Pending', 'Reject', '', '-'];
+        if (!in_array($curStatus, $allowedStatuses, true)) {
             return false;
         }
 
         $updateData = [];
 
-        // Level Foreman
-        if ($level == 14) {$updateData['status'] = "Approve by Foreman";
-            $updateData['role'] = "foreman";
-            $updateData['foreman'] =$name;
+        if ($action === 'Reject') {
+            $roleName = 'foreman';
+            if ($level == 10) {
+                $roleName = 'leader';
+            } elseif ($level <= 7 && $level > 0) {
+                $roleName = 'supervisor';
+            }
+
+            $updateData['status'] = 'Reject';
+            $updateData['role'] = $roleName;
+            $updateData['reject_reason'] = $rejectReason;
+            $updateData['reject_by'] = $name;
+            $updateData['reject_date'] = date('Y-m-d H:i:s');
+            $updateData['edit_status'] = 0;
+            $updateData['foreman'] = ($roleName === 'foreman') ? $name : null;
+            $updateData['leader'] = ($roleName === 'leader') ? $name : null;
+            $updateData['supervisor'] = ($roleName === 'supervisor') ? $name : null;
+
+            return $this->where(
+                'number',
+                $number
+            )->set(
+                $updateData
+            )->update();
         }
-        // Level Leader
-        else if ($level == 10) {$updateData['role'] = "leader";
-            
-            // Logika diperbaiki: Jika foreman kosong, Bypass. Jika ada, Approve.
-            if (empty($data['foreman'])) {$updateData['status'] = "Bypass Leader";
-                $updateData['foreman'] =$name;
-                $updateData['leader'] =$name;
+
+        $updateData['reject_reason'] = null;
+        $updateData['reject_by'] = null;
+        $updateData['reject_date'] = null;
+        $updateData['edit_status'] = 0;
+
+        if ($level == 14) {
+            $updateData['status'] = "Approve by Foreman";
+            $updateData['role'] = "foreman";
+            $updateData['foreman'] = $name;
+        } elseif ($level == 10) {
+            $updateData['role'] = "leader";
+            if (empty($data['foreman'])) {
+                $updateData['status'] = "Bypass Leader";
+                $updateData['foreman'] = $name;
+                $updateData['leader'] = $name;
             } else {
                 $updateData['status'] = "Approve Leader";
-                $updateData['leader'] =$name;
+                $updateData['leader'] = $name;
             }
-        }
-        // Level diatas assisten supervisor
-        else if ($level <= 7) {$updateData['role'] = "supervisor";
-            $updateData['supervisor'] =$name;
+        } elseif ($level <= 7 && $level > 0) {
+            $updateData['role'] = "supervisor";
+            $updateData['supervisor'] = $name;
 
-            if (!empty($data['leader'])) {$updateData['status'] = "Approve Supervisor";
-            } else if (!empty($data['foreman'])) {$updateData['status'] = "Bypass Supervisor";
-                $updateData['leader'] =$name;
+            if (!empty($data['leader'])) {
+                $updateData['status'] = "Approve Supervisor";
+            } elseif (!empty($data['foreman'])) {
+                $updateData['status'] = "Bypass Supervisor";
+                $updateData['leader'] = $name;
             } else {
                 $updateData['status'] = "Bypass Supervisor";
-                $updateData['foreman'] =$name;
-                $updateData['leader'] =$name;
+                $updateData['foreman'] = $name;
+                $updateData['leader'] = $name;
             }
         }
 
-        // Update semua data (par000 = 1 sampai 5) yang memiliki number tersebut
-        return $this->where('number', $number)->set($updateData)->update();
+        return $this->where(
+            'number',
+            $number
+        )->set(
+            $updateData
+        )->update();
     }
 
     public function addProses($data)
-{
-    $db = \Config\Database::connect();
-    $prosesMaster = $db->table('proses')->where('process_code',$data['process'])->get()->getRowArray();
+    {
+        $db = \Config\Database::connect();
+        $procCode = $data['process'];
+        $prosesMaster = $db->table('proses')
+            ->where('process_code', $procCode)
+            ->get()
+            ->getRowArray();
 
-    if ($prosesMaster) {
-        $data['par041'] =$prosesMaster['revisi'];
-        $data['par042'] =$prosesMaster['berlaku'];
+        if ($prosesMaster) {
+            $data['par041'] = $prosesMaster['revisi'];
+            $data['par042'] = $prosesMaster['berlaku'];
+            $data['docno'] = $prosesMaster['docno'];
+            $data['revisi'] = $prosesMaster['revisi'];
+        }
 
-        // --- TAMBAHAN BARU: Stempel Otomatis ---
-        $data['docno']  = $prosesMaster['docno'];
-        $data['revisi'] = $prosesMaster['revisi'];
-        // --------------------------------------
-    }
+        $numVal = (int) $data['number'];
+        $par0Val = (int) $data['par000'];
+        $query = "SELECT * FROM startup WHERE `number` = "
+            . $numVal
+            . " AND `par000` = "
+            . $par0Val;
 
-        $query = 'SELECT * FROM startup  WHERE `number` = ' . $data["number"] . ' AND `par000` = ' . $data["par000"];
-        $result = $this->query($query)->getRow();
+        $result = $this->query(
+            $query
+        )->getRow();
 
         if ($result == null) {
+            $data['edit_status'] = 0;
             $this->insert($data);
             return "Add Startup";
         } else {
-            $this->update($result->id,$data);
+            if (($result->status ?? '') === 'Reject') {
+                $data['status'] = 'Pending';
+                $data['reject_reason'] = null;
+                $data['reject_by'] = null;
+                $data['reject_date'] = null;
+            }
+            $data['edit_status'] = 0;
+            $rowId = $result->id;
+            $this->update(
+                $rowId,
+                $data
+            );
             return "Update Startup";
         }
     }
 
-    // Fungsi untuk mengambil data startup berdasarkan ID Mingguan
-    public function getByWeeklyId($weekly_id)
-    {
-        $sql = "SELECT DISTINCT s.id, `number`, s.created_at, `process`, d.name as device_name, `machno`, `model`, `lotno`, `empid`, `shift`, `group`, `status`, `role`, `foreman`, `leader`, `supervisor`, p.name
+    public function getByWeeklyId(
+        $weekly_id,
+        $periodStart = null,
+        $periodEnd = null
+    ) {
+        $escWeekly = $this->db->escape(
+            $weekly_id
+        );
+        $whereWeekly = "s.weekly_id = " . $escWeekly;
+
+        if (!empty($periodStart)) {
+            if (!empty($periodEnd)) {
+                $tsStart = strtotime($periodStart);
+                $tsEnd = strtotime($periodEnd);
+                $startStr = date('Y-m-d', $tsStart) . ' 00:00:00';
+                $endStr = date('Y-m-d', $tsEnd) . ' 23:59:59';
+                $whereWeekly = "(s.weekly_id = "
+                    . $escWeekly
+                    . " OR (s.created_at >= '"
+                    . $startStr
+                    . "' AND s.created_at <= '"
+                    . $endStr
+                    . "'))";
+            }
+        }
+
+        $sql = "SELECT DISTINCT s.id, s.number, s.created_at, s.process, s.device, COALESCE(s.device, p.device) as final_device, d.name as device_name, s.machno, s.model, s.lotno, s.empid, s.shift, s.group, s.status, s.role, s.foreman, s.leader, s.supervisor, p.name as process_name, s.reject_reason, s.reject_by, s.reject_date
         FROM `startup` as s
-        INNER JOIN `proses` as p ON s.process=p.process_code 
-        INNER JOIN `device` as d ON p.device=d.code
-        WHERE s.weekly_id = '$weekly_id' AND s.par000='1'
-        ORDER BY s.created_at ASC";
-        
-        return $this->query($sql)->getResultArray();
+        INNER JOIN `proses` as p ON s.process = p.process_code 
+        INNER JOIN `device` as d ON p.device = d.code
+        WHERE "
+        . $whereWeekly
+        . " AND s.par000 = '1'
+        ORDER BY s.created_at ASC, s.id ASC";
+
+        return $this->query(
+            $sql
+        )->getResultArray();
+    }
+
+    public function getWeeklyChecksheetData(
+        $weeklyId = null,
+        $device = '',
+        $process = '',
+        $machno = '',
+        $periodStart = '',
+        $periodEnd = ''
+    ) {
+        $sql = "SELECT DISTINCT s.*, p.device as p_device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
+                FROM `startup` as s
+                INNER JOIN `proses` as p ON s.process = p.process_code 
+                INNER JOIN `device` as d ON p.device = d.code
+                WHERE 1=1";
+
+        if (!empty($process)) {
+            $escProc = $this->db->escape(
+                $process
+            );
+            $sql .= " AND s.process = " . $escProc;
+        }
+
+        if (!empty($device)) {
+            $escDev = $this->db->escape(
+                $device
+            );
+            $sql .= " AND (s.device = "
+                . $escDev
+                . " OR p.device = "
+                . $escDev
+                . ")";
+        }
+
+        $hasWeekly = !empty($weeklyId);
+        $hasStart = !empty($periodStart);
+        $hasEnd = !empty($periodEnd);
+
+        if ($hasWeekly && $hasStart && $hasEnd) {
+            $escW = $this->db->escape(
+                $weeklyId
+            );
+            $tsS = strtotime($periodStart);
+            $tsE = strtotime($periodEnd);
+            $startStr = date('Y-m-d', $tsS) . ' 00:00:00';
+            $endStr = date('Y-m-d', $tsE) . ' 23:59:59';
+            $sql .= " AND (s.weekly_id = "
+                . $escW
+                . " OR (s.created_at >= '"
+                . $startStr
+                . "' AND s.created_at <= '"
+                . $endStr
+                . "'))";
+        } elseif ($hasWeekly) {
+            $escW = $this->db->escape(
+                $weeklyId
+            );
+            $sql .= " AND s.weekly_id = " . $escW;
+        } elseif ($hasStart && $hasEnd) {
+            $tsS = strtotime($periodStart);
+            $tsE = strtotime($periodEnd);
+            $startStr = date('Y-m-d', $tsS) . ' 00:00:00';
+            $endStr = date('Y-m-d', $tsE) . ' 23:59:59';
+            $sql .= " AND s.created_at >= '"
+                . $startStr
+                . "' AND s.created_at <= '"
+                . $endStr
+                . "'";
+        }
+
+        $ignoreMach = ['', 'ALL', 'null', '-'];
+        if (!in_array((string) $machno, $ignoreMach, true)) {
+            $escMach = $this->db->escape(
+                $machno
+            );
+            $sql .= " AND s.machno = " . $escMach;
+        } elseif ($machno === '-') {
+            $sql .= " AND (s.machno = '' OR s.machno IS NULL OR s.machno = '-')";
+        }
+
+        $sql .= " ORDER BY s.created_at ASC, s.id ASC";
+
+        return $this->query(
+            $sql
+        )->getResultArray();
     }
 
     public function getLatestId()
     {
         $query = "SELECT `number` FROM startup ORDER BY `number` DESC LIMIT 1 ";
-        $result = $this->query($query);
+        $result = $this->query(
+            $query
+        );
         if ($result == null) {
             return 0;
         }
-        return $result->getRow()->number ?? 0;
+        $row = $result->getRow();
+        return $row->number ?? 0;
     }
 
-    public function getAll($dateStart = '1970-01-01', $dateEnd = '2070-01-01',$device = '', $process = '',$model = '', $lotno = '',$machno = '')
-    {
-        // Normalisasi format tanggal agar tidak terjadi duplikasi jam (00:00:00 00:00:00)
-        $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';$endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
+    public function getAll(
+        $dateStart = '1970-01-01',
+        $dateEnd = '2070-01-01',
+        $device = '',
+        $process = '',
+        $model = '',
+        $lotno = '',
+        $machno = ''
+    ) {
+        if (empty($dateStart)) {
+            $startStr = '1970-01-01 00:00:00';
+        } else {
+            $tsS = strtotime($dateStart);
+            $startStr = ($tsS ? date('Y-m-d', $tsS) : '1970-01-01') . ' 00:00:00';
+        }
+
+        if (empty($dateEnd)) {
+            $endStr = '2070-01-01 23:59:59';
+        } else {
+            $tsE = strtotime($dateEnd);
+            $endStr = ($tsE ? date('Y-m-d', $tsE) : '2070-01-01') . ' 23:59:59';
+        }
 
         $sql = "SELECT DISTINCT s.*, p.device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
                 FROM `startup` as s
                 INNER JOIN `proses` as p ON s.process = p.process_code 
                 INNER JOIN `device` as d ON p.device = d.code
-                WHERE s.created_at >= '$startStr' 
-                AND s.created_at <= '$endStr' 
-                AND s.device LIKE '%$device%' 
-                AND s.process LIKE '%$process%'";
+                WHERE s.created_at >= '"
+                . $startStr
+                . "' AND s.created_at <= '"
+                . $endStr
+                . "' AND (s.device LIKE '%"
+                . $device
+                . "%' OR p.device LIKE '%"
+                . $device
+                . "%') AND s.process LIKE '%"
+                . $process
+                . "%'";
 
-        if ($model !== '') {$sql .= " AND s.model LIKE '%$model%'";
+        if ($model !== '') {
+            $sql .= " AND s.model LIKE '%" . $model . "%'";
         }
-        if ($lotno !== '') {$sql .= " AND s.lotno LIKE '%$lotno%'";
+        if ($lotno !== '') {
+            $sql .= " AND s.lotno LIKE '%" . $lotno . "%'";
         }
-        if ($machno !== '' &&$machno !== 'ALL' && $machno !== 'null') {$sql .= " AND s.machno = '$machno'";
+
+        $ignoreMach = ['', 'ALL', 'null', '-', 'undefined'];
+        if (!in_array(trim((string) $machno), $ignoreMach, true)) {
+            $sql .= " AND s.machno = '" . $machno . "'";
         }
 
         $sql .= " ORDER BY s.created_at ASC";
-        
-        return $this->query($sql)->getResultArray();
+
+        return $this->query(
+            $sql
+        )->getResultArray();
     }
 
     public function deleteByNumber($number)
     {
-        $query = "DELETE FROM `startup` WHERE `number` = $number ";
-        $result = $this->query($query);
-        if ($result) {
-            return "Berhasil";
-        } else {
-            return "Gagal";
-        }
+        $query = "DELETE FROM `startup` WHERE `number` = ?";
+        $result = $this->query(
+            $query,
+            [(int) $number]
+        );
+        return $result ? "Berhasil" : "Gagal";
     }
 
-    // Perbaikan utama untuk Approval Form
-    public function getApprovalData($dateStart = '',$dateEnd = '', $device = '',$process = '')
-    {
-        // Pasang Default jika kosong
-        $dateStart = empty($dateStart) ? date('Y-m-d', strtotime('-1 month')) : $dateStart;
-        $dateEnd = empty($dateEnd) ? date('Y-m-d') : $dateEnd;
+    public function getApprovalData(
+        $dateStart = '',
+        $dateEnd = '',
+        $device = '',
+        $process = ''
+    ) {
+        if (empty($dateStart)) {
+            $start = '1970-01-01 00:00:00';
+        } else {
+            $tsS = strtotime($dateStart);
+            $start = ($tsS ? date('Y-m-d', $tsS) : '1970-01-01') . ' 00:00:00';
+        }
 
-        // Perbaikan Batas Waktu (Jam ditambahkan otomatis)
-        $start =$dateStart . ' 00:00:00';
-        $end =$dateEnd . ' 23:59:59';
+        if (empty($dateEnd)) {
+            $end = date('Y-m-d') . ' 23:59:59';
+        } else {
+            $tsE = strtotime($dateEnd);
+            $end = ($tsE ? date('Y-m-d', $tsE) : date('Y-m-d')) . ' 23:59:59';
+        }
 
-        $query = "SELECT DISTINCT *
+        $query = "SELECT DISTINCT s.*, p.device as proc_device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
         FROM `startup` as s
-        INNER JOIN (SELECT device, type, process_code, name as process_name, docno FROM proses ) as p ON s.process=p.process_code 
-        INNER JOIN (SELECT code, name as device_name FROM device ) as d ON p.device=d.code
-        WHERE 
-        s.created_at >= '$start' AND 
-        s.created_at <= '$end' AND
-        s.device LIKE '%$device%' AND
-        s.process LIKE '%$process%' AND
-        s.par000 = 1
-        ORDER BY s.created_at DESC";
+        INNER JOIN `proses` as p ON s.process = p.process_code 
+        INNER JOIN `device` as d ON p.device = d.code
+        WHERE s.created_at >= '"
+        . $start
+        . "' AND s.created_at <= '"
+        . $end
+        . "' AND (s.device LIKE '%"
+        . $device
+        . "%' OR p.device LIKE '%"
+        . $device
+        . "%') AND s.process LIKE '%"
+        . $process
+        . "%' AND s.par000 = 1
+        ORDER BY CASE WHEN s.status = 'Reject' THEN 0 WHEN s.status = 'Pending' OR s.status IS NULL OR s.status = '' THEN 1 ELSE 2 END, s.created_at DESC";
 
-        return $this->query($query)->getResultArray();
+        return $this->query(
+            $query
+        )->getResultArray();
     }
 
     public function getByNumber($number)
     {
-        // PERBAIKAN: Tambahkan JOIN ke tabel proses dan device untuk mendapatkan nama yang benar
         $query = "SELECT s.*, p.name as process_name, d.name as device_name, p.docno 
                   FROM startup as s
                   LEFT JOIN proses as p ON s.process = p.process_code
                   LEFT JOIN device as d ON p.device = d.code
                   WHERE s.`number` = ? 
                   ORDER BY s.`par000` ASC";
-        
-        return $this->query($query, [$number])->getResultArray();
+
+        $rows = $this->query(
+            $query,
+            [(int) $number]
+        )->getResultArray();
+
+        if (!empty($rows)) {
+            $empModel = new \App\Models\EmpModel();
+            foreach ($rows as &$r) {
+                $curName = trim((string) ($r['name'] ?? ''));
+                $procName = trim((string) ($r['process_name'] ?? ''));
+                $isInvalidName = in_array($curName, ['', '-'], true);
+                if (!$isInvalidName) {
+                    $isInvalidName = (strcasecmp($curName, $procName) === 0);
+                }
+
+                if ($isInvalidName) {
+                    $rowEmp = $r['empid'] ?? '';
+                    if (!empty($rowEmp)) {
+                        try {
+                            $empData = $empModel->getDataEmp(
+                                $rowEmp
+                            );
+                            if ($empData) {
+                                $empFullName = $empData->name ?? '';
+                                if (!empty($empFullName)) {
+                                    $r['name'] = trim((string) $empFullName);
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                            // Abaikan jika gagal koneksi ke DB second
+                        }
+                    }
+                }
+            }
+            unset($r);
+        }
+
+        return $rows;
     }
 }
