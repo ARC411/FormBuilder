@@ -69,18 +69,18 @@ class WeeklyApprovalModel extends Model
         }
     }
 
-    // Mengambil data mingguan + total dokumen startup + jumlah checksheet harian yang belum di-approve
+    // Mengambil data mingguan + total dokumen startup (kombinasi unik unit checksheet mingguan per Device + Process + Mesin) + jumlah checksheet harian yang belum di-approve
     public function getWeeklyList()
     {
         return $this->db->table($this->table)
             ->select('weekly_approvals.*, 
                       device.name as device_name, 
                       proses.name as process_name, 
-                      COUNT(DISTINCT CASE WHEN startup.par000 = "1" THEN startup.id END) as total_docs,
+                      COUNT(DISTINCT CASE WHEN startup.par000 = "1" THEN CONCAT(COALESCE(startup.device, proses.device, ""), "___", COALESCE(startup.process, ""), "___", COALESCE(startup.machno, "")) END) as total_docs,
                       SUM(CASE WHEN startup.par000 = "1" AND (startup.status = "Pending" OR startup.status IS NULL OR startup.status = "" OR startup.status = "-") THEN 1 ELSE 0 END) as pending_daily')
             ->join('startup', 'startup.weekly_id = weekly_approvals.id', 'left')
-            ->join('proses', 'proses.process_code = weekly_approvals.process', 'left')
-            ->join('device', 'device.code = weekly_approvals.device', 'left')
+            ->join('proses', 'proses.process_code = COALESCE(weekly_approvals.process, startup.process)', 'left')
+            ->join('device', 'device.code = COALESCE(weekly_approvals.device, startup.device, proses.device)', 'left')
             ->groupBy('weekly_approvals.id')
             ->orderBy('weekly_approvals.period_start', 'DESC')
             ->orderBy('weekly_approvals.id', 'DESC')

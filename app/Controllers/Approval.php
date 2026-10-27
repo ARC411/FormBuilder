@@ -70,10 +70,32 @@ class Approval extends BaseController
         }
         
         $number = $this->request->getVar('number');
-        $name = $this->request->getVar('name');
-        $level = $this->request->getVar('level');
+        $name = $this->request->getVar('name') ?: $this->session->get('name');
+        $level = $this->request->getVar('level') ?: $this->session->get('level');
+        $action = $this->request->getVar('action') ?? 'Approve';
+        $rejectReason = trim((string)$this->request->getVar('reject_reason'));
+
+        if (empty($number)) {
+            $this->session->setFlashdata('error', 'Gagal memproses approval: Nomor checksheet tidak terbaca atau kosong.');
+            return redirect()->to(base_url().'approve');
+        }
+
+        if ($action === 'Reject' && empty($rejectReason)) {
+            $this->session->setFlashdata('error', 'Gagal Reject: Alasan penolakan / catatan perbaikan wajib diisi!');
+            return redirect()->to(base_url().'approve');
+        }
         
-        $update = $this->StartupModel->updateApproval($number, $name, $level);
+        $update = $this->StartupModel->updateApproval($number, $name, $level, $action, $rejectReason);
+        if ($update) {
+            if ($action === 'Reject') {
+                $this->session->setFlashdata('message', "Checksheet #{$number} berhasil di-Reject. Operator akan melihat notifikasi pada navbar Operations dan dapat memperbaiki form ini.");
+            } else {
+                $this->session->setFlashdata('message', "Checksheet #{$number} berhasil di-Approve.");
+            }
+        } else {
+            $this->session->setFlashdata('error', "Gagal memproses approval untuk checksheet #{$number}.");
+        }
+
         return redirect()->to(base_url().'approve');
     }
 
@@ -141,6 +163,7 @@ class Approval extends BaseController
                 ->where('par000', '1')
                 ->groupStart()
                     ->where('status', 'Pending')
+                    ->orWhere('status', 'Reject')
                     ->orWhere('status IS NULL')
                     ->orWhere('status', '')
                     ->orWhere('status', '-')
@@ -148,7 +171,7 @@ class Approval extends BaseController
                 ->countAllResults();
 
             if ($pendingDaily > 0) {
-                $this->session->setFlashdata('error', "Persetujuan ditolak: Masih terdapat {$pendingDaily} checksheet startup harian pada minggu ini yang belum di-approve oleh Foreman/Leader/Supervisor. Selesaikan daily approval terlebih dahulu.");
+                $this->session->setFlashdata('error', "Persetujuan ditolak: Masih terdapat {$pendingDaily} checksheet startup harian pada minggu ini yang berstatus Pending atau Reject. Selesaikan perbaikan dan daily approval terlebih dahulu.");
                 return redirect()->to(base_url().'approval/weekly');
             }
         }
@@ -175,7 +198,19 @@ class Approval extends BaseController
         return redirect()->to(base_url().'approval/weekly');
     }
 
-    // Fungsi untuk menampilkan isi dokumen dari satu periode mingguan
+    // Helper untuk menentukan tipe folder layout
+    private function getFolderType($processStr) 
+    {
+        if (empty($processStr)) return 'startup';
+        $parts = explode('-', $processStr);
+        if (count($parts) > 1) {
+            if ($parts[1] === 'p') return 'production';
+            if ($parts[1] === 'f') return 'foregoing';
+        }
+        return 'startup';
+    }
+
+    // Fungsi untuk menampilkan isi dokumen dari satu periode mingguan (dikelompokkan per Form Unit Mesin 7 Hari)
     public function detail_mingguan($id)
     {
         if(!$this->session->has('name')){
@@ -193,15 +228,108 @@ class Approval extends BaseController
         $deviceInfo = !empty($dataMingguan['device']) ? $db->table('device')->where('code', $dataMingguan['device'])->get()->getRowArray() : null;
         $processInfo = !empty($dataMingguan['process']) ? $db->table('proses')->where('process_code', $dataMingguan['process'])->get()->getRowArray() : null;
 
-        $alldata = $this->StartupModel->getByWeeklyId($id);
+        // Auto-sinkronisasi: update weekly_id untuk checksheet startup dalam rentang tanggal minggu ini yang belum ter-assign
+        if (!empty($dataMingguan['period_start']) && !empty($dataMingguan['period_end'])) {
+            $startStr = date('Y-m-d', strtotime($dataMingguan['period_start'])) . ' 00:00:00';
+            $endStr   = date('Y-m-d', strtotime($dataMingguan['period_end'])) . ' 23:59:59';
+
+            $syncBuilder = $db->table('startup')
+                ->where('created_at >=', $startStr)
+                ->where('created_at <=', $endStr)
+                ->groupStart()
+                    ->where('weekly_id', null)
+                    ->orWhere('weekly_id', 0)
+                ->groupEnd();
+
+            if (!empty($dataMingguan['device'])) {
+                $syncBuilder->where('device', $dataMingguan['device']);
+            }
+            if (!empty($dataMingguan['process'])) {
+                $syncBuilder->where('process', $dataMingguan['process']);
+            }
+            $syncBuilder->update(['weekly_id' => $id]);
+        }
+
+        $rawDocs = $this->StartupModel->getByWeeklyId($id, $dataMingguan['period_start'] ?? null, $dataMingguan['period_end'] ?? null);
+
+        // Fallback jika belum ter-assign weekly_id namun ada periode tanggalnya
+        if (empty($rawDocs) && !empty($dataMingguan['period_start']) && !empty($dataMingguan['period_end'])) {
+            $rawDocs = $this->StartupModel->getWeeklyChecksheetData($id, '', '', '', $dataMingguan['period_start'], $dataMingguan['period_end']);
+        }
 
         $pendingDaily = 0;
-        foreach ($alldata as $doc) {
+        $groupedData = [];
+
+        foreach ($rawDocs as $doc) {
+            $devCode   = !empty($doc['final_device']) ? $doc['final_device'] : (!empty($doc['device']) ? $doc['device'] : '');
+            $procCode  = $doc['process'] ?? '';
+            $machNo    = trim((string)($doc['machno'] ?? ''));
+
+            $groupKey = $devCode . '___' . $procCode . '___' . $machNo;
+
             $st = trim((string)($doc['status'] ?? ''));
-            if ($st === 'Pending' || $st === '' || $st === '-') {
+            $isPending = ($st === 'Pending' || $st === '' || $st === '-');
+            if ($isPending) {
                 $pendingDaily++;
             }
+
+            if (!isset($groupedData[$groupKey])) {
+                $groupedData[$groupKey] = [
+                    'device'             => $devCode,
+                    'device_name'        => $doc['device_name'] ?? $devCode,
+                    'process'            => $procCode,
+                    'process_name'       => $doc['process_name'] ?? $procCode,
+                    'machno'             => $machNo,
+                    'total_days'         => 0,
+                    'dates'              => [],
+                    'lots'               => [],
+                    'models'             => [],
+                    'pending_count'      => 0,
+                    'approved_count'     => 0,
+                    'first_date'         => $doc['created_at'],
+                    'last_date'          => $doc['created_at'],
+                    'sample_number'      => $doc['number'] ?? ''
+                ];
+            }
+
+            $groupedData[$groupKey]['total_days']++;
+            $dateLabel = date('d/m', strtotime($doc['created_at']));
+            if (!in_array($dateLabel, $groupedData[$groupKey]['dates'])) {
+                $groupedData[$groupKey]['dates'][] = $dateLabel;
+            }
+            if (!empty($doc['lotno']) && !in_array($doc['lotno'], $groupedData[$groupKey]['lots'])) {
+                $groupedData[$groupKey]['lots'][] = $doc['lotno'];
+            }
+            if (!empty($doc['model']) && !in_array($doc['model'], $groupedData[$groupKey]['models'])) {
+                $groupedData[$groupKey]['models'][] = $doc['model'];
+            }
+            if ($isPending) {
+                $groupedData[$groupKey]['pending_count']++;
+            } else {
+                $groupedData[$groupKey]['approved_count']++;
+            }
+
+            if (strtotime($doc['created_at']) < strtotime($groupedData[$groupKey]['first_date'])) {
+                $groupedData[$groupKey]['first_date'] = $doc['created_at'];
+            }
+            if (strtotime($doc['created_at']) > strtotime($groupedData[$groupKey]['last_date'])) {
+                $groupedData[$groupKey]['last_date'] = $doc['created_at'];
+            }
         }
+
+        // Hitung total_days berdasarkan jumlah hari/tanggal unik yang terisi
+        foreach ($groupedData as $k => $item) {
+            $groupedData[$k]['total_days'] = count($item['dates']);
+        }
+
+        // Urutkan grup berdasarkan device, proses, nomor mesin
+        uasort($groupedData, function($a, $b) {
+            $c1 = strcmp((string)$a['device'], (string)$b['device']);
+            if ($c1 !== 0) return $c1;
+            $c2 = strcmp((string)$a['process'], (string)$b['process']);
+            if ($c2 !== 0) return $c2;
+            return strcmp((string)$a['machno'], (string)$b['machno']);
+        });
 
         $data = [
             'title'         => 'Detail Mingguan | Startup Management',
@@ -209,9 +337,81 @@ class Approval extends BaseController
             'device_info'   => $deviceInfo,
             'process_info'  => $processInfo,
             'pending_daily' => $pendingDaily,
-            'alldata'       => $alldata
+            'grouped_data'  => array_values($groupedData),
+            'alldata'       => $rawDocs
         ];
 
         return view('weekly_detail', $data);
+    }
+
+    // Fungsi untuk menampilkan Form Checksheet Mingguan Lengkap (7 Hari: Senin s/d Minggu 23:59)
+    public function weekly_form($weekly_id)
+    {
+        if(!$this->session->has('name')){
+            return redirect()->to(base_url().'login');
+        }
+
+        $weeklyModel = new WeeklyApprovalModel();
+        $weeklyData = $weeklyModel->find($weekly_id);
+
+        if(empty($weeklyData)) {
+            return "Data mingguan tidak ditemukan.";
+        }
+
+        $device  = $this->request->getGet('device') ?? '';
+        $process = $this->request->getGet('process') ?? '';
+        $machno  = $this->request->getGet('machno') ?? '';
+
+        $periodStart = $weeklyData['period_start'];
+        $periodEnd   = $weeklyData['period_end'];
+
+        $alldata = $this->StartupModel->getWeeklyChecksheetData($weekly_id, $device, $process, $machno, $periodStart, $periodEnd);
+
+        // Fallback jika tidak menemukan dengan parameter spesifik machno
+        if (empty($alldata)) {
+            $alldata = $this->StartupModel->getWeeklyChecksheetData($weekly_id, $device, $process, '', $periodStart, $periodEnd);
+        }
+
+        if (empty($alldata)) {
+            return "Tidak ada data checksheet startup untuk mesin/proses ini pada periode " . date('d/m/Y', strtotime($periodStart)) . " s/d " . date('d/m/Y', strtotime($periodEnd)) . ".";
+        }
+
+        $firstRow = $alldata[0];
+        $actualDevice  = !empty($device) ? $device : ($firstRow['device'] ?? '');
+        $actualProcess = !empty($process) ? $process : ($firstRow['process'] ?? '');
+        $actualMachno  = ($machno !== '' && $machno !== 'null') ? $machno : ($firstRow['machno'] ?? '');
+
+        $db = \Config\Database::connect();
+        $deviceInfo  = $db->table('device')->where('code', $actualDevice)->get()->getRowArray();
+        $processInfo = $db->table('proses')->where('process_code', $actualProcess)->get()->getRowArray();
+
+        $folder = $this->getFolderType($actualProcess);
+
+        $machnoEsc = esc($actualMachno);
+        $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machnoEsc . '">';
+
+        try {
+            $viewPath = "/layout/" . $actualDevice . "/history/" . $folder . "/" . $actualProcess;
+            $tableHtml = view($viewPath, ['alldata' => $alldata]);
+        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
+            $tableHtml = "<div class='alert alert-danger'>Template form checksheet untuk proses " . esc($actualProcess) . " belum tersedia (File layout tidak ditemukan).</div>";
+        }
+
+        $data = [
+            'title'        => 'Checksheet Mingguan (7 Hari) - ' . ($processInfo['name'] ?? $actualProcess),
+            'weekly_id'    => $weekly_id,
+            'period_start' => $periodStart,
+            'period_end'   => $periodEnd,
+            'device'       => $actualDevice,
+            'device_name'  => $deviceInfo['name'] ?? $actualDevice,
+            'process'      => $actualProcess,
+            'process_name' => $processInfo['name'] ?? $actualProcess,
+            'machno'       => $actualMachno,
+            'alldata'      => $alldata,
+            'machnoHidden' => $machnoHidden,
+            'tableHtml'    => $tableHtml
+        ];
+
+        return view('weekly_form_detail', $data);
     }
 }

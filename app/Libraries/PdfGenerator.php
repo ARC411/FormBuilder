@@ -481,6 +481,13 @@ class PdfGenerator
     private function buildKopSuratHtml($namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo = null): string {
         $kotakTtdHtml = "";
         
+        $docNoClean = $noDok;
+        $revisiClean = !empty($revisi) ? $revisi : '00';
+        if (preg_match('/^(.*?)-(\d+)$/', $noDok, $m)) {
+            $docNoClean = $m[1];
+            $revisiClean = $m[2];
+        }
+
         if ($typeProcess === "startup") {
             $qcBox = "";
             if (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') {
@@ -496,13 +503,21 @@ class PdfGenerator
                 $prodBox = '<div style="font-size: 6px; line-height: 1.1;">Approved by:<br><b style="font-size: 6.5px;">' . $approverProd . '</b><br>(Prod)<br>' . $dateProd . '</div>';
             }
 
+            $infoRowsHtml = '
+                <tr><td style="width: 40%; text-align: left; padding: 2px;">Doc No.</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($docNoClean) . '</td></tr>
+                <tr><td style="text-align: left; padding: 2px;">Revisi</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($revisiClean) . '</td></tr>
+                <tr><td style="text-align: left; padding: 2px;">Berlaku</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($tglBerlaku) . '</td></tr>';
+
             $kotakTtdHtml = '
-                <tr><td style="width: 50%; text-align: center; padding: 2px;">QC</td><td style="text-align: center; padding: 2px;">Production</td></tr>
+                <tr><td style="width: 50%; text-align: center; padding: 2px; font-weight: bold;">QC</td><td style="width: 50%; text-align: center; padding: 2px; font-weight: bold;">Production</td></tr>
                 <tr><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $qcBox . '</td><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $prodBox . '</td></tr>';
         } else {
-            $ttd = ($namaApprover !== '' && $namaApprover !== '-')
-                ? '<span style="font-size: 7px;">Approved by:<br><b>' . nl2br(htmlspecialchars($namaApprover)) . '</b></span>'
-                : '';
+            $ttd = $namaApprover !== "" ? '<span style="font-size: 8px;">Approved by:<br><b>' . htmlspecialchars($namaApprover) . '</b></span>' : '';
+            
+            $infoRowsHtml = '
+                <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok / No.</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>
+                <tr><td style="text-align: left; padding: 2px;">Berlaku</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($tglBerlaku) . '</td></tr>';
+
             $kotakTtdHtml = '
                 <tr><td colspan="2" style="text-align: center; vertical-align: middle; padding: 1px; font-weight: bold;">Checked</td></tr>
                 <tr><td colspan="2" style="text-align: center; height: 18px; vertical-align: middle; padding: 1px;">' . $ttd . '</td></tr>';
@@ -521,11 +536,9 @@ class PdfGenerator
                     <b style="font-size: 12px; text-decoration: underline;">' . htmlspecialchars((string)$judulProses) . '</b><br>
                     <b style="font-size: 10px;">(' . htmlspecialchars((string)$namaProduk) . ')</b>
                 </td>
-                <td rowspan="2" style="width: 25%; vertical-align: top; border: none; padding: 0;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 7.5px;" border="1">
-                        <tr><td style="width: 38%; text-align: left; padding: 1px 2px;">No. Dok / No.</td><td style="text-align: left; padding: 1px 2px;">: ' . htmlspecialchars((string)$noDok) . '</td></tr>
-                        <tr><td style="text-align: left; padding: 1px 2px;">Revisi</td><td style="text-align: left; padding: 1px 2px;">: ' . htmlspecialchars($revisiFormatted) . '</td></tr>
-                        <tr><td style="text-align: left; padding: 1px 2px;">Berlaku</td><td style="text-align: left; padding: 1px 2px;">: ' . htmlspecialchars((string)$tglBerlaku) . '</td></tr>
+                <td style="width: 25%; text-align: right; vertical-align: top; border: none; padding: 0;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 8px;" border="1">
+                        ' . $infoRowsHtml . '
                         ' . $kotakTtdHtml . '
                     </table>
                 </td>

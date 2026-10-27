@@ -12,40 +12,40 @@ class EmpModel extends Model
      * - acc     : dari tap terakhir (hari ini atau kemarin, untuk shift malam)
      */
     public function getEmp($empid)
-{
-    $db = \Config\Database::connect('second');
+    {
+        $db = \Config\Database::connect('second');
 
-    $sql = "
-        SELECT TOP 1
-            c.empid,
-            c.cardid,
-            LTRIM(RTRIM(
-                ISNULL(i.firstname, '') + ' ' + ISNULL(i.midname, '') + ' ' + ISNULL(i.lastname, '')
-            )) AS name,
-            s.groupid,
-            (
-                SELECT TOP 1 RIGHT(a.acc, 1)
-                FROM tbarawdata a
-                WHERE a.empid = c.empid
-                  AND a.datet >= DATEADD(day, -1, CAST(GETDATE() AS date))
-                ORDER BY a.datet DESC
-            ) AS acc
-        FROM tbtcardemp c
-        INNER JOIN tbempinfa i ON c.empid = i.empid
-        LEFT JOIN tbtschemp s ON c.empid = s.empid AND s.datetl = '1900-01-01'
-        WHERE (c.empid = ? OR c.cardid = ?)
-          AND i.empstsid <> '3,Not Active'
-          AND c.datetl = '1900-01-01'
-    ";
+        $sql = "
+            SELECT TOP 1
+                c.empid,
+                c.cardid,
+                LTRIM(RTRIM(
+                    ISNULL(i.firstname, '') + ' ' + ISNULL(i.midname, '') + ' ' + ISNULL(i.lastname, '')
+                )) AS name,
+                s.groupid,
+                (
+                    SELECT TOP 1 RIGHT(a.acc, 1)
+                    FROM tbarawdata a
+                    WHERE a.empid = c.empid
+                      AND a.datet >= DATEADD(day, -1, CAST(GETDATE() AS date))
+                    ORDER BY a.datet DESC
+                ) AS acc
+            FROM tbtcardemp c
+            INNER JOIN tbempinfa i ON c.empid = i.empid
+            LEFT JOIN tbtschemp s ON c.empid = s.empid AND s.datetl = '1900-01-01'
+            WHERE (c.empid = ? OR c.cardid = ?)
+              AND i.empstsid <> '3,Not Active'
+              AND c.datetl = '1900-01-01'
+        ";
 
-    return $db->query($sql, [$empid, $empid])->getRow();
-}
+        return $db->query($sql, [$empid, $empid])->getRow();
+    }
 
     public function getDataEmp($empid)
     {
         $db = \Config\Database::connect('second');
 
-        $q = "SELECT empid, firstname+' '+midname+' '+lastname as name, deptid, positionid, titleid, empstsid
+        $q = "SELECT empid, LTRIM(RTRIM(ISNULL(firstname, '') + ' ' + ISNULL(midname, '') + ' ' + ISNULL(lastname, ''))) as name, deptid, positionid, titleid, empstsid
               FROM tbempinfa
               WHERE empstsid <> '3,Not Active' AND empid = ?";
 
@@ -106,13 +106,55 @@ class EmpModel extends Model
 
     public function testing()
     {
-    $db = \Config\Database::connect('second');
+        $db = \Config\Database::connect('second');
 
-    // Menggunakan LIKE untuk mencocokkan teks Permanent dan Contract
-    $query = "SELECT empid, firstname, lastname, deptid, positionid, empstsid
-              FROM tbempinfa
-              WHERE (empstsid LIKE '%Permanent%' OR empstsid LIKE '%Contract%')";
+        // Menggunakan LIKE untuk mencocokkan teks Permanent dan Contract
+        $query = "SELECT empid, firstname, lastname, deptid, positionid, empstsid
+                  FROM tbempinfa
+                  WHERE (empstsid LIKE '%Permanent%' OR empstsid LIKE '%Contract%')";
 
-    return $db->query($query)->getResultArray();
+        return $db->query($query)->getResultArray();
+    }
+
+    /**
+     * Ambil seluruh kolom data karyawan aktif yang memiliki jabatan Foreman
+     * agar semua kemungkinan nama kolom email di tbempinfa dapat terbaca.
+     */
+    /**
+     * Ambil nama dan email operator secara dinamis berdasarkan empid dari database second
+     */
+    public function getOperatorContact($empid)
+    {
+        $result = [
+            'empid' => $empid,
+            'name'  => '',
+            'email' => ''
+        ];
+
+        if (empty($empid)) {
+            return $result;
+        }
+
+        try {
+            $db = \Config\Database::connect('second');
+            $row = $db->query("SELECT TOP 1 * FROM tbempinfa WHERE empid = ?", [$empid])->getRowArray();
+
+            if ($row) {
+                $fullName = trim(($row['firstname'] ?? '') . ' ' . ($row['midname'] ?? '') . ' ' . ($row['lastname'] ?? ''));
+                $result['name'] = preg_replace('/\s+/', ' ', $fullName);
+
+                // Cari kolom email yang ada di tabel tbempinfa
+                foreach (['email', 'mail', 'email_address', 'user_email', 'work_email'] as $col) {
+                    if (!empty($row[$col]) && filter_var(trim((string)$row[$col]), FILTER_VALIDATE_EMAIL)) {
+                        $result['email'] = strtolower(trim((string)$row[$col]));
+                        break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal ambil kontak operator: ' . $e->getMessage());
+        }
+
+        return $result;
     }
 }

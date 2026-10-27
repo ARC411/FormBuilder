@@ -20,7 +20,7 @@ class ExcelGenerator
         $isStartup = (strtolower($typeProcess) === 'startup');
 
         // =========================================================================
-        // 📝 [EDIT 1] PENGATURAN BATAS DATA PER HALAMAN (PAGINATION)
+        // [EDIT 1] PENGATURAN BATAS DATA PER HALAMAN (PAGINATION)
         // =========================================================================
         if ($isStartup) {
             $PER_PAGE = 14; // Startup: Batas 14 Kolom ke samping
@@ -39,7 +39,8 @@ class ExcelGenerator
         $headerRowCount = $this->countHeaderRows($grid);
 
         $spreadsheet = new Spreadsheet();
-        $defaultFontSize = ($typeProcess === 'startup') ? 11 : 15;
+        // Opsi 1: Font dinaikkan ke 12 untuk Startup agar lebih terbaca pada skala cetak 48%
+        $defaultFontSize = ($typeProcess === 'startup') ? 12 : 15;
         $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize($defaultFontSize);
         $sheet = $spreadsheet->getActiveSheet();
         
@@ -54,11 +55,11 @@ class ExcelGenerator
             $currentRow = 1;
             
             for ($p = 0; $p < $totalPages; $p++) {
-                // 1. Gambar ulang Kop Surat secara vertikal untuk setiap halaman baru
+                // 1. Gambar ulang Kop Surat secara vertikal untuk setiap halaman baru (5 baris)
                 $this->insertKopSuratVertical($sheet, $currentRow, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE, $weeklyInfo ?? null);
                 
                 // 2. Gambar Tabel (Kolom Identitas statis + 14 Kolom Data)
-                $tableStartRowChunk = $currentRow + 4; // Jarak baris setelah Kop Surat
+                $tableStartRowChunk = $currentRow + 5; // Jarak 5 baris setelah Kop Surat (r1..r5)
                 $this->writeBlockVerticalChunk($grid, $sheet, $tableStartRowChunk, $identityCols, $p, $PER_PAGE);
                 
                 // 3. Styling Kotak (Border) & PENGHAPUS BARIS SAMPAH
@@ -104,13 +105,15 @@ class ExcelGenerator
                     $sheet->setBreak("A{$validEndRow}", \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_ROW);
                 }
                 
+                $actualChunkRows = $validEndRow - $tableStartRowChunk + 1;
+                
                 // 5. Update baris awal untuk halaman berikutnya
-                // (Kop Surat berikutnya akan naik menimpa baris kosong yang sudah dibersihkan)
-                $currentRow = $validEndRow + 2;
-            } // <-- PENUTUP for ($p ...) YANG SEBELUMNYA HILANG
+                // (Kop Surat berikutnya langsung menyambung tepat setelah baris akhir halaman sebelumnya)
+                $currentRow = $validEndRow + 1;
+            }
             
             $lastColIndex = $identityCols + 1 + $PER_PAGE;
-            $lastRow = $currentRow - 2;
+            $lastRow = $validEndRow;
         } else {
             $totalDataCols = max(1, $grid['totalCols'] - $identityCols);
             $this->insertKopSuratHorizontal($sheet, 2, $totalDataCols, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $totalDataCols, $weeklyInfo ?? null);
@@ -149,7 +152,7 @@ class ExcelGenerator
         $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
         $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4);
         
-        // SETTING AGAR TABEL RATA TENGAH DI KERTAS
+        // SETTING AGAR TABEL RATA TENGAH SECARA HORIZONTAL DI KERTAS
         $sheet->getPageSetup()->setHorizontalCentered(true);
         $sheet->getPageSetup()->setVerticalCentered(false);
         
@@ -161,17 +164,21 @@ class ExcelGenerator
         }
 
         // KUNCI SKALA HALAMAN (Startup maupun Production)
-        // Lebar pas 1 kertas, tinggi halaman otomatis dipotong oleh Excel
         $sheet->getPageSetup()->setFitToPage(true);
         $sheet->getPageSetup()->setFitToWidth(1);  
-        $sheet->getPageSetup()->setFitToHeight(0);
+        if ($typeProcess === 'startup') {
+            // Kunci agar pas 1 halaman per chunk, tidak membelah ke halaman baru
+            $sheet->getPageSetup()->setFitToHeight($totalPages);
+        } else {
+            $sheet->getPageSetup()->setFitToHeight(0);
+        }
         
         $sheet->getPageSetup()->setPrintArea("A1:{$lastColLetter}{$lastRow}");
         // Margin top dan bottom 0.25 agar lebih mepet tepi
         $sheet->getPageMargins()->setTop(0.25)->setRight(0.3)->setLeft(0.3)->setBottom(0.25);
         
         // =========================================================================
-        // 📝 [EDIT 3] PENGATURAN LEBAR KOLOM "NO" (KOLOM B)
+        // [EDIT 3] PENGATURAN LEBAR KOLOM "NO" (KOLOM B)
         // =========================================================================
         $sheet->getColumnDimension('A')->setWidth(2); 
         if ($isStartup) {
@@ -181,7 +188,7 @@ class ExcelGenerator
         }
 
         // =========================================================================
-        // 📝 [EDIT 4] PENGATURAN LEBAR KOLOM IDENTITAS & DATA
+        // [EDIT 4] PENGATURAN LEBAR KOLOM IDENTITAS & DATA
         // =========================================================================
         if ($isStartup) {
             $lebarKolomIdentitas = 20; 
@@ -222,7 +229,6 @@ class ExcelGenerator
             $availableDataHeight = $targetPageHeight - $headerHeight;
             
             // Multiplier 1.25 karena Kop Surat sudah diperbesar.
-            // Jika lebih dari ini, Excel akan menendang baris ke-20 ke halaman berikutnya.
             $safeDataHeight = $availableDataHeight * 1.25; 
             $idealRowHeight = $safeDataHeight / $PER_PAGE;
 
@@ -238,14 +244,19 @@ class ExcelGenerator
                 $sheet->getRowDimension($r)->setRowHeight($idealRowHeight); // Tinggi Data Prod
             }
         } else {
-            // TINGGI BARIS IDEAL STARTUP
+            // TINGGI BARIS IDEAL STARTUP (DYNAMIC FIT TO PAGE - OPSI 1)
+            // Disesuaikan dengan scale factor 48% di A4 landscape agar tabel penuh hingga batas margin bawah
+            $headerHeight = 127; // Total tinggi 5 baris Kop Surat (18*4 + 55)
+            $availableDataHeight = 1005; // 1.005 pt data + 127 pt kop = 1.132 pt total (~543 pt tercetak di A4 pada skala 48%, 97% kapasitas halaman)
+            
+            $numRows = !empty($actualChunkRows) ? $actualChunkRows : max(1, $grid['totalRows']);
+            $idealStartupRowHeight = max(22, min(50, $availableDataHeight / $numRows));
+            
             for ($r = 1; $r <= $lastRow; $r++) {
                 $currentHeight = $sheet->getRowDimension($r)->getRowHeight();
-                
-                // Abaikan baris Kop Surat (yang tingginya 20 atau 38)
-                if ($currentHeight != 20 && $currentHeight != 38) {
-                    // Gunakan 28 (maksimal 35). Jangan 80 agar 'Note' tidak tembus ke halaman 2
-                    $sheet->getRowDimension($r)->setRowHeight(28); 
+                // Abaikan baris Kop Surat (yang tingginya 18 atau 55)
+                if ($currentHeight != 18 && $currentHeight != 20 && $currentHeight != 25 && $currentHeight != 55) {
+                    $sheet->getRowDimension($r)->setRowHeight($idealStartupRowHeight); 
                 }
             }
         }
@@ -342,22 +353,26 @@ class ExcelGenerator
                 $noteTr->parentNode->insertBefore($opTr, $noteTr);
 
                 $appTr = $doc->createElement('tr');
-                // Label 'Approved by' diubah menjadi 'Checked by'
                 $tdAppLbl = $doc->createElement('td', 'Checked by');
                 $tdAppLbl->setAttribute('colspan', (string)$identityCols);
                 $appTr->appendChild($tdAppLbl);
 
                 for ($i = 0; $i < $targetCols; $i++) {
                     if (isset($alldata[$i])) {
-                        $status = strtolower(trim($getVal($alldata[$i], ['status_approval', 'status', 'is_approved', 'approval'])));
-                        if (strpos($status, 'approve') !== false || strpos($status, 'bypass') !== false) {
+                        $rawStatus = (string)$getVal($alldata[$i], ['status', 'status_approval', 'is_approved', 'approval']);
+                        $status = strtolower(trim($rawStatus));
+                        if ($status !== '-' && $status !== '' && (strpos($status, 'approve') !== false || strpos($status, 'bypass') !== false || strpos($status, 'check') !== false)) {
                             $spv = $getVal($alldata[$i], ['supervisor']);
                             $ldr = $getVal($alldata[$i], ['leader']);
                             $frm = $getVal($alldata[$i], ['foreman']);
-                            $appText = 'Approved';
+                            
                             if ($spv !== '-') $appText = trim($spv) . "\n(Supervisor)";
                             elseif ($ldr !== '-') $appText = trim($ldr) . "\n(Leader)";
                             elseif ($frm !== '-') $appText = trim($frm) . "\n(Foreman)";
+                            else {
+                                $cleanStatus = preg_replace('/^(approved?|check(ed)?)\s*(by\s*)?/i', '', trim($rawStatus));
+                                $appText = !empty($cleanStatus) ? trim($cleanStatus) : 'Approved';
+                            }
 
                             $tdAppData = $doc->createElement('td');
                             $tdAppData->appendChild($doc->createTextNode($appText));
@@ -392,9 +407,8 @@ class ExcelGenerator
                 $colspan = max(1, (int) ($cell->getAttribute('colspan') ?: 1));
                 $rowspan = max(1, (int) ($cell->getAttribute('rowspan') ?: 1));
                 
-                $isHeader = ($tag === 'th' || $inThead);
-                
-                $textContent = trim(preg_replace('/\s+/', ' ', $cell->textContent));
+                $textContent = trim($cell->textContent);
+                $isHeader = ($tag === 'th') || $inThead;
                 
                 $origins[$currentRow][$col] = ['value' => $textContent, 'isHeader' => $isHeader, 'colspan' => $colspan, 'rowspan' => $rowspan];
                 for ($r = $currentRow; $r < $currentRow + $rowspan; $r++) {
@@ -429,7 +443,8 @@ class ExcelGenerator
         $lastKopKiriLetter = Coordinate::stringFromColumnIndex($spanKiri);
         $lastIdentityLetter = $lastKopKiriLetter;
 
-        $kopFontSize = ($typeProcess === 'startup') ? 10 : 15;
+        // Ukuran font khusus Kop Surat. Untuk production dibuat lebih besar.
+        $kopFontSize = ($typeProcess === 'startup') ? 10.5 : 15;
 
         $sheet->setCellValue("B{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
         $sheet->mergeCells("B{$r1}:{$lastKopKiriLetter}{$r3}");
@@ -458,76 +473,142 @@ class ExcelGenerator
         }
 
         for ($r = $r1; $r <= $r3; $r++) {
-            $sheet->getRowDimension($r)->setRowHeight(40);
+            $sheet->getRowDimension($r)->setRowHeight(25);
         }
-        $sheet->getRowDimension($r4)->setRowHeight(60);
+        // Baris 4 (Machine No & TTD)
+        $sheet->getRowDimension($r4)->setRowHeight(55);
     }
 
-<<<<<<< HEAD
-    private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $centerStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess) {
-=======
-    private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo = null) {
->>>>>>> ba8ca53db7ace9995c2132bd84acc42099457ffb
+    private function drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo = null, $r5 = null) {
         $docStartLetter = Coordinate::stringFromColumnIndex($docStartCol);
         $docMidLetter   = Coordinate::stringFromColumnIndex($docStartCol + 1);
         $docEndLetter   = Coordinate::stringFromColumnIndex($chunkEndCol);
 
-        $revisiDinamis = ($revisi !== '' && $revisi !== null)
-            ? str_pad((string)$revisi, 2, '0', STR_PAD_LEFT)
-            : '00';
-
-        $sheet->setCellValue("{$docStartLetter}{$r1}", "No. Dok / No."); $sheet->setCellValue("{$docMidLetter}{$r1}", ": " . $noDok);
-        $sheet->setCellValue("{$docStartLetter}{$r2}", "Revisi");       $sheet->setCellValue("{$docMidLetter}{$r2}", ": " . $revisiDinamis);
-        $sheet->setCellValue("{$docStartLetter}{$r3}", "Berlaku");      $sheet->setCellValue("{$docMidLetter}{$r3}", ": " . $tglBerlaku);
-
-        $sheet->mergeCells("{$docMidLetter}{$r1}:{$docEndLetter}{$r1}");
-        $sheet->mergeCells("{$docMidLetter}{$r2}:{$docEndLetter}{$r2}");
-        $sheet->mergeCells("{$docMidLetter}{$r3}:{$docEndLetter}{$r3}");
+        $docNoClean = $noDok;
+        $revisiClean = ($revisi !== '' && $revisi !== null) ? str_pad((string)$revisi, 2, '0', STR_PAD_LEFT) : '00';
+        if (preg_match('/^(.*?)-(\d+)$/', $noDok, $m)) {
+            $docNoClean = $m[1];
+            if ($revisi === '' || $revisi === null) {
+                $revisiClean = $m[2];
+            }
+        }
 
         if ($typeProcess === 'startup') {
-            $qcText = "QC";
+            $lastKopRow = ($r5 !== null) ? $r5 : ($r4 + 1);
+
+            // Baris 1: Doc No.
+            $sheet->setCellValue("{$docStartLetter}{$r1}", "Doc No."); 
+            $sheet->setCellValue("{$docMidLetter}{$r1}", ": " . $docNoClean);
+            $sheet->mergeCells("{$docMidLetter}{$r1}:{$docEndLetter}{$r1}");
+
+            // Baris 2: Revisi
+            $sheet->setCellValue("{$docStartLetter}{$r2}", "Revisi");       
+            $sheet->setCellValue("{$docMidLetter}{$r2}", ": " . $revisiClean);
+            $sheet->mergeCells("{$docMidLetter}{$r2}:{$docEndLetter}{$r2}");
+
+            // Baris 3: Berlaku
+            $sheet->setCellValue("{$docStartLetter}{$r3}", "Berlaku");      
+            $sheet->setCellValue("{$docMidLetter}{$r3}", ": " . $tglBerlaku);
+            $sheet->mergeCells("{$docMidLetter}{$r3}:{$docEndLetter}{$r3}");
+
+            // Baris 4: Header Kolom Weekly Approval (QC & Production)
+            $sheet->setCellValue("{$docStartLetter}{$r4}", "QC");
+            $sheet->setCellValue("{$docMidLetter}{$r4}", "Production");
+            $sheet->mergeCells("{$docMidLetter}{$r4}:{$docEndLetter}{$r4}");
+            $sheet->getStyle("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}")
+                  ->getAlignment()
+                  ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                  ->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}")
+                  ->getFont()
+                  ->setBold(true);
+
+            // Baris 5: Kotak Tanda Tangan / Informasi Approval Weekly
+            $qcBox = "";
             if (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') {
                 $approverQc = !empty($weeklyInfo['approver_qc']) ? $weeklyInfo['approver_qc'] : 'Approved';
                 $dateQc = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime($weeklyInfo['date_qc'])) : '';
-                $qcText = "QC\n\nApproved by:\n" . $approverQc . "\n(QC)\n" . $dateQc;
+                $qcBox = "Approved by:\n" . $approverQc . "\n(QC)\n" . $dateQc;
             }
 
-            $prodText = "Production";
+            $prodBox = "";
             if (!empty($weeklyInfo['status_production']) && strtolower($weeklyInfo['status_production']) === 'approve') {
                 $approverProd = !empty($weeklyInfo['approver_production']) ? $weeklyInfo['approver_production'] : 'Approved';
                 $dateProd = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime($weeklyInfo['date_production'])) : '';
-                $prodText = "Production\n\nApproved by:\n" . $approverProd . "\n(Prod)\n" . $dateProd;
+                $prodBox = "Approved by:\n" . $approverProd . "\n(Prod)\n" . $dateProd;
             }
 
-            $sheet->setCellValue("{$docStartLetter}{$r4}", $qcText);
-            $sheet->setCellValue("{$docMidLetter}{$r4}", $prodText);
-            $sheet->mergeCells("{$docMidLetter}{$r4}:{$docEndLetter}{$r4}");
-            $sheet->getStyle("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+            $sheet->setCellValue("{$docStartLetter}{$lastKopRow}", $qcBox);
+            $sheet->setCellValue("{$docMidLetter}{$lastKopRow}", $prodBox);
+            $sheet->mergeCells("{$docMidLetter}{$lastKopRow}:{$docEndLetter}{$lastKopRow}");
+            $sheet->getStyle("{$docStartLetter}{$lastKopRow}:{$docEndLetter}{$lastKopRow}")
+                  ->getAlignment()
+                  ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                  ->setVertical(Alignment::VERTICAL_CENTER)
+                  ->setWrapText(true);
+            $sheet->getStyle("{$docStartLetter}{$lastKopRow}:{$docEndLetter}{$lastKopRow}")
+                  ->getFont()
+                  ->setSize(9);
+
+            $sheet->getStyle("{$docStartLetter}{$r1}:{$docStartLetter}{$r3}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+            $midEndLetter = Coordinate::stringFromColumnIndex(max($chunkStartCol, $docStartCol - 1));
+            $centerStartLetter = Coordinate::stringFromColumnIndex($chunkStartCol);
+
+            $sheet->setCellValue("{$centerStartLetter}{$r1}", $judulProses . "\n(" . $namaProduk . ")");
+            $sheet->mergeCells("{$centerStartLetter}{$r1}:{$midEndLetter}{$r4}");
+            $sheet->getStyle("{$centerStartLetter}{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle("{$centerStartLetter}{$r1}")->getFont()->setBold(true)->setSize(13)->setUnderline(true);
+            $sheet->mergeCells("{$centerStartLetter}{$lastKopRow}:{$midEndLetter}{$lastKopRow}");
+
+            $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$lastKopRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $sheet->getStyle("{$docStartLetter}{$r1}:{$docEndLetter}{$r4}")->getFont()->setSize(10);
         } else {
-            $ttdText = $namaApprover !== '' ? "Checked\n\nApproved by: " . $namaApprover : "Checked";
+            // Non-startup (Production, Foregoing, & Startup Horizontal)
+            $sheet->setCellValue("{$docStartLetter}{$r1}", "No. Dok / No."); 
+            $sheet->setCellValue("{$docMidLetter}{$r1}", ": " . $noDok);
+            $sheet->mergeCells("{$docMidLetter}{$r1}:{$docEndLetter}{$r1}");
+
+            $sheet->setCellValue("{$docStartLetter}{$r2}", "Berlaku");      
+            $sheet->setCellValue("{$docMidLetter}{$r2}", ": " . $tglBerlaku);
+            $sheet->mergeCells("{$docMidLetter}{$r2}:{$docEndLetter}{$r2}");
+
+            $sheet->setCellValue("{$docStartLetter}{$r3}", "Checked");
+            $sheet->mergeCells("{$docStartLetter}{$r3}:{$docEndLetter}{$r3}");
+            $sheet->getStyle("{$docStartLetter}{$r3}")
+                  ->getAlignment()
+                  ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                  ->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle("{$docStartLetter}{$r3}")
+                  ->getFont()
+                  ->setBold(true);
+
+            $ttdText = $namaApprover !== '' ? "Approved by:\n" . $namaApprover : "";
             $sheet->setCellValue("{$docStartLetter}{$r4}", $ttdText);
             $sheet->mergeCells("{$docStartLetter}{$r4}:{$docEndLetter}{$r4}");
-            $sheet->getStyle("{$docStartLetter}{$r4}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+            $sheet->getStyle("{$docStartLetter}{$r4}")
+                  ->getAlignment()
+                  ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                  ->setVertical(Alignment::VERTICAL_CENTER)
+                  ->setWrapText(true);
+            $sheet->getStyle("{$docStartLetter}{$r4}")
+                  ->getFont()
+                  ->setSize(8.5);
+
+            $sheet->getStyle("{$docStartLetter}{$r1}:{$docStartLetter}{$r2}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+            $midEndLetter = Coordinate::stringFromColumnIndex(max($chunkStartCol, $docStartCol - 1));
+            $centerStartLetter = Coordinate::stringFromColumnIndex($chunkStartCol);
+
+            $sheet->setCellValue("{$centerStartLetter}{$r1}", $judulProses . "\n(" . $namaProduk . ")");
+            $sheet->mergeCells("{$centerStartLetter}{$r1}:{$midEndLetter}{$r3}");
+            $sheet->getStyle("{$centerStartLetter}{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle("{$centerStartLetter}{$r1}")->getFont()->setBold(true)->setSize(18)->setUnderline(true);
+            $sheet->mergeCells("{$centerStartLetter}{$r4}:{$midEndLetter}{$r4}");
+
+            $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $sheet->getStyle("{$docStartLetter}{$r1}:{$docEndLetter}{$r3}")->getFont()->setSize(12);
         }
-
-        $sheet->getStyle("{$docStartLetter}{$r1}:{$docStartLetter}{$r3}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-
-        // PERBAIKAN ERROR BARIS 510: Gunakan $centerStartCol (bukan $chunkStartCol)
-        $midEndLetter = Coordinate::stringFromColumnIndex(max($centerStartCol, $docStartCol - 1));
-        $centerStartLetter = Coordinate::stringFromColumnIndex($centerStartCol);
-
-        $sheet->setCellValue("{$centerStartLetter}{$r1}", $judulProses . "\n(" . $namaProduk . ")");
-        $sheet->mergeCells("{$centerStartLetter}{$r1}:{$midEndLetter}{$r3}");
-        $sheet->getStyle("{$centerStartLetter}{$r1}")->getAlignment()->setWrapText(true)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-
-        $judulFontSize = ($typeProcess === 'startup') ? 12 : 18;
-        $sheet->getStyle("{$centerStartLetter}{$r1}")->getFont()->setBold(true)->setSize($judulFontSize)->setUnderline(true);
-        $sheet->mergeCells("{$centerStartLetter}{$r4}:{$midEndLetter}{$r4}");
-
-        $sheet->getStyle("{$centerStartLetter}{$r1}:{$docEndLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-
-        $detailFontSize = ($typeProcess === 'startup') ? 10 : 14;
-        $sheet->getStyle("{$docStartLetter}{$r1}:{$docEndLetter}{$r4}")->getFont()->setSize($detailFontSize);
     }
 
     private function writeBlockFromGrid(array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols, int $identityCols, int $dataColsCount, int $PER_PAGE, int $totalPages) {
@@ -627,28 +708,32 @@ class ExcelGenerator
     }
 
     private function insertKopSuratVertical($sheet, $startRow, $namaProduk, $judulProses, $noDok, $machNo, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $identityCols, $PER_PAGE, $weeklyInfo = null) {
-        $r1 = $startRow; $r2 = $startRow + 1; $r3 = $startRow + 2; $r4 = $startRow + 3;
+        $r1 = $startRow; 
+        $r2 = $startRow + 1; 
+        $r3 = $startRow + 2; 
+        $r4 = $startRow + 3;
+        $r5 = $startRow + 4;
         $lastIdentityLetter = Coordinate::stringFromColumnIndex($identityCols + 1);
 
         $sheet->setCellValue("B{$r1}", "PT. FOXCONN TECHNOLOGIES INDONESIA\nProduction Engineering Department\nProcess Engineering Section\n" . $namaProduk);
-        $sheet->mergeCells("B{$r1}:{$lastIdentityLetter}{$r3}");
+        $sheet->mergeCells("B{$r1}:{$lastIdentityLetter}{$r4}");
         $sheet->getStyle("B{$r1}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
-        $sheet->getStyle("B{$r1}")->getFont()->setBold(true)->setSize(10);
+        $sheet->getStyle("B{$r1}")->getFont()->setBold(true)->setSize(10.5);
         
-        $sheet->setCellValue("B{$r4}", "MACHINE No : " . $machNo);
-        $sheet->mergeCells("B{$r4}:{$lastIdentityLetter}{$r4}");
-        $sheet->getStyle("B{$r4}")->getFont()->setBold(true)->setSize(10);
-        $sheet->getStyle("B{$r1}:{$lastIdentityLetter}{$r4}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->setCellValue("B{$r5}", "MACHINE No : " . $machNo);
+        $sheet->mergeCells("B{$r5}:{$lastIdentityLetter}{$r5}");
+        $sheet->getStyle("B{$r5}")->getFont()->setBold(true)->setSize(10.5);
+        $sheet->getStyle("B{$r1}:{$lastIdentityLetter}{$r5}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         
         $chunkStartCol = $identityCols + 2;
         $chunkEndCol = $chunkStartCol + $PER_PAGE - 1; 
         $docStartCol = $chunkEndCol - 2; 
 
-        // Pakai ulang fungsi kop surat
-        $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo);
+        // Pakai ulang fungsi kop surat 5 baris
+        $this->drawCenterAndRightKopSurat($sheet, $r1, $r2, $r3, $r4, $chunkStartCol, $chunkEndCol, $docStartCol, $namaProduk, $judulProses, $noDok, $tglBerlaku, $namaApprover, $revisi, $typeProcess, $weeklyInfo, $r5);
 
-        for ($r = $r1; $r <= $r3; $r++) $sheet->getRowDimension($r)->setRowHeight(20);
-        $sheet->getRowDimension($r4)->setRowHeight(38); 
+        for ($r = $r1; $r <= $r4; $r++) $sheet->getRowDimension($r)->setRowHeight(18);
+        $sheet->getRowDimension($r5)->setRowHeight(55); 
     }
 
     private function writeBlockVerticalChunk(array $grid, $sheet, int $startRow, int $identityCols, int $pageIndex, int $PER_PAGE) {

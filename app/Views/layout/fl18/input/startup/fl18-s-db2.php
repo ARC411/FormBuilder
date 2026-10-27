@@ -93,15 +93,12 @@ if (!function_exists('getValUnit')) {
             </td>
         </tr>
 
+        <!-- ITEM 6: TEKS BIASA AGAR BISA DIKOSONGKAN ATAU DIISI STRIP (-) -->
         <tr>
             <td >6</td>
             <td colspan="3">* Checking contact probe (Check jika patah atau bengkok ganti yang baru)</td>
             <td >
-                <select class="form-control text-center" id="par007" name="par007" required>
-                    <option value="" disabled <?php echo (!isset($alldata)) ? 'selected' : ''; ?>>-- Pilih --</option>
-                    <option value="OK" <?php echo (isset($alldata) && $alldata[0]['par007'] == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
-                    <option value="NG" <?php echo (isset($alldata) && $alldata[0]['par007'] == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
-                </select>
+                <input class="form-control text-center" type="text" id="par007" name="par007" placeholder="" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par007'] ?? '').'"';} ?>>
             </td>
         </tr>
 
@@ -117,10 +114,10 @@ if (!function_exists('getValUnit')) {
                     <input class="form-control" type="number" step="0.000000001" id="par008_val" value="<?= htmlspecialchars($p008['val']) ?>" 
                            oninput="combineData('par008')" 
                            onchange="combineData('par008'); validateDynamicUnit('par008')" placeholder="">
-                           <select class="form-control" id="par008_unit" onchange="combineData('par008'); validateDynamicUnit('par008')" style="max-width: 80px; padding: 0.375rem;">
-                                <option value="N" data-min="0.60" data-max="1.00" <?= $p008['unit'] == 'N' ? 'selected' : '' ?>>N</option>
-                                <option value="gr" data-min="60" data-max="100" <?= $p008['unit'] == 'gr' ? 'selected' : '' ?>>gr</option>
-                            </select>
+                    <select class="form-control" id="par008_unit" onchange="combineData('par008'); validateDynamicUnit('par008')" style="max-width: 80px; padding: 0.375rem;">
+                        <option value="N" data-min="0.60" data-max="1.00" <?= $p008['unit'] == 'N' ? 'selected' : '' ?>>N</option>
+                        <option value="gr" data-min="60" data-max="100" <?= $p008['unit'] == 'gr' ? 'selected' : '' ?>>gr</option>
+                    </select>
                 </div>
             </td>
         </tr>
@@ -163,10 +160,15 @@ if (!function_exists('getValUnit')) {
             </td>
         </tr>
 
+        <!-- ITEM 9 TERAKHIR: DROPDOWN OK / NG -->
         <tr>
             <td colspan="2">Nilai Air pressure, Dispenser time , vacuum pressure disesuaikan agar mendapatkan nilai <br>/hasil ag paste yg standard</td>
             <td>
-                <input class="form-control" type="text" id="par024" name="par024" placeholder="" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars($alldata[0]['par024'] ?? '').'"';} ?>>
+                <select class="form-control text-center" id="par024" name="par024" required>
+                    <option value="" disabled <?php echo (!isset($alldata) || empty($alldata[0]['par024'])) ? 'selected' : ''; ?>>-- Pilih --</option>
+                    <option value="OK" <?php echo (isset($alldata) && ($alldata[0]['par024'] ?? '') == 'OK') ? 'selected' : ''; ?>>✔ OK</option>
+                    <option value="NG" <?php echo (isset($alldata) && ($alldata[0]['par024'] ?? '') == 'NG') ? 'selected' : ''; ?>>✖ NG</option>
+                </select>
             </td>
         </tr>
 

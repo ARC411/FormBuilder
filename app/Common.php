@@ -22,20 +22,38 @@ if (!function_exists('getOperatorName')) {
      */
     function getOperatorName($row)
     {
-        if (empty($row) || !is_array($row)) {
+        if (empty($row)) {
             return '-';
         }
-        if (!empty($row['name']) && $row['name'] !== '-') {
-            return (string)$row['name'];
+        if (is_object($row)) {
+            if (!empty($row->name) &&$row->name !== '-') {
+                return (string)$row->name;
+            }
+            if (!empty($row->operator) &&$row->operator !== '-') {
+                return (string)$row->operator;
+            }
+            if (!empty($row->nama) &&$row->nama !== '-') {
+                return (string)$row->nama;
+            }
+            if (!empty($row->empid) &&$row->empid !== '-') {
+                return (string)$row->empid;
+            }
+            return '-';
         }
-        if (!empty($row['operator']) && $row['operator'] !== '-') {
-            return (string)$row['operator'];
-        }
-        if (!empty($row['nama']) && $row['nama'] !== '-') {
-            return (string)$row['nama'];
-        }
-        if (!empty($row['empid']) && $row['empid'] !== '-') {
-            return (string)$row['empid'];
+        if (is_array($row)) {
+            if (!empty($row['name']) &&$row['name'] !== '-') {
+                return (string)$row['name'];
+            }
+            if (!empty($row['operator']) &&$row['operator'] !== '-') {
+                return (string)$row['operator'];
+            }
+            if (!empty($row['nama']) &&$row['nama'] !== '-') {
+                return (string)$row['nama'];
+            }
+            if (!empty($row['empid']) &&$row['empid'] !== '-') {
+                return (string)$row['empid'];
+            }
+            return '-';
         }
         return '-';
     }
