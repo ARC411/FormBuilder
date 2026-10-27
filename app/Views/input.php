@@ -428,7 +428,7 @@ function updateInput() {
     let typeProcess, device, process;
     process = document.getElementById("process-txt").value;
 
-    if(!process || process === 'null' || process === '-'){
+    if (!process || process === 'null' || process === '-') {
         $('#submit').hide();
         $('#form-input').empty();
         document.getElementById('revisi-txt').value = "";
@@ -439,17 +439,15 @@ function updateInput() {
     let revField = document.getElementById('revisi-txt');
     let selectedDocType = $('#type-process-txt').val();
 
-    if(selectedDocType === 'production' || process.split("-")[1] == 'p'){
+    if (selectedDocType === 'production' || process.split("-")[1] == 'p') {
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
         typeProcess = "production";
-    }
-    else if(selectedDocType === 'foregoing' || process.split("-")[1] == 'f'){
+    } else if (selectedDocType === 'foregoing' || process.split("-")[1] == 'f') {
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
         typeProcess = "foregoing";
-    }
-    else{
+    } else {
         document.getElementById('model-txt').disabled = true;
         document.getElementById('lotno-txt').disabled = true;
         typeProcess = "startup";
@@ -464,8 +462,60 @@ function updateInput() {
 
     updateSetting(process);
 
+    // 1. Panggil Endpoint Dynamic Form Builder terlebih dahulu!
     $.ajax({
-        url: "<?php echo base_url();?>" + typeProcess + "/form?device=" + encodeURIComponent(device) + "&process=" + encodeURIComponent(process),
+        url: "<?= base_url('form-builder/render-input') ?>",
+        type: "GET",
+        data: {
+            device: device,
+            process: process,
+            doc_type: typeProcess
+        },
+        dataType: "JSON",
+        success: function(res) {
+            if (res && res.status === 'success' && res.html) {
+                $('#submit').show();
+                $('#form-input').html(res.html);
+
+                // Isi otomatis kolom Revisi dari Revisi Aktif di Form Builder
+                if (revField && res.revisi !== undefined) {
+                    revField.value = res.revisi;
+                }
+
+                // Sinkronkan juga akhiran Doc. No dengan Revisi aktif (jika Doc. No memiliki 4 segmen seperti FF-D2-003-14)
+                var docNoEl = document.getElementById("docno");
+                if (docNoEl && docNoEl.value && res.revisi !== undefined) {
+                    var dParts = docNoEl.value.split("-");
+                    if (dParts.length >= 4) {
+                        dParts[dParts.length - 1] = res.revisi;
+                        docNoEl.value = dParts.join("-");
+                    }
+                }
+
+                var processValue = document.getElementById("process-txt");
+                var header_modal = document.getElementById('catatan-modal-header');
+                if (processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
+                    header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
+                }
+
+                // Terapkan standar model jika Foregoing
+                if (typeof applyForegoingModelStandards === 'function') {
+                    applyForegoingModelStandards();
+                }
+            } else {
+                loadStaticFallbackForm(typeProcess, device, process);
+            }
+        },
+        error: function() {
+            loadStaticFallbackForm(typeProcess, device, process);
+        }
+    });
+}
+
+// Fallback ke form statis lama HANYA jika proses belum bisa dirender oleh Form Builder
+function loadStaticFallbackForm(typeProcess, device, process) {
+    $.ajax({
+        url: "<?= base_url() ?>" + typeProcess + "/form?device=" + encodeURIComponent(device) + "&process=" + encodeURIComponent(process),
         type: "GET",
         success: function(response) {
             if (response && response.trim() !== "") {
@@ -473,7 +523,7 @@ function updateInput() {
                 $('#form-input').html(response);
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
-                if(processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+                if (processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
                     header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
                 }
             } else {
