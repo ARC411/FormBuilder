@@ -5,7 +5,7 @@
             <th style="width: 140px;">Date</th>         
             <th>Device</th>
             <th>Process</th>
-            <th style="width: 170px;">Status</th>
+            <th style="width: 200px;">Status</th>
             <th style="width: 160px;">Person</th>
             <th style="width: 170px;">Action</th>
         </tr>
@@ -16,6 +16,7 @@
                 $st = $alldata[$i]['status'] ?? '';
                 $isReject = ($st === 'Reject');
                 $isPending = ($st === 'Pending' || $st === '' || $st === '-');
+                $isWeeklyReject = (strpos($alldata[$i]['reject_reason'] ?? '', 'Weekly Reject') !== false || strpos($alldata[$i]['reject_by'] ?? '', 'Weekly') !== false);
             ?>
             <tr class="<?= $isReject ? 'table-danger' : '' ?>">
                 <td class="text-center font-weight-bold"><?= $i+1; ?></td>
@@ -31,10 +32,16 @@
                 </td>
                 <td class="text-center">
                     <?php if($isReject): ?>
-                        <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                        <?php if($isWeeklyReject): ?>
+                            <span class="badge bg-danger py-1 px-2"><i class="fas fa-undo me-1"></i>Weekly Reject</span>
+                        <?php else: ?>
+                            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                        <?php endif; ?>
+
                         <?php if(!empty($alldata[$i]['reject_reason'])): ?>
                             <div class="small text-danger text-start mt-1 p-1 bg-white border border-danger rounded shadow-sm" style="font-size:0.75rem;">
-                                <strong>Alasan:</strong> <?= esc($alldata[$i]['reject_reason']) ?>
+                                <strong><?= $isWeeklyReject ? '<i class="fas fa-exclamation-triangle text-danger me-1"></i>Catatan Weekly Approver:' : 'Alasan:' ?></strong> 
+                                <?= esc($alldata[$i]['reject_reason']) ?>
                             </div>
                         <?php endif; ?>
                     <?php elseif($isPending): ?>
@@ -61,7 +68,7 @@
                     $userLevel = (int)$session->get('level');
                     $canApproveLevel = ($userLevel == 14 || $userLevel == 10 || ($userLevel <= 7 && $userLevel > 0));
 
-                    if ($canApproveLevel && $isPending) {
+                    if ($canApproveLevel && ($isPending || $isReject)) {
                     ?>
                         <div class="d-flex justify-content-center gap-1">
                             <form action="<?= base_url('approve') ?>" method="post" class="d-inline">
@@ -70,10 +77,11 @@
                                 <input type="hidden" name="name" value="<?= esc($session->get('name')) ?>">
                                 <input type="hidden" name="level" value="<?= esc($session->get('level')) ?>">
                                 <input type="hidden" name="action" value="Approve">
-                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Apakah Anda yakin menyetujui checksheet ini?');">
-                                    <i class="fas fa-check me-1"></i>Approve
+                                <button type="submit" class="btn btn-sm <?= $isReject ? 'btn-outline-success font-weight-bold' : 'btn-success' ?>" onclick="return confirm('Apakah Anda yakin menyetujui checksheet ini<?= $isReject ? ' setelah perbaikan' : '' ?>?');" title="<?= $isReject ? 'Setujui ulang checksheet ini setelah perbaikan' : 'Approve checksheet' ?>">
+                                    <i class="fas <?= $isReject ? 'fa-check-double' : 'fa-check' ?> me-1"></i><?= $isReject ? 'Re-Approve' : 'Approve' ?>
                                 </button>
                             </form>
+                            <?php if(!$isReject): ?>
                             <button type="button" class="btn btn-sm btn-danger btn-open-reject" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#modalReject" 
@@ -82,6 +90,7 @@
                                     data-machno="<?= esc($alldata[$i]['machno'] ?? '-') ?>">
                                 <i class="fas fa-times me-1"></i>Reject
                             </button>
+                            <?php endif; ?>
                         </div>
                     <?php 
                     } elseif ($isReject) {

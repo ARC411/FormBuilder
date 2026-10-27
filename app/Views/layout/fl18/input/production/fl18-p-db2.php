@@ -2,8 +2,9 @@
 <div class="table-responsive">
   <?= csrf_field(); ?>
   <input type="hidden" name="cnt-proses" value="1">
-<input type="hidden" id="number-edit" name="number-edit" value=<?php if(isset($alldata)){echo $number;} ?>>
-<?php $currentStd = isset($alldata) ? ($alldata[0]['std_die_bond'] ?? '') : ''; ?>
+  <input type="hidden" id="number-edit" name="number-edit" value="<?php if(isset($alldata)){echo $number;} ?>">
+  <input type="hidden" id="par016" name="par016" value="<?php if(isset($alldata)){echo htmlspecialchars($alldata[0]['par016'] ?? '');} ?>">
+  <?php $currentStd = isset($alldata) ? ($alldata[0]['std_die_bond'] ?? '') : ''; ?>
 
   <!-- Pilihan Jenis SM-Chip -->
   <div class="mb-3 row align-items-center">
@@ -23,11 +24,10 @@
   <table class="table table-striped-columns">
     <thead align="center">
       <tr>
-        <th colspan="10" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
+        <th colspan="9" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
       </tr>
       <tr>
         <th class="input-form" colspan="3" scope="col">Quantity</th>
-        <th class="input-form" rowspan="4">Yield (%)</th>
         <th class="input-form" colspan="6" scope="col">Foregoing Result (40 pcs/lot)</th>
       </tr>
       <tr>
@@ -56,10 +56,7 @@
           <input type="text" class="form-control" id="par014" name="par014" onchange="quantityChange1()" onkeyup="quantityChange1()" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par014'];} ?>>
         </td>
         <td rowspan="2">
-          <input type="text" class="form-control" id="par015" name="par015" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par015'];} ?>>
-        </td>
-        <td rowspan="2">
-          <input type="text" class="form-control" id="par016" name="par016" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par016'];} ?>>
+          <input type="text" class="form-control" id="par015" name="par015" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par015'];} ?> readonly>
         </td>
         <td rowspan="2">
           <select class="form-select" id="par035" name="par035" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par035'];} ?>>
@@ -541,7 +538,6 @@ function updateDieBondStd() {
     
     var minVal = 0;
     
-    // Tentukan standar berdasarkan jenis SM-chip
     if (chipType === "350") {
         minVal = 2.8;
     } else if (chipType === "450") {
@@ -550,17 +546,14 @@ function updateDieBondStd() {
         minVal = 8.7;
     }
     
-    // Simpan nilai untuk dikirim ke database
     if (stdInput) {
         stdInput.value = minVal > 0 ? minVal : "";
     }
 
-    // Update tampilan standar di tabel
     if (stdLabel) {
         stdLabel.innerHTML = minVal > 0 ? minVal : "-";
     }
     
-    // Pasang fungsi validasi pada input
     if (input1st) {
         input1st.setAttribute("min", minVal);
     }
@@ -569,18 +562,16 @@ function updateDieBondStd() {
     }
 }
 
-// Jalankan saat pertama kali dimuat jika sudah ada nilai (misal mode edit)
 if (document.getElementById("sm_chip_type") && document.getElementById("sm_chip_type").value !== "") {
     updateDieBondStd();
 }
 
-// Tambahkan validasi saat operator mengetik/mengubah angka
 if (document.getElementById("par017")) {
     document.getElementById("par017").addEventListener("change", function() {
         let minReq = parseFloat(this.getAttribute("min"));
         if (this.value !== "" && !isNaN(minReq) && minReq > 0 && parseFloat(this.value) < minReq) {
             alert("NG! Nilai di bawah standar minimum (" + minReq + " N) untuk SM-chip tersebut.");
-            this.value = ""; // Reset form jika NG
+            this.value = "";
         }
     });
 }
@@ -590,7 +581,7 @@ if (document.getElementById("par018")) {
         let minReq = parseFloat(this.getAttribute("min"));
         if (this.value !== "" && !isNaN(minReq) && minReq > 0 && parseFloat(this.value) < minReq) {
             alert("NG! Nilai di bawah standar minimum (" + minReq + " N) untuk SM-chip tersebut.");
-            this.value = ""; // Reset form jika NG
+            this.value = "";
         }
     });
 }
