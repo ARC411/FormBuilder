@@ -77,10 +77,6 @@ $routes->get('/input', 'Input::index');
 $routes->get('/input/note-form/(:any)', 'Input::formStandard/$1');
 $routes->get('/history', 'History::index');
 $routes->get('/history/export/ff-d2-001', 'History::exportFF_D2_001');
-<<<<<<< HEAD
-// Route tambahan untuk History Dinamis & Filter Revisi
-=======
->>>>>>> 70e93cf9cea6cc30e7a3cd0e1f4ea04142981339
 $routes->get('history/revisions', 'History::getRevisions');
 $routes->get('history/data', 'History::getDataTable');
 
@@ -162,11 +158,7 @@ $routes->post('form-builder/row-move', 'FormBuilder::moveMatrixRow');
 $routes->match(['GET', 'POST'], 'form-builder/render-input', 'FormBuilder::renderOperatorForm');
 
 // ==========================================================
-<<<<<<< HEAD
-// 14. MASTER DATA: MODEL LIST
-=======
 // 13. MASTER DATA: MODEL LIST
->>>>>>> 70e93cf9cea6cc30e7a3cd0e1f4ea04142981339
 // ==========================================================
 $routes->get('model/list', 'ModelData::getList');
 $routes->post('model/auto-register', 'ModelData::autoRegister');
