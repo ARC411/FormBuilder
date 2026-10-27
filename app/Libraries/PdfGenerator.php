@@ -397,7 +397,17 @@ class PdfGenerator
                 <tr><td style="width: 50%; text-align: center; padding: 2px; font-weight: bold;">QC</td><td style="width: 50%; text-align: center; padding: 2px; font-weight: bold;">Production</td></tr>
                 <tr><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $qcBox . '</td><td style="height: 28px; text-align: center; vertical-align: middle; padding: 1px;">' . $prodBox . '</td></tr>';
         } else {
-            $ttd = $namaApprover !== "" ? '<span style="font-size: 8px;">Approved by:<br><b>' . htmlspecialchars($namaApprover) . '</b></span>' : '';
+                        $ttd = $namaApprover !== "" ? '<span style="font-size: 8px;">Approved by:<br><b>' . htmlspecialchars($namaApprover) . '</b></span>' : '';
+            if (isset($typeProcess) && $typeProcess === 'production' && !empty($weeklyInfo)) {
+                $statusApp = !empty($weeklyInfo['status']) ? strtolower($weeklyInfo['status']) : '';
+                if ($statusApp === 'approve' || (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') || (!empty($weeklyInfo['status_production']) && strtolower($weeklyInfo['status_production']) === 'approve')) {
+                    $appName = htmlspecialchars(!empty($weeklyInfo['approver']) ? $weeklyInfo['approver'] : (!empty($weeklyInfo['approver_qc']) ? $weeklyInfo['approver_qc'] : $weeklyInfo['approver_production']));
+                    $appRole = htmlspecialchars(!empty($weeklyInfo['approver_role']) ? $weeklyInfo['approver_role'] : (!empty($weeklyInfo['approver_qc']) ? 'QC' : 'Production'));
+                    $rawDate = !empty($weeklyInfo['approval_date']) ? $weeklyInfo['approval_date'] : (!empty($weeklyInfo['date_qc']) ? $weeklyInfo['date_qc'] : $weeklyInfo['date_production']);
+                    $appDate = !empty($rawDate) ? date('d-m-Y', strtotime($rawDate)) : '';
+                    $ttd = '<div style="font-size: 6.5px; line-height: 1.1;">Approved by:<br><b style="font-size: 7px;">' . $appName . '</b><br>(' . $appRole . ')<br>' . $appDate . '</div>';
+                }
+            }
             
             $infoRowsHtml = '
                 <tr><td style="width: 40%; text-align: left; padding: 2px;">No. Dok / No.</td><td style="text-align: left; padding: 2px;">: ' . htmlspecialchars($noDok) . '</td></tr>

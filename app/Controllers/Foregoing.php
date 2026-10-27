@@ -96,18 +96,34 @@ class Foregoing extends BaseController
         return array_values(array_unique($emails));
     }
 
-    public function index()
+    public function index(): string
     {
         if (!$this->session->has('empid')) {
-            return redirect()->to(base_url('login'));
+            return redirect()->to('/checkseet/login');
         }
 
-        // Sesuai instruksi: untuk Foregoing semua data ditampilkan (kecuali poin 1)
+        $empid = trim((string) $this->session->get('empid'));
+        $name  = trim((string) $this->session->get('name'));
+        $role  = strtolower(trim((string) $this->session->get('role')));
+        $level = (int) ($this->session->get('level') ?? 99);
+
+        $isApproverOrAdmin = (
+            in_array($role, ['admin', 'foreman', 'leader', 'supervisor'], true) ||
+            strtolower($empid) === 'admin' ||
+            $level === 14 ||
+            $level === 10 ||
+            ($level > 0 && $level <= 7)
+        );
+
+        $filterEmpId = $isApproverOrAdmin ? null : $empid;
+        $filterName  = $isApproverOrAdmin ? null : $name;
+
         $data = [
-            'title'      => 'Data Foregoing | Startup Management',
-            'alldata'    => $this->ForegoingModel->getAllData(),
-            'isOperator' => $this->isRegularOperator(),
+            'title'         => 'Data Foregoing | Startup Management',
+            'alldata'       => $this->ForegoingModel->getAllData($filterEmpId, $filterName),
+            'rejectedCount' => $this->ForegoingModel->getRejectedCountByOperator($empid, $name),
         ];
+
         return view('foregoing', $data);
     }
 

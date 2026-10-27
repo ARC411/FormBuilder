@@ -60,8 +60,8 @@
                       <i class="fas fa-thumbs-up"></i> Approval
                     </a>
                     <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarDropdownApproval">
-                      <li><a class="dropdown-item py-2" href="'.base_url().'approve"><i class="fas fa-calendar-day text-primary me-2"></i> Daily / Startup</a></li>
-                      <li><a class="dropdown-item py-2" href="'.base_url().'approval/weekly"><i class="fas fa-calendar-week text-success me-2"></i> Weekly Approval</a></li>
+                      <li><a class="dropdown-item py-2" href="' . base_url() . 'approve"><i class="fas fa-calendar-day text-primary me-2"></i> Daily / Startup</a></li>
+                      <li><a class="dropdown-item py-2" href="' . base_url() . 'approval/weekly"><i class="fas fa-th-large text-success me-2"></i> Pusat Approval Checksheet</a></li>
                     </ul>
                   </li>';
               }

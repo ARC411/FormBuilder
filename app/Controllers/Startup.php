@@ -447,7 +447,16 @@ class Startup extends BaseController
                 $key = 'par' . str_pad((string)$p, 3, '0', STR_PAD_LEFT);
                 $valSfx = $this->request->getVar($key . $sfx);
                 if ($blockNo === 1) {
-                    $rowPayload[$key] = ($valSfx !== null) ? $valSfx : $this->request->getVar($key);
+                    $finalVal = ($valSfx !== null) ? $valSfx : $this->request->getVar($key);
+                    // Fallback anti-gagal: jika input hidden kosong tapi _val diisi operator, gabungkan langsung di server!
+                    if (($finalVal === null || trim((string)$finalVal) === '') && $this->request->getVar($key . '_val') !== null) {
+                        $rawNum = str_replace(',', '.', trim((string)$this->request->getVar($key . '_val')));
+                        $rawUnit = trim((string)($this->request->getVar($key . '_unit') ?? ''));
+                        if ($rawNum !== '') {
+                            $finalVal = $rawUnit !== '' ? ($rawNum . ' ' . $rawUnit) : $rawNum;
+                        }
+                    }
+                    $rowPayload[$key] = $finalVal;
                 } else {
                     $rowPayload[$key] = $valSfx;
                 }

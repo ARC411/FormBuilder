@@ -89,9 +89,13 @@ $routes->match(['post', 'put', 'patch'], '/approve', 'Approval::updateApproval')
 $routes->match(['post', 'put', 'patch'], '/approve/(:any)', 'Approval::updateApproval');
 $routes->get('/approval/history/(:any)', 'Approval::approvalById/$1');
 $routes->get('/approval/weekly', 'Approval::weekly');
+$routes->get('/approval/getWeeklyMachines', 'Approval::getWeeklyMachines');
 $routes->post('/approval/processWeekly', 'Approval::processWeekly');
+$routes->post('/approval/rejectWeeklyStartup', 'Approval::rejectWeeklyStartup');
 $routes->get('/approval/detail_mingguan/(:num)', 'Approval::detail_mingguan/$1');
 $routes->get('/approval/weekly_form/(:segment)', 'Approval::weekly_form/$1');
+$routes->get('/approval/detail_production/(:num)', 'Approval::detail_production/$1');
+$routes->get('/approval/sync_production', 'Approval::syncProduction');
 $routes->get('/approval/([a-zA-Z0-9]+)', 'Home::approval/$1');
 
 // ==========================================================
