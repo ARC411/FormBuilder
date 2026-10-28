@@ -1,9 +1,13 @@
 Folder PATH listing for volume www
-Volume serial number is 00000037 3C25:73BB
+Volume serial number is 00000054 3C25:73BB
 \\192.168.132.22\WWW\CHECKSEET\APP
 |   Common.php
 |   index.html
 |   
++---Commands
+|       CloseWeeklyData.php
+|       CloseWeeklyDataSlash.php
+|       
 +---Config
 |   |   App.php
 |   |   Autoload.php
@@ -36,6 +40,7 @@ Volume serial number is 00000037 3C25:73BB
 |   |   Paths.php
 |   |   Publisher.php
 |   |   Routes.php
+|   |   Routes.php.bak
 |   |   Routing.php
 |   |   Security.php
 |   |   Services.php
@@ -53,6 +58,7 @@ Volume serial number is 00000037 3C25:73BB
 +---Controllers
 |       Admin.php
 |       Approval.php
+|       Approval.php.bak
 |       Auth.php
 |       BaseController.php
 |       Cleansing.php
@@ -86,6 +92,9 @@ Volume serial number is 00000037 3C25:73BB
 |   |       2026-10-12-011532_CreateFormDynamicTables.php
 |   |       2026-10-12-150000_UpdateRevisiFromDocno.php
 |   |       2026-10-13-031735_AddStdDieBondToProduction.php
+|   |       2026-10-13-042145_AddUnitColumnsToStartupDB2.php
+|   |       2026-10-19-154000_AddDeviceProcessApproversToWeeklyApproval.php
+|   |       2026-10-21-000001_AddEditLockAndForegoingApproval.php
 |   |       
 |   \---Seeds
 |           MachineListSeeder.php
@@ -116,11 +125,13 @@ Volume serial number is 00000037 3C25:73BB
 |       ProcessModel.php
 |       ProductionModel.php
 |       StartupModel.php
+|       StartupModel.php.bak
 |       WeeklyApprovalModel.php
 |       
 +---ThirdParty
 \---Views
     |   approval.php
+    |   approval_hub.php
     |   data.php
     |   device.php
     |   edit-foregoing.php
@@ -141,10 +152,16 @@ Volume serial number is 00000037 3C25:73BB
     |   production.php
     |   register.php
     |   startup.php
+    |   startup_detail.php
     |   upload_form.php
     |   upload_success.php
     |   weekly_approval.php
+    |   weekly_approval_foregoing.php
+    |   weekly_approval_production.php
+    |   weekly_approval_startup.php
     |   weekly_detail.php
+    |   weekly_form_detail.php
+    |   weekly_production_detail.php
     |   welcome_message.php
     |   
     +---errors

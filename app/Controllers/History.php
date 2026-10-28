@@ -19,6 +19,7 @@ class History extends BaseController
     protected $StartupModel;
     protected $ForegoingModel;
     protected $EmpModel;
+    private ?array $nameToEmpIdMap = null;
 
     public function __construct()
     {
@@ -92,7 +93,52 @@ class History extends BaseController
         return $row ?: [];
     }
 
-        private function resolveExportContext(
+    /**
+     * Mengubah Nama Karyawan / Foreman / Approver menjadi EmpID berdasarkan database second (tbempinfa)
+     */
+    private function resolveNameToEmpId(string $val): string
+    {
+        $clean = trim($val);
+        if ($clean === '' || $clean === '-') {
+            return '-';
+        }
+
+        // Jika sudah berbentuk EmpID (angka / kode pendek tanpa spasi), langsung kembalikan
+        if (preg_match('/^[0-9A-Za-z_-]{3,12}$/', $clean) && preg_match('/\d/', $clean)) {
+            return $clean;
+        }
+
+        if ($this->nameToEmpIdMap === null) {
+            $this->nameToEmpIdMap = [];
+            try {
+                $db2 = \Config\Database::connect('second');
+                $rows = $db2->query("SELECT empid, firstname, midname, lastname FROM tbempinfa")->getResultArray();
+                foreach ($rows as $r) {
+                    $empId = trim((string) ($r['empid'] ?? ''));
+                    if ($empId === '') {
+                        continue;
+                    }
+                    $full = trim(($r['firstname'] ?? '') . ' ' . ($r['midname'] ?? '') . ' ' . ($r['lastname'] ?? ''));
+                    $fullNorm = strtoupper((string) preg_replace('/\s+/', ' ', $full));
+                    if ($fullNorm !== '') {
+                        $this->nameToEmpIdMap[$fullNorm] = $empId;
+                    }
+                    $firstLast = trim(($r['firstname'] ?? '') . ' ' . ($r['lastname'] ?? ''));
+                    $flNorm = strtoupper((string) preg_replace('/\s+/', ' ', $firstLast));
+                    if ($flNorm !== '' && !isset($this->nameToEmpIdMap[$flNorm])) {
+                        $this->nameToEmpIdMap[$flNorm] = $empId;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Abaikan jika gagal koneksi DB second
+            }
+        }
+
+        $lookupKey = strtoupper((string) preg_replace('/\s+/', ' ', $clean));
+        return $this->nameToEmpIdMap[$lookupKey] ?? $clean;
+    }
+
+    private function resolveExportContext(
         string $typeProcess,
         string $process,
         string $device,
@@ -100,23 +146,18 @@ class History extends BaseController
         string $dateEnd,
         string $model = '',
         string $lotno = '',
-        string $machno = '',
-        $weeklyIdParam = null
+        string $machno = ''
     ): array {
         $alldata = [];
         if ($typeProcess === 'production') {
-            if (!empty($weeklyIdParam)) {
-                $alldata = $this->ProductionModel->getByWeeklyId($weeklyIdParam);
-            } else {
-                $alldata = $this->ProductionModel->getAll(
-                    $dateStart,
-                    $dateEnd,
-                    $process,
-                    $model,
-                    $lotno,
-                    $machno
-                );
-            }
+            $alldata = $this->ProductionModel->getAll(
+                $dateStart,
+                $dateEnd,
+                $process,
+                $model,
+                $lotno,
+                $machno
+            );
         } elseif ($typeProcess === 'foregoing') {
             $alldata = $this->ForegoingModel->getAll(
                 $dateStart,
@@ -154,6 +195,20 @@ class History extends BaseController
                 $latestDate = $rowDate;
             }
 
+            // Konversi Foreman, Leader, Supervisor, dan Operator menjadi EmpID
+            if (!empty($row['empid']) && $row['empid'] !== '-') {
+                $row['name'] = trim((string) $row['empid']);
+            } elseif (!empty($row['name']) && $row['name'] !== '-') {
+                $row['empid'] = $this->resolveNameToEmpId((string) $row['name']);
+                $row['name']  = $row['empid'];
+            }
+
+            foreach (['supervisor', 'leader', 'foreman'] as $appCol) {
+                if (!empty($row[$appCol]) && $row[$appCol] !== '-') {
+                    $row[$appCol] = $this->resolveNameToEmpId((string) $row[$appCol]);
+                }
+            }
+
             if ($namaApprover === '') {
                 $spvVal = trim((string) ($row['supervisor'] ?? ''));
                 $ldrVal = trim((string) ($row['leader'] ?? ''));
@@ -168,7 +223,6 @@ class History extends BaseController
                 }
             }
 
-            // Poin 1: Jika Production dan Operator Finish (empid2 / name2) kosong, kosongkan Waktu Out (par009 & par010) menjadi '-'
             if ($typeProcess === 'production') {
                 $emp2Check = trim((string) ($row['empid2'] ?? ''));
                 $name2Check = trim((string) ($row['name2'] ?? ''));
@@ -282,19 +336,14 @@ class History extends BaseController
                     }
                 }
             }
-        } elseif ($typeProcess === 'production') {
-            $weeklyModel = new \App\Models\WeeklyApprovalModel();
-            $targetWeeklyId = !empty($weeklyIdParam) ? $weeklyIdParam : null;
-            if (!$targetWeeklyId && !empty($alldata)) {
-                foreach ($alldata as $r) {
-                    if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
-                        $targetWeeklyId = $r['weekly_id'];
-                        break;
-                    }
+
+            if ($weeklyInfo) {
+                if (!empty($weeklyInfo['approver_qc'])) {
+                    $weeklyInfo['approver_qc'] = $this->resolveNameToEmpId((string) $weeklyInfo['approver_qc']);
                 }
-            }
-            if ($targetWeeklyId) {
-                $weeklyInfo = $weeklyModel->find($targetWeeklyId);
+                if (!empty($weeklyInfo['approver_production'])) {
+                    $weeklyInfo['approver_production'] = $this->resolveNameToEmpId((string) $weeklyInfo['approver_production']);
+                }
             }
         }
 
@@ -331,7 +380,7 @@ class History extends BaseController
         $lotno = (string) ($req->getGet('lotno') ?? '');
         $rawMach = $req->getGet('machno');
         $machno = ($rawMach === 'null') ? '' : (string) ($rawMach ?? '');
-        $weeklyId = $req->getGet('weekly_id');
+
         try {
             $context = $this->resolveExportContext(
                 $typeProcess,
@@ -341,8 +390,7 @@ class History extends BaseController
                 $dateEnd,
                 $model,
                 $lotno,
-                $machno,
-                $weeklyId
+                $machno
             );
 
             $_SERVER['REQUEST_URI'] = 'exportExcel';
@@ -383,7 +431,7 @@ class History extends BaseController
         $lotno = (string) ($req->getGet('lotno') ?? '');
         $rawMach = $req->getGet('machno');
         $machno = ($rawMach === 'null') ? '' : (string) ($rawMach ?? '');
-        $weeklyId = $req->getGet('weekly_id');
+
         try {
             $context = $this->resolveExportContext(
                 $typeProcess,
@@ -393,8 +441,7 @@ class History extends BaseController
                 $dateEnd,
                 $model,
                 $lotno,
-                $machno,
-                $weeklyId
+                $machno
             );
 
             $_SERVER['REQUEST_URI'] = 'exportPDF';

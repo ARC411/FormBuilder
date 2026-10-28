@@ -1,3 +1,59 @@
+<?php
+if (!function_exists('resolveStartupEmpId')) {
+    function resolveStartupEmpId($val) {
+        static $empMap = null;
+        $clean = trim((string)$val);
+        if ($clean === '' || $clean === '-') {
+            return '-';
+        }
+        if (preg_match('/^[0-9A-Za-z_-]{3,12}$/', $clean) && preg_match('/\d/', $clean)) {
+            return $clean;
+        }
+        if ($empMap === null) {
+            $empMap = [];
+            try {
+                $db2 = \Config\Database::connect('second');
+                $rows = $db2->query("SELECT empid, firstname, midname, lastname FROM tbempinfa")->getResultArray();
+                foreach ($rows as $r) {
+                    $eid = trim((string)($r['empid'] ?? ''));
+                    if ($eid === '') continue;
+                    $full = strtoupper(trim(preg_replace('/\s+/', ' ', ($r['firstname'] ?? '') . ' ' . ($r['midname'] ?? '') . ' ' . ($r['lastname'] ?? ''))));
+                    if ($full !== '') $empMap[$full] = $eid;
+                    $fl = strtoupper(trim(preg_replace('/\s+/', ' ', ($r['firstname'] ?? '') . ' ' . ($r['lastname'] ?? ''))));
+                    if ($fl !== '' && !isset($empMap[$fl])) $empMap[$fl] = $eid;
+                }
+            } catch (\Throwable $e) {
+                // Abaikan jika gagal koneksi
+            }
+        }
+        $key = strtoupper((string)preg_replace('/\s+/', ' ', $clean));
+        return $empMap[$key] ?? $clean;
+    }
+}
+
+if (!function_exists('formatStartupCheckedEmpId')) {
+    function formatStartupCheckedEmpId($row) {
+        if (!is_array($row)) return '-';
+        $rawStatus = strtolower(trim((string)($row['status'] ?? '')));
+        if ($rawStatus === '' || $rawStatus === '-' || (strpos($rawStatus, 'approve') === false && strpos($rawStatus, 'bypass') === false && strpos($rawStatus, 'check') === false)) {
+            return '-';
+        }
+        $spv = trim((string)($row['supervisor'] ?? ''));
+        $ldr = trim((string)($row['leader'] ?? ''));
+        $frm = trim((string)($row['foreman'] ?? ''));
+        if ($spv !== '' && $spv !== '-') {
+            return resolveStartupEmpId($spv) . ' (Supervisor)';
+        }
+        if ($ldr !== '' && $ldr !== '-') {
+            return resolveStartupEmpId($ldr) . ' (Leader)';
+        }
+        if ($frm !== '' && $frm !== '-') {
+            return resolveStartupEmpId($frm) . ' (Foreman)';
+        }
+        return '-';
+    }
+}
+?>
 <div class="table-responsive mt-3" id="sl56-s-db2">
 <?= csrf_field(); ?>
 <?php $lenData = is_array($alldata) ? count($alldata) : 0; ?>
@@ -259,30 +315,17 @@
 
         <tr>
             <td colspan="4">Operator</td>
-            <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= esc(getOperatorName($alldata[$i] ?? null)); ?></td>
+            <?php for($i = 0; $i < $lenData; $i++) { 
+                $opEmp = !empty($alldata[$i]['empid']) ? resolveStartupEmpId($alldata[$i]['empid']) : resolveStartupEmpId($alldata[$i]['name'] ?? '-');
+            ?>
+                <td colspan="col"><?= esc($opEmp); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td colspan="4">Checked</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <?php
-                    $rawStatus = !empty($alldata[$i]['status']) ? trim((string)$alldata[$i]['status']) : '-';
-                    if ($rawStatus !== '-' && $rawStatus !== '') {
-                        $checkedVal = str_ireplace(
-                            ['Approve by ', 'Approved by ', 'Approve by', 'Approved by', 'Approve ', 'Approved '],
-                            ['Check by ', 'Check by ', 'Check by ', 'Check by ', 'Check by ', 'Check by '],
-                            $rawStatus
-                        );
-                        if (strcasecmp($checkedVal, 'Approve') === 0 || strcasecmp($checkedVal, 'Approved') === 0) {
-                            $checkedVal = 'Check by';
-                        }
-                    } else {
-                        $checkedVal = '-';
-                    }
-                ?>
-                <td colspan="col"><?= $checkedVal; ?></td>
+                <td colspan="col"><?= esc(formatStartupCheckedEmpId($alldata[$i] ?? null)); ?></td>
             <?php } ?>
         </tr>
 
