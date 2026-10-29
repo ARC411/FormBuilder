@@ -100,12 +100,22 @@ class History extends BaseController
 
     public function foregoingByNumber($number)
     {
-        $rows     = $this->ForegoingModel->getByNumber($number);
-        $data     = ['alldata' => $rows];
-        $dev      = $rows[0]['device'];
-        $proc     = $rows[0]['process'];
-        $viewPath = "/layout/" . $dev . "/history/foregoing/" . $proc;
-        return view($viewPath, $data);
+        $rows = $this->ForegoingModel->getByNumber($number);
+        if (empty($rows)) {
+            return "Data tidak ditemukan.";
+        }
+
+        $machno       = !empty($rows[0]['machno']) ? esc($rows[0]['machno']) : '';
+        $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
+
+        try {
+            $fb = new \App\Controllers\FormBuilder();
+            return $machnoHidden . $fb->renderDetailTableByRows($rows[0]['process'], 'foregoing', $rows);
+        } catch (\Throwable $e) {
+            $dev  = $rows[0]['device'];
+            $proc = $rows[0]['process'];
+            return $machnoHidden . view("/layout/" . $dev . "/history/foregoing/" . $proc, ['alldata' => $rows]);
+        }
     }
 
     private function getProsesInfo(string $processCode): array
@@ -164,6 +174,9 @@ class History extends BaseController
         return $branch;
     }
 
+    /**
+     * KUNCI DATA: Mencegah data revisi lama tampil di revisi baru
+     */
     private function filterDataByRevisi(array $alldata, string $selectedRevisi, bool $includeEmptyLegacy = false): array
     {
         if (empty($alldata) || $selectedRevisi === '' || strtoupper($selectedRevisi) === 'ALL') {
@@ -176,15 +189,19 @@ class History extends BaseController
         foreach ($alldata as $row) {
             $rowRev = isset($row['revisi']) ? trim((string)$row['revisi']) : '';
 
+            // Jika kolom revisi kosong, cek apakah ada di segmen ke-4 docno
             if (($rowRev === '' || $rowRev === '-') && !empty($row['docno']) && $row['docno'] !== '-') {
                 $dParts = explode('-', trim((string)$row['docno']));
-                if (count($dParts) >= 4) {
+                if (count($dParts) >= 4 && is_numeric(end($dParts))) {
                     $rowRev = end($dParts);
                 }
             }
 
+            // Data legacy tanpa nomor revisi HANYA boleh tampil di revisi paling tua ($includeEmptyLegacy === true)
             if ($rowRev === '' || $rowRev === '-') {
-                $filtered[] = $row;
+                if ($includeEmptyLegacy) {
+                    $filtered[] = $row;
+                }
                 continue;
             }
 
@@ -195,7 +212,8 @@ class History extends BaseController
             }
         }
 
-        return !empty($filtered) ? $filtered : $alldata;
+        // Kembalikan $filtered apa adanya (JANGAN fallback ke $alldata jika data revisi baru memang masih kosong!)
+        return $filtered;
     }
 
     private function resolveExportContext(
@@ -263,8 +281,11 @@ class History extends BaseController
             }
         }
 
+        $targetRevToFilter   = ($selectedRevisi !== '' && strtoupper($selectedRevisi) !== 'ALL')
+            ? $selectedRevisi
+            : (string)($activeRevRow['revisi'] ?? '');
         $isOldestOrSingleRev = (count($revisionsList) <= 1) || ($activeRevRow && $oldestRevRow && $activeRevRow['id'] == $oldestRevRow['id']);
-        $alldata = array_values($this->filterDataByRevisi($alldata, $selectedRevisi, $isOldestOrSingleRev));
+        $alldata             = array_values($this->filterDataByRevisi($alldata, $targetRevToFilter, $isOldestOrSingleRev));
 
         $latestDate   = 0;
         $namaApprover = '';

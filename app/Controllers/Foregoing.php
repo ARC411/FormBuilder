@@ -146,12 +146,30 @@ class Foregoing extends BaseController
 
     public function formEdit()
     {
-        $data = [
-            'title' => 'History | Startup Management',
-            'alldata' => $this->ForegoingModel->getByNumber($_GET['number']),
-            'number' => $_GET['number']
-        ];
-        return view("/layout/".$data['alldata'][0]['device']."/input/foregoing/".$data['alldata'][0]['process'],$data);
+        $number  = $this->request->getGet('number');
+        $alldata = $this->ForegoingModel->getByNumber($number);
+        if (empty($alldata)) {
+            return "<div class='alert alert-warning'>Data tidak ditemukan.</div>";
+        }
+
+        $process   = $alldata[0]['process'];
+        $rowRevisi = $alldata[0]['revisi'] ?? null;
+
+        try {
+            $fb  = new \App\Controllers\FormBuilder();
+            $res = $fb->buildOperatorFormPayload($process, 'foregoing', $alldata, $number, $rowRevisi);
+            if (!empty($res['html'])) {
+                return $res['html'];
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Foregoing formEdit dynamic fallback: ' . $e->getMessage());
+        }
+
+        return view("/layout/" . $alldata[0]['device'] . "/input/foregoing/" . $process, [
+            'title'   => 'History | Startup Management',
+            'alldata' => $alldata,
+            'number'  => $number
+        ]);
     }
 
     public function edit($number)
@@ -291,16 +309,19 @@ class Foregoing extends BaseController
 
     public function foregoingByNumber($number)
     {
-        $data = ['alldata' => $this->ForegoingModel->getByNumber($number)];
-        if(empty($data['alldata'])) return "Data tidak ditemukan.";
-        
-        $folder = 'foregoing';
+        $rows = $this->ForegoingModel->getByNumber($number);
+        if (empty($rows)) {
+            return "Data tidak ditemukan.";
+        }
+
+        $machno       = !empty($rows[0]['machno']) ? esc($rows[0]['machno']) : '';
+        $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
+
         try {
-            $machno = !empty($data['alldata'][0]['machno']) ? esc($data['alldata'][0]['machno']) : '';
-            $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
-            return $machnoHidden . view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data); 
-        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
-            return "<div class='alert alert-danger'>Maaf, tampilan detail untuk proses ini belum tersedia.</div>";
+            $fb = new \App\Controllers\FormBuilder();
+            return $machnoHidden . $fb->renderDetailTableByRows($rows[0]['process'], 'foregoing', $rows);
+        } catch (\Throwable $e) {
+            return $machnoHidden . view("/layout/" . $rows[0]['device'] . "/history/foregoing/" . $rows[0]['process'], ['alldata' => $rows]);
         }
     }
 

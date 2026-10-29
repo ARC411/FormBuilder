@@ -145,67 +145,31 @@
         });
     });
 
-    function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
-    {
-        var empid = $.trim($(empIdTag).val());
-        if (empid.length > 0)
-        {
-            $.ajax({
-                url: "<?= base_url('home/ajaxAutofill'); ?>",
-                dataType:'JSON',
-                headers: {'X-Requested-With': 'XMLHttpRequest'},
-                data:"empid-txt=" + empid,
-                success: function(data)
-                {
-                    $(shiftTag).val(data.acc);
-                    $(empIdTag).val(data.empid);            
-                    $(groupTag).val(data.groupid);
-                    $(nameTag).val(data.name);
-                    const element = document.getElementById(empIdlTag);  
-                    element.classList.remove("visible"); 
-                    element.classList.add("invisible"); 
-                },
-                error: function(data)
-                {
-                    const element = document.getElementById(empIdlTag);  
-                    element.classList.remove("invisible"); 
-                    element.classList.add("visible"); 
-                    $(shiftTag).val('');            
-                    $(groupTag).val('');
-                    $(nameTag).val('');
-                },
-            });
-        }
-        else
-        {
-            $(shiftTag).val('');
-            $(groupTag).val('');
-        }
-    }
+    function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag)
+ {
+     var empid = $.trim($(empIdTag).val());
+     if (empid.length > 0) {
+         $.getJSON("<?= base_url('home/ajaxAutofill'); ?>", { "empid-txt": empid }, function(data) {
+             if (data && data.found) {
+                 if (data.acc) $(shiftTag).val(data.acc);
+                 if (data.groupid) $(groupTag).val(data.groupid);
+                 if (data.name) $(nameTag).val(data.name);
+                 $('#' + empIdlTag).removeClass("visible").addClass("invisible");
+             } else {
+                 $('#' + empIdlTag).removeClass("invisible").addClass("visible");
+             }
+         });
+     }
+ }
 
-    function injectForm()
-    {
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", "<?= base_url('startup/edit/form'); ?>?number=" + document.getElementById('number-edit').value, true);
-        xhr.onload = (e) => {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    var modal = document.getElementById('modal');
-                    modal.innerHTML = xhr.responseText;
-                    $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
-                } else {
-                    var modal = document.getElementById('modal');
-                    $('#submit').hide();
-                    modal.innerHTML = "";
-                    console.error(xhr.statusText);
-                }
-            }
-        };
-        xhr.onerror = (e) => {
-            console.error(xhr.statusText);
-        };
-        xhr.send(null);
-    }
+ function injectForm()
+ {
+     $.get("<?= base_url('startup/edit/form'); ?>", { number: $('#number-edit').val() }, function(responseHtml) {
+         $('#modal').html(responseHtml);
+         $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
+     });
+ }
+
   </script>
   <script src="<?= base_url('assets/js/form/test.js'); ?>"></script>
 </main>

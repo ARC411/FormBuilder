@@ -3,13 +3,11 @@
     <table class="table table-bordered table-hover" id="table1">
         <thead align="center">
             <tr>
-                <th colspan="31" scope="col"><?php echo nl2br("LD DIE BONDING 2 MACHINE")?></th>
+                <th colspan="29" scope="col"><?php echo nl2br("LD DIE BONDING 2 MACHINE")?></th>
             </tr>
             <tr>
                 <th rowspan="3">No.</th>
-                <th rowspan="3">Operator Start</th>         
-                <th rowspan="3">Shift/Group</th>
-                <th rowspan="3">Operator Finish</th>         
+                <th rowspan="3">Operator</th>         
                 <th rowspan="3">Shift/Group</th>
                 <th rowspan="3">Mch. No.</th>         
                 <th rowspan="3">Model</th>
@@ -56,10 +54,9 @@
         <tbody>
             <?php $i = 1; ?>
             <?php foreach($alldata as $c): 
+                $emp1Val   = trim((string)($c['empid'] ?? ''));
                 $name2Val  = trim((string)($c['name2'] ?? ''));
                 $emp2Val   = trim((string)($c['empid2'] ?? ''));
-                $shift2Val = trim((string)($c['shift2'] ?? ''));
-                $group2Val = trim((string)($c['group2'] ?? ''));
                 $hasOpFinish = (($name2Val !== '' && $name2Val !== '-') || ($emp2Val !== '' && $emp2Val !== '-'));
 
                 $timeInRaw  = trim((string)($c['par008'] ?? ''));
@@ -76,10 +73,8 @@
             ?>
             <tr>
                 <td rowspan="1"><?= $i++; ?></td>
-                <td rowspan="1"><?= (string)($c['name'] ?: '-'); ?></td>
+                <td rowspan="1"><?= $emp1Val !== '' ? $emp1Val : '-'; ?></td>
                 <td rowspan="1"><?= (!empty($c['shift']) && $c['shift'] !== '-') ? ((string)$c['shift'] . ' / ' . (string)$c['group']) : '-'; ?></td>
-                <td rowspan="1"><?= $hasOpFinish ? ($name2Val !== '' && $name2Val !== '-' ? $name2Val : $emp2Val) : '-'; ?></td>
-                <td rowspan="1"><?= ($hasOpFinish && $shift2Val !== '' && $shift2Val !== '-') ? ($shift2Val . ' / ' . $group2Val) : '-'; ?></td>
                 <td rowspan="1"><?= (string)($c['machno'] ?? '-'); ?></td>
                 <td rowspan="1"><?= (string)($c['model'] ?? '-'); ?></td>
                 <td rowspan="1"><?= (string)($c['lotno'] ?? '-'); ?></td>

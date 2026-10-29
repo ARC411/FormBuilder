@@ -183,18 +183,25 @@ class ForegoingModel extends Model
     {
         $db = \Config\Database::connect();
         $prosesMaster = $db->table('proses')->where('process_code', $data['process'])->get()->getRowArray();
+        $latestRevRow = $db->table('form_revisions')
+            ->where('process_code', $data['process'])
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRowArray();
+
+        $activeRevisi = $data['revisi'] ?? ($latestRevRow['revisi'] ?? ($prosesMaster['revisi'] ?? '0'));
 
         if ($prosesMaster) {
-            $data['par041'] = $prosesMaster['revisi'];
+            $data['par041'] = (string)$activeRevisi;
             $data['par042'] = $prosesMaster['berlaku'];
             $data['docno']  = $prosesMaster['docno'];
-            $data['revisi'] = $prosesMaster['revisi'];
         }
+        $data['revisi'] = (string)$activeRevisi;
 
-        $numVal = (int) $data['number'];
-        $par0Val = (int) $data['par000'];
-        $query = "SELECT * FROM foregoing WHERE `number` = " . $numVal . " AND `par000` = " . $par0Val;
-        $result = $this->query($query)->getRow();
+        $numVal  = (int)$data['number'];
+        $par0Val = (int)$data['par000'];
+        $query   = "SELECT * FROM foregoing WHERE `number` = " . $numVal . " AND `par000` = " . $par0Val;
+        $result  = $this->query($query)->getRow();
 
         if ($result == null) {
             if (!isset($data['status'])) {
@@ -204,11 +211,16 @@ class ForegoingModel extends Model
             $this->insert($data);
             return "Add foregoing";
         } else {
+            // Pertahankan revisi asli saat dokumen lama diedit
+            if (!empty($result->revisi) && $result->revisi !== '-') {
+                $data['revisi'] = $result->revisi;
+                $data['par041'] = $result->revisi;
+            }
             if (($result->status ?? '') === 'Reject') {
-                $data['status'] = 'Pending';
+                $data['status']        = 'Pending';
                 $data['reject_reason'] = null;
-                $data['reject_by'] = null;
-                $data['reject_date'] = null;
+                $data['reject_by']     = null;
+                $data['reject_date']   = null;
             }
             $data['edit_status'] = 0;
             $this->update($result->id, $data);

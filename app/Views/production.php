@@ -34,7 +34,6 @@
                             <th>Process</th>
                             <th>Lot No</th>
                             <th>EmpID Start</th>
-                            <th>EmpID Complete</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -102,7 +101,6 @@
                     }
                 },
                 { data: 'empid', render: esc },
-                { data: 'empid2', render: esc },
                 {
                     data: 'number',
                     orderable: false,

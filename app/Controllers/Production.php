@@ -42,12 +42,12 @@ class Production extends BaseController
     public function datatable()
     {
         $r = $this->request;
-        
+
         $orderData = $r->getGet('order');
         $order = (!empty($orderData) && is_array($orderData))
             ? $orderData[0]
             : ['column' => 1, 'dir' => 'desc'];
-        
+
         $searchData = $r->getGet('search');
         $searchValue = (!empty($searchData) && isset($searchData['value']))
             ? trim($searchData['value'])
@@ -127,22 +127,26 @@ class Production extends BaseController
             return "<div class='alert alert-warning'>Data tidak ditemukan.</div>";
         }
 
-        $device  = $alldata[0]['device'];
-        $process = $alldata[0]['process'];
+        $process   = $alldata[0]['process'];
+        $rowRevisi = $alldata[0]['revisi'] ?? null;
 
-        $data = [
+        try {
+            $fb  = new \App\Controllers\FormBuilder();
+            $res = $fb->buildOperatorFormPayload($process, 'production', $alldata, $number, $rowRevisi);
+            if (!empty($res['html'])) {
+                return $res['html'];
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Production formEdit dynamic fallback: ' . $e->getMessage());
+        }
+
+        $device = $alldata[0]['device'];
+        return view('/layout/' . $device . '/input/production/' . $process, [
             'title'   => 'History | Startup Management',
             'alldata' => $alldata,
             'process' => $process,
             'number'  => $number,
-        ];
-
-        try {
-            $viewPath = '/layout/' . $device . '/input/production/' . $process;
-            return view($viewPath, $data);
-        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
-            return "<div class='alert alert-danger'>Maaf, form checklist (" . esc($process) . ") belum tersedia.</div>";
-        }
+        ]);
     }
 
     public function deleteProduction($number)
@@ -159,16 +163,18 @@ class Production extends BaseController
     public function productionByNumber($number)
     {
         $rows = $this->ProductionModel->getByNumber($number);
-
         if (empty($rows)) {
             throw PageNotFoundException::forPageNotFound();
         }
 
-        $device  = $this->safeSegment($rows[0]['device']);
-        $process = $this->safeSegment($rows[0]['process']);
-        $viewPath = '/layout/' . $device . '/history/production/' . $process;
-
-        return view($viewPath, ['alldata' => $rows]);
+        try {
+            $fb = new \App\Controllers\FormBuilder();
+            return $fb->renderDetailTableByRows($rows[0]['process'], 'production', $rows);
+        } catch (\Throwable $e) {
+            $device  = $this->safeSegment($rows[0]['device']);
+            $process = $this->safeSegment($rows[0]['process']);
+            return view('/layout/' . $device . '/history/production/' . $process, ['alldata' => $rows]);
+        }
     }
 
     public function dataProduction()
@@ -229,6 +235,13 @@ class Production extends BaseController
         $v = $this->request->getVar($key . $suffix);
         if ($v === null) {
             $v = $this->request->getVar($key);
+        }
+        if (($v === null || trim((string)$v) === '') && $this->request->getVar($key . '_val') !== null) {
+            $rawNum  = str_replace(',', '.', trim((string)$this->request->getVar($key . '_val')));
+            $rawUnit = trim((string)($this->request->getVar($key . '_unit') ?? ''));
+            if ($rawNum !== '') {
+                $v = $rawUnit !== '' ? ($rawNum . ' ' . $rawUnit) : $rawNum;
+            }
         }
         return $v;
     }

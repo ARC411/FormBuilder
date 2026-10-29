@@ -123,90 +123,64 @@
   
   <link rel="stylesheet" href="<?= base_url('assets/css/jquery-ui.css'); ?>">
   <link rel="stylesheet" href="<?= base_url('assets/css/global.css'); ?>">
-  <script src="<?= base_url('assets/js/jquery-3.7.1.js'); ?>"></script>
   <script src="<?= base_url('assets/js/jquery-3.7.1.min.js'); ?>"></script>
   <script src="<?= base_url('assets/js/jquery-ui.js'); ?>"></script>
+  <script src="<?= base_url('assets/js/form/test.js'); ?>"></script>
   <script>
-    $(document).ready(function()
-    {
+    function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
+        var empid = $.trim($(empIdTag).val());
+        if (empid.length > 0) {
+            $.getJSON("<?= base_url('home/ajaxAutofill'); ?>", { "empid-txt": empid })
+                .done(function(data) {
+                    if (data && data.found) {
+                        if (data.acc) $(shiftTag).val(data.acc);
+                        if (data.groupid) $(groupTag).val(data.groupid);
+                        if (data.name) $(nameTag).val(data.name);
+                        $('#' + empIdlTag).removeClass("visible").addClass("invisible");
+                    } else {
+                        $('#' + empIdlTag).removeClass("invisible").addClass("visible");
+                    }
+                })
+                .fail(function() {
+                    // Jangan bersihkan input jika AJAX gagal agar isian manual tidak hilang
+                    $('#' + empIdlTag).removeClass("invisible").addClass("visible");
+                });
+        }
+    }
+
+    function injectForm() {
+        var num = $('#number-edit').val();
+        if (!num) return;
+
+        $.ajax({
+            url: "<?= base_url('foregoing/edit/form'); ?>",
+            type: "GET",
+            data: { number: num },
+            dataType: "html",
+            success: function(responseHtml) {
+                $('#modal').html(responseHtml);
+                $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
+            },
+            error: function(xhr) {
+                $('#modal').html("<div class='alert alert-danger'>Gagal memuat form edit.</div>");
+                $('#submit').hide();
+                console.error(xhr.responseText);
+            }
+        });
+    }
+
+    $(document).ready(function() {
         injectForm();
 
-        $('#submit').hide();
-        if($('#msgsuccess').html()!="Kosong"){
+        if ($('#msgsuccess').html() && $('#msgsuccess').html() !== "Kosong") {
             alert($('#msgsuccess').html());
         }
-        $('#process-txt').change(function(){
-            updateDocNo();
-        });
-        $('#process-txt,#device-txt').change(function()
-        {
-            updateInput();
-            updateDocNo();
-        });
+
+        // Cek apakah data shift/name sudah terisi
+        if (!$('#name-txt').val() || !$('#shift-txt').val()) {
+            empAuto('#empid-txt', '#shift-txt', '#group-txt', '#name-txt', 'empid-lbl');
+        }
     });
-
-    function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
-    {
-        var empid = $.trim($(empIdTag).val());
-        if (empid.length > 0)
-        {
-            $.ajax({
-                url: "<?= base_url('home/ajaxAutofill'); ?>",
-                dataType:'JSON',
-                headers: {'X-Requested-With': 'XMLHttpRequest'},
-                data:"empid-txt=" + empid,
-                success: function(data)
-                {
-                    $(shiftTag).val(data.acc);
-                    $(empIdTag).val(data.empid);            
-                    $(groupTag).val(data.groupid);
-                    $(nameTag).val(data.name);
-                    const element = document.getElementById(empIdlTag);  
-                    element.classList.remove("visible"); 
-                    element.classList.add("invisible"); 
-                },
-                error: function(data)
-                {
-                    const element = document.getElementById(empIdlTag);  
-                    element.classList.remove("invisible"); 
-                    element.classList.add("visible"); 
-                    $(shiftTag).val('');            
-                    $(groupTag).val('');
-                    $(nameTag).val('');
-                },
-            });
-        }
-        else
-        {
-            $(shiftTag).val('');
-            $(groupTag).val('');
-        }
-    }
-
-    function injectForm()
-    {
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", "<?= base_url('foregoing/edit/form'); ?>?number=" + document.getElementById('number-edit').value, true);
-        xhr.onload = (e) => {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    var modal = document.getElementById('modal');
-                    modal.innerHTML = xhr.responseText;
-                    $('#submit').show().css({'display': 'block', 'margin': '0 auto'});
-                } else {
-                    var modal = document.getElementById('modal');
-                    $('#submit').hide();
-                    modal.innerHTML = "";
-                    console.error(xhr.statusText);
-                }
-            }
-        };
-        xhr.onerror = (e) => {
-            console.error(xhr.statusText);
-        };
-        xhr.send(null);
-    }
   </script>
-  <script src="<?= base_url('assets/js/form/test.js'); ?>"></script>
 </main>
 <?= $this->endSection(); ?>

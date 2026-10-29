@@ -4,14 +4,12 @@
   <table class="table table-bordered table-hover" id="table1">
     <thead align="center">
       <tr>
-        <th colspan="32" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
+        <th colspan="30" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
       </tr>
       <tr>
         <th rowspan="4">No.</th>   
-        <th rowspan="4">Operator Start</th>
+        <th rowspan="4">Operator</th>
         <th rowspan="4">Shift/Group</th>
-        <th rowspan="4">Operator Finish</th>
-        <th rowspan="4">Shift/Group</th>      
         <th rowspan="4">Mch. No.</th>         
         <th rowspan="4">Model</th>
         <th rowspan="4">Lot No.</th>
@@ -47,6 +45,7 @@
         <th rowspan="2">Crack</th>
         <th rowspan="2">Chipping</th>
         <th rowspan="2">Std (Min)</th>
+        <th colspan="2" scope="col">Unit: N</th>
         <th colspan="2" scope="col">OK:✓ <br> NG:X</th>
         <th colspan="2" scope="col">OK:✓ <br> NG:X</th>
         <th colspan="2" scope="col">OK:✓ <br> NG:X</th>
@@ -66,10 +65,10 @@
     <tbody>
     <?php for($i = 0; $i < count($alldata); $i++) { 
         $row = $alldata[$i];
+        $emp1Val   = trim((string)($row['empid'] ?? ''));
         $name2Val  = trim((string)($row['name2'] ?? ''));
         $emp2Val   = trim((string)($row['empid2'] ?? ''));
-        $shift2Val = trim((string)($row['shift2'] ?? ''));
-        $group2Val = trim((string)($row['group2'] ?? ''));
+        // Logic pengecekan Operator Finish tetap dipertahankan untuk validasi Time OUT
         $hasOpFinish = (($name2Val !== '' && $name2Val !== '-') || ($emp2Val !== '' && $emp2Val !== '-'));
 
         $timeInRaw  = trim((string)($row['par008'] ?? ''));
@@ -86,10 +85,8 @@
     ?>
         <tr>
           <td rowspan="1"><?= $i + 1; ?></td>
-          <td rowspan="1"><?= $row['name'] ?: '-'; ?></td>
+          <td rowspan="1"><?= $emp1Val !== '' ? $emp1Val : '-'; ?></td>
           <td rowspan="1"><?= ($row['shift'] && $row['shift'] !== '-') ? ($row['shift'] . ' / ' . $row['group']) : '-'; ?></td>
-          <td rowspan="1"><?= $hasOpFinish ? ($name2Val !== '' && $name2Val !== '-' ? $name2Val : $emp2Val) : '-'; ?></td>
-          <td rowspan="1"><?= ($hasOpFinish && $shift2Val !== '' && $shift2Val !== '-') ? ($shift2Val . ' / ' . $group2Val) : '-'; ?></td>
           <td rowspan="1"><?= (string)($row['machno'] ?? '-'); ?></td>
           <td rowspan="1"><?= (string)($row['model'] ?? '-'); ?></td>
           <td rowspan="1"><?= (string)($row['lotno'] ?? '-'); ?></td>

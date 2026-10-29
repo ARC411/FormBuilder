@@ -118,7 +118,7 @@ if (!function_exists('getValUnit')) {
                     <input type="hidden" id="par008" name="par008" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par008'] ?? '') : '' ?>">
                     <input class="form-control" type="number" step="0.000000001" min="<?= $initMin ?>" max="<?= $initMax ?>" id="par008_val" name="par008_val" value="<?= htmlspecialchars($p008['val']) ?>" 
                            oninput="combineData('par008')" 
-                           onchange="validateDynamicUnit('par008'); combineData('par008')" placeholder="Wajib diisi" required>
+                           onchange="validateDynamicUnit('par008'); combineData('par008')">
                     <select class="form-control" id="par008_unit" name="par008_unit" onchange="validateDynamicUnit('par008'); combineData('par008')" style="max-width: 80px; padding: 0.375rem;" required>
                         <option value="N" data-min="0.60" data-max="1.00" <?= $initUnit == 'N' ? 'selected' : '' ?>>N</option>
                         <option value="gr" data-min="60" data-max="100" <?= $initUnit == 'gr' ? 'selected' : '' ?>>gr</option>

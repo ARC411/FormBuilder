@@ -11,7 +11,7 @@ class Startup extends BaseController
 {
     protected $session;
     private $StartupModel;
-    
+
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
@@ -30,7 +30,7 @@ class Startup extends BaseController
         return (stripos($pos, 'operator') !== false);
     }
 
-    private function getFolderType($processStr) 
+    private function getFolderType($processStr)
     {
         if (empty($processStr)) return 'startup';
         $parts = explode('-', $processStr);
@@ -130,23 +130,23 @@ class Startup extends BaseController
 
     public function formInputStartup()
     {
-        if(!$this->session->has('empid')){
-            return redirect()->to(base_url()."login");
+        if (!$this->session->has('empid')) {
+            return redirect()->to(base_url() . "login");
         }
 
         $data = [
             'title' => 'Input | Startup Management',
             'validation' => \Config\Services::validation()
         ];
-        
-        if(empty($_GET['device']) || empty($_GET['process'])){
+
+        if (empty($_GET['device']) || empty($_GET['process'])) {
             return "";
         }
 
         $folder = $this->getFolderType($_GET['process']);
-        
+
         try {
-            return view('/layout/'.$_GET['device']."/input/".$folder."/".$_GET['process'],$data);
+            return view('/layout/' . $_GET['device'] . "/input/" . $folder . "/" . $_GET['process'], $data);
         } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
             return "<div class='alert alert-danger'>Maaf, form input belum tersedia.</div>";
         }
@@ -154,20 +154,32 @@ class Startup extends BaseController
 
     public function formEdit()
     {
-        $data = [
-            'title' => 'History | Startup Management',
-            'alldata' => $this->StartupModel->getByNumber($_GET['number']),
-            'number' => $_GET['number']
-        ];
-        
-        if(empty($data['alldata'])) return "Data tidak ditemukan.";
-        
-        $folder = $this->getFolderType($data['alldata'][0]['process']);
-        try {
-            return view("/layout/".$data['alldata'][0]['device']."/input/".$folder."/".$data['alldata'][0]['process'],$data);
-        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
-            return "<div class='alert alert-danger'>Maaf, form edit belum tersedia.</div>";
+        $number  = $this->request->getGet('number');
+        $alldata = $this->StartupModel->getByNumber($number);
+
+        if (empty($alldata)) {
+            return "Data tidak ditemukan.";
         }
+
+        $process   = $alldata[0]['process'];
+        $rowRevisi = $alldata[0]['revisi'] ?? null;
+
+        try {
+            $fb  = new \App\Controllers\FormBuilder();
+            $res = $fb->buildOperatorFormPayload($process, 'startup', $alldata, $number, $rowRevisi);
+            if (!empty($res['html'])) {
+                return $res['html'];
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Startup formEdit dynamic fallback: ' . $e->getMessage());
+        }
+
+        $folder = $this->getFolderType($process);
+        return view("/layout/" . $alldata[0]['device'] . "/input/" . $folder . "/" . $process, [
+            'title'   => 'History | Startup Management',
+            'alldata' => $alldata,
+            'number'  => $number
+        ]);
     }
 
     public function edit($number)
@@ -204,7 +216,7 @@ class Startup extends BaseController
             'validation' => \Config\Services::validation(),
             'alldata'    => $alldata
         ];
-        
+
         return view('edit-startup', $data);
     }
 
@@ -320,15 +332,16 @@ class Startup extends BaseController
             'alldata' => $this->StartupModel->getByNumber($number)
         ];
 
-        if(empty($data['alldata'])) return "Data tidak ditemukan.";
+        if (empty($data['alldata'])) return "Data tidak ditemukan.";
 
         $folder = $this->getFolderType($data['alldata'][0]['process']);
-        
+
         try {
             $machno = !empty($data['alldata'][0]['machno']) ? esc($data['alldata'][0]['machno']) : '';
             $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
-            $tableHtml = view("/layout/".$data['alldata'][0]['device']."/history/".$folder."/".$data['alldata'][0]['process'],$data);
-
+            $fb = new \App\Controllers\FormBuilder();
+            $tableHtml = $fb->renderDetailTableByRows($data['alldata'][0]['process'], 'startup', $data['alldata']);
+           
             if ($this->request->isAJAX()) {
                 return $machnoHidden . $tableHtml;
             }
@@ -344,7 +357,7 @@ class Startup extends BaseController
                 'created_at'  => $firstRow['created_at'] ?? '',
                 'status'      => $firstRow['status'] ?? '-',
                 'tableHtml'   => $tableHtml,
-                'machnoHidden'=> $machnoHidden,
+                'machnoHidden' => $machnoHidden,
                 'alldata'     => $data['alldata']
             ]);
         } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
@@ -363,12 +376,12 @@ class Startup extends BaseController
         $data = [
             'title' => 'History | Startup Management',
             'alldata' => $this->StartupModel->getAll(
-                $this->request->getGet('dateStart') ?? date('Y-m-d', strtotime('-1 month')), 
-                $this->request->getGet('dateEnd') ?? date('Y-m-d'), 
-                $deviceStr, 
-                $processStr, 
-                $this->request->getGet('model') ?? '', 
-                $this->request->getGet('lotno') ?? '', 
+                $this->request->getGet('dateStart') ?? date('Y-m-d', strtotime('-1 month')),
+                $this->request->getGet('dateEnd') ?? date('Y-m-d'),
+                $deviceStr,
+                $processStr,
+                $this->request->getGet('model') ?? '',
+                $this->request->getGet('lotno') ?? '',
                 $this->request->getGet('machno') ?? ''
             )
         ];
@@ -376,7 +389,7 @@ class Startup extends BaseController
         $folder = $this->getFolderType($processStr);
 
         try {
-            return view("/layout/".$deviceStr."/history/".$folder."/".$processStr, $data);
+            return view("/layout/" . $deviceStr . "/history/" . $folder . "/" . $processStr, $data);
         } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
             return "<div class='alert alert-danger'>Maaf, tampilan history untuk proses " . $processStr . " belum tersedia (File tidak ditemukan).</div>";
         }
@@ -389,9 +402,9 @@ class Startup extends BaseController
 
     public function deleteStartup($number)
     {
-        if(!$this->session->has('empid')){
+        if (!$this->session->has('empid')) {
             session()->setFlashdata('message', 'Login terlebih dahulu');
-            return redirect()->to(base_url()."login");
+            return redirect()->to(base_url() . "login");
         }
         $data = [
             'validation' => \Config\Services::validation(),
@@ -407,8 +420,8 @@ class Startup extends BaseController
 
     public function createStartup()
     {
-        if(!$this->session->has('empid')){
-            return redirect()->to(base_url()."login");
+        if (!$this->session->has('empid')) {
+            return redirect()->to(base_url() . "login");
         }
         $data = [
             'title' => 'Create Startup',
@@ -416,8 +429,8 @@ class Startup extends BaseController
         ];
 
         $isEdit = !empty($this->request->getVar('number-edit'));
-        $number = $isEdit ? $this->request->getVar('number-edit') : ($this->StartupModel->getLatestId()+1);
-        $cnt_input = $this->request->getVar('cnt-proses') ? $this->request->getVar('cnt-proses') : 1; 
+        $number = $isEdit ? $this->request->getVar('number-edit') : ($this->StartupModel->getLatestId() + 1);
+        $cnt_input = $this->request->getVar('cnt-proses') ? $this->request->getVar('cnt-proses') : 1;
 
         $operatorName = trim((string)$this->request->getVar('name-txt'));
         if ($operatorName === '' || $operatorName === '-') {

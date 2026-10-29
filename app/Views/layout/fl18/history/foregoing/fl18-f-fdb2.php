@@ -80,10 +80,8 @@
             foreach ($groupedLots as $numKey => $lotRows):
                 $firstRow = $lotRows[1] ?? reset($lotRows);
 
-                $opName = trim((string) ($firstRow['name'] ?? ''));
-                if ($opName === '' || $opName === '-') {
-                    $opName = trim((string) ($firstRow['empid'] ?? '-'));
-                }
+                // Tampilkan EmpID pada kolom Operator
+                $opEmpId = trim((string) ($firstRow['empid'] ?? '-'));
 
                 $shiftVal = trim((string) ($firstRow['shift'] ?? ''));
                 $groupVal = trim((string) ($firstRow['group'] ?? ''));
@@ -104,7 +102,7 @@
                     <td rowspan="4"><?= (string) ($firstRow['machno'] ?? '-'); ?></td>
                     <td rowspan="4"><?= (string) ($firstRow['model'] ?? '-'); ?></td>
                     <td rowspan="4"><?= (string) ($firstRow['lotno'] ?? '-'); ?></td>
-                    <td rowspan="4"><?= esc($opName ?: '-'); ?></td>
+                    <td rowspan="4"><?= esc($opEmpId ?: '-'); ?></td>
                     <td rowspan="4"><?= $shiftGroupStr; ?></td>
                     <td rowspan="4"><?= $dateStr; ?></td>
                 <?php endif; ?>

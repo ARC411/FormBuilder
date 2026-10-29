@@ -19,18 +19,17 @@ class FormBuilder extends BaseController
     public function __construct()
     {
         $uri = service('uri');
-        $isRenderInput = ($uri->getTotalSegments() >= 2 && $uri->getSegment(2) === 'render-input');
+        $seg1 = strtolower($uri->getTotalSegments() >= 1 ? $uri->getSegment(1) : '');
+        $seg2 = strtolower($uri->getTotalSegments() >= 2 ? $uri->getSegment(2) : '');
 
-        if (!session()->get('isadmin') && !$isRenderInput) {
-            echo "<script>alert('Akses Ditolak! Khusus Admin/QC.'); window.location.href='/';</script>";
+        // Hanya batasi jika user mengakses URL /form-builder secara langsung (kecuali render-input)
+        $isDirectFormBuilderRoute = ($seg1 === 'form-builder' || $seg1 === 'formbuilder');
+        $isRenderInput = ($seg2 === 'render-input');
+
+        if ($isDirectFormBuilderRoute && !$isRenderInput && !session()->get('isadmin')) {
+            echo "<script>alert('Akses Ditolak! Khusus Admin/QC.'); window.location.href='" . base_url('home') . "';</script>";
             exit;
         }
-
-        $this->deviceModel    = new DeviceModel();
-        $this->processModel   = new ProcessModel();
-        $this->formRevModel   = new FormRevisionModel();
-        $this->formParamModel = new FormParameterModel();
-        $this->logActivityModel = new LogActivityModel();
     }
 
     public function index()
@@ -687,23 +686,69 @@ class FormBuilder extends BaseController
         }
     }
 
-    // 7. AJAX Naik Revisi (Mendukung Penuh Multi-Level Tanpa Batas)
+    // 7. AJAX Naik Revisi (Mengunci Data Lama & Sinkron ke Tabel Master Proses)
     public function upRevisi()
     {
         $oldRevisionId = $this->request->getPost('revision_id');
         $oldRevision   = $this->formRevModel->find($oldRevisionId);
 
-        $newRevisiCode = $oldRevision['revisi'];
-        $newRevisiCode++;
+        if (!$oldRevision) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Revisi lama tidak ditemukan!']);
+        }
 
+        $procCode      = $oldRevision['process_code'];
+        $oldRevisiCode = (string)$oldRevision['revisi'];
+        $newRevisiCode = is_numeric($oldRevisiCode) ? ((int)$oldRevisiCode + 1) : ($oldRevisiCode . '_new');
+
+        $db = \Config\Database::connect();
+
+        // 1. KUNCI DATA LAMA: Semua transaksi pada proses ini yang kolom revisinya masih kosong/NULL
+        // langsung diberi stempel revisi lama ($oldRevisiCode) agar TIDAK BOCOR ke revisi baru!
+        foreach (['startup', 'production', 'foregoing'] as $tbl) {
+            try {
+                if ($db->tableExists($tbl) && $db->fieldExists('revisi', $tbl)) {
+                    $db->table($tbl)
+                        ->where('process', $procCode)
+                        ->groupStart()
+                            ->where('revisi IS NULL', null, false)
+                            ->orWhere('revisi', '')
+                            ->orWhere('revisi', '-')
+                        ->groupEnd()
+                        ->update(['revisi' => $oldRevisiCode]);
+                }
+            } catch (\Throwable $e) {
+                log_message('error', "Gagal mengunci revisi lama pada {$tbl}: " . $e->getMessage());
+            }
+        }
+
+        // 2. SINKRONKAN TABEL MASTER PROSES: Update kolom revisi (dan docno jika memiliki segmen revisi)
+        try {
+            $procMaster = $db->table('proses')->where('process_code', $procCode)->get()->getRowArray();
+            if ($procMaster) {
+                $updateProses = ['revisi' => (string)$newRevisiCode];
+                if (!empty($procMaster['docno'])) {
+                    $dParts = explode('-', $procMaster['docno']);
+                    if (count($dParts) >= 4 && is_numeric(end($dParts))) {
+                        $dParts[count($dParts) - 1] = (string)$newRevisiCode;
+                        $updateProses['docno'] = implode('-', $dParts);
+                    }
+                }
+                $db->table('proses')->where('process_code', $procCode)->update($updateProses);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal update revisi di tabel proses: ' . $e->getMessage());
+        }
+
+        // 3. Buat Revisi Baru di form_revisions
         $this->formRevModel->protect(false)->insert([
-            'process_code'  => $oldRevision['process_code'],
-            'revisi'        => $newRevisiCode,
+            'process_code'  => $procCode,
+            'revisi'        => (string)$newRevisiCode,
             'kategori_form' => $oldRevision['kategori_form'] ?? 'production',
             'created_at'    => date('Y-m-d H:i:s')
         ]);
         $newRevisionId = $this->formRevModel->getInsertID();
 
+        // 4. Gandakan struktur parameter ke revisi baru
         $oldParameters = $this->formParamModel->where('revision_id', $oldRevisionId)->orderBy('urutan', 'ASC')->findAll();
         $tree = $this->buildTree($oldParameters);
 
@@ -727,17 +772,17 @@ class FormBuilder extends BaseController
 
         $this->catatLog(
             'NAIK REVISI',
-            "Menaikkan versi revisi dokumen dari Revisi {$oldRevision['revisi']} menjadi Revisi {$newRevisiCode}",
-            $oldRevision['process_code'] ?? ''
+            "Menaikkan versi revisi dokumen dari Revisi {$oldRevisiCode} menjadi Revisi {$newRevisiCode} (data lama telah dikunci pada Revisi {$oldRevisiCode})",
+            $procCode
         );
 
         return $this->response->setJSON([
             'status'  => 'success',
-            'message' => 'Revisi berhasil dinaikkan menjadi ' . $newRevisiCode
+            'message' => "Revisi berhasil dinaikkan menjadi Revisi {$newRevisiCode}. Seluruh data riwayat sebelumnya telah dikunci pada Revisi {$oldRevisiCode}."
         ]);
     }
 
-    // 8. Endpoint Render Tabel Dinamis untuk Halaman Input Operator
+    // 8. Endpoint Render Tabel Dinamis untuk Halaman Input & Edit Operator
     public function renderOperatorForm()
     {
         $processCode  = trim((string)($this->request->getPost('process') ?: $this->request->getGet('process')));
@@ -747,15 +792,43 @@ class FormBuilder extends BaseController
             return $this->response->setJSON(['status' => 'error', 'message' => 'Process code kosong']);
         }
 
-        if (!empty($selectedType) && in_array($selectedType, ['startup', 'production', 'foregoing'])) {
+        $res = $this->buildOperatorFormPayload($processCode, $selectedType, null, null, null);
+        return $this->response->setJSON($res);
+    }
+
+    /**
+     * Helper publik untuk merender HTML Form Builder pada halaman Edit (Production, Startup, Foregoing)
+     * sesuai dengan versi Revisi saat dokumen tersebut dibuat!
+     */
+    public function buildOperatorFormPayload(string $processCode, string $selectedType = '', ?array $alldata = null, $number = null, ?string $targetRevisi = null): array
+    {
+        if (!empty($selectedType) && in_array($selectedType, ['startup', 'startup_horizontal', 'production', 'foregoing'])) {
             $detectedKategori = $selectedType;
         } else {
-            $parts = explode('-', strtolower($processCode));
+            $parts    = explode('-', strtolower($processCode));
             $typeKode = $parts[1] ?? 'p';
             $detectedKategori = ($typeKode === 's') ? 'startup' : (($typeKode === 'f') ? 'foregoing' : 'production');
         }
 
-        $revision = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->first();
+        // Jika sedang mengedit dokumen lama yang memiliki nomor revisi spesifik, cari revisi yang sesuai
+        $revision = null;
+        if ($targetRevisi !== null && $targetRevisi !== '' && $targetRevisi !== '-') {
+            $revs = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->findAll();
+            foreach ($revs as $rItem) {
+                if (
+                    strcasecmp((string)$rItem['revisi'], $targetRevisi) === 0 ||
+                    (is_numeric($rItem['revisi']) && is_numeric($targetRevisi) && (int)$rItem['revisi'] === (int)$targetRevisi)
+                ) {
+                    $revision = $rItem;
+                    break;
+                }
+            }
+        }
+
+        if (!$revision) {
+            $revision = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->first();
+        }
+
         if (!$revision) {
             $procRow = $this->processModel->where('process_code', $processCode)->first();
             $revCode = $procRow['revisi'] ?? '0';
@@ -766,7 +839,7 @@ class FormBuilder extends BaseController
                 'created_at'    => date('Y-m-d H:i:s')
             ]);
             $revisionId = $this->formRevModel->getInsertID();
-            $revision = $this->formRevModel->find($revisionId);
+            $revision   = $this->formRevModel->find($revisionId);
         } else {
             $revisionId = $revision['id'];
         }
@@ -774,10 +847,11 @@ class FormBuilder extends BaseController
         $rawParams = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
         if (empty($rawParams)) {
             $this->parseSingleProcess($processCode, $revisionId, $detectedKategori);
+            $revision  = $this->formRevModel->find($revisionId);
             $rawParams = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
         }
 
-        $treeParams = $this->buildTree($rawParams);
+        $treeParams    = $this->buildTree($rawParams);
         $maxTableDepth = 0;
         foreach ($treeParams as $node) {
             $d = $this->calculateDepth($node);
@@ -786,22 +860,78 @@ class FormBuilder extends BaseController
 
         $procInfo = $this->processModel->where('process_code', $processCode)->first();
 
-        $data = [
+        $viewData = [
             'process_code'  => $processCode,
             'process_name'  => $procInfo['name'] ?? $processCode,
             'revision'      => $revision,
             'kategori_form' => $revision['kategori_form'] ?? $detectedKategori,
             'treeParams'    => $treeParams,
-            'maxTableDepth' => max(1, $maxTableDepth)
+            'maxTableDepth' => max(1, $maxTableDepth),
+            'alldata'       => $alldata,
+            'number'        => $number,
         ];
 
-        $html = view('form_input_dynamic', $data);
+        $html = view('form_input_dynamic', $viewData);
 
-        return $this->response->setJSON([
+        return [
             'status'      => 'success',
             'revisi'      => $revision['revisi'],
             'revision_id' => $revision['id'],
             'html'        => $html
+        ];
+    }
+
+    /**
+     * Helper publik untuk merender Tabel Detail (History per Number) di Modal Operations (Production, Startup, Foregoing)
+     */
+    public function renderDetailTableByRows(string $processCode, string $typeProcess, array $alldata): string
+    {
+        $rowRevisi = isset($alldata[0]['revisi']) ? trim((string)$alldata[0]['revisi']) : '';
+        $revs      = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->findAll();
+
+        if (empty($revs)) {
+            $procRow = $this->processModel->where('process_code', $processCode)->first();
+            $this->formRevModel->protect(false)->insert([
+                'process_code'  => $processCode,
+                'revisi'        => (string)($procRow['revisi'] ?? '0'),
+                'kategori_form' => $typeProcess,
+                'created_at'    => date('Y-m-d H:i:s')
+            ]);
+            $revs = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->findAll();
+        }
+
+        $activeRevRow = $revs[0];
+        if ($rowRevisi !== '' && $rowRevisi !== '-') {
+            foreach ($revs as $rItem) {
+                if (
+                    strcasecmp((string)$rItem['revisi'], $rowRevisi) === 0 ||
+                    (is_numeric($rItem['revisi']) && is_numeric($rowRevisi) && (int)$rItem['revisi'] === (int)$rowRevisi)
+                ) {
+                    $activeRevRow = $rItem;
+                    break;
+                }
+            }
+        }
+
+        $rawParams = $this->formParamModel->where('revision_id', $activeRevRow['id'])->orderBy('urutan', 'ASC')->findAll();
+        if (empty($rawParams)) {
+            $this->parseSingleProcess($processCode, $activeRevRow['id'], $typeProcess);
+            $activeRevRow = $this->formRevModel->find($activeRevRow['id']);
+            $rawParams    = $this->formParamModel->where('revision_id', $activeRevRow['id'])->orderBy('urutan', 'ASC')->findAll();
+        }
+
+        $treeParams = $this->buildTree($rawParams);
+        $procInfo   = $this->processModel->where('process_code', $processCode)->first();
+        $revLabel   = str_pad((string)($activeRevRow['revisi'] ?? '0'), 2, '0', STR_PAD_LEFT);
+
+        return view('history_table_dynamic', [
+            'process_code'  => $processCode,
+            'judul_proses'  => $procInfo['name'] ?? $processCode,
+            'kategori_form' => $activeRevRow['kategori_form'] ?? $typeProcess,
+            'revisi_label'  => $revLabel,
+            'treeParams'    => $treeParams,
+            'alldata'       => $alldata,
+            'is_export'     => false
         ]);
     }
 

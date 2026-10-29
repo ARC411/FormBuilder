@@ -173,21 +173,26 @@ class ProductionModel extends Model
         ])->getResultArray();
     }
 
-    public function addProses($data)
-{
-    // Snapshot revisi & berlaku dari master proses
-    $prosesMaster = $this->db->table('proses')
-        ->where('process_code', $data['process'])
-        ->get()
-        ->getRowArray();
+   public function addProses($data)
+    {
+        $prosesMaster = $this->db->table('proses')
+            ->where('process_code', $data['process'])
+            ->get()
+            ->getRowArray();
 
-    if ($prosesMaster) {
+        // Ambil revisi terbaru dari form_revisions jika ada
+        $latestRevRow = $this->db->table('form_revisions')
+            ->where('process_code', $data['process'])
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRowArray();
 
-        // --- TAMBAHAN BARU: Stempel Otomatis ---
-        $data['docno']  = $prosesMaster['docno'];
-        $data['revisi'] = $prosesMaster['revisi'];
-        // --------------------------------------
-    }
+        $activeRevisi = $data['revisi'] ?? ($latestRevRow['revisi'] ?? ($prosesMaster['revisi'] ?? '0'));
+
+        if ($prosesMaster) {
+            $data['docno'] = $prosesMaster['docno'];
+        }
+        $data['revisi'] = (string)$activeRevisi;
 
         $result = $this->query(
             "SELECT * FROM production WHERE `number` = ? AND `par001` = ?",
@@ -195,14 +200,19 @@ class ProductionModel extends Model
         )->getRow();
 
         if ($result == null) {
-            $data['empid2']  = null;
-            $data['group2']  = null;
-            $data['shift2']  = null;
-            $data['name2']   = null;
-            $data['par009']  = null;
-            $data['par045']  = 'Process Start';
+            $data['empid2'] = null;
+            $data['group2'] = null;
+            $data['shift2'] = null;
+            $data['name2']  = null;
+            $data['par009'] = null;
+            $data['par045'] = 'Process Start';
             $this->insert($data);
             return 'Add Production (Process Start)';
+        }
+
+        // PENTING: Saat Edit / Complete dokumen yang sudah ada, PERTAHANKAN nomor revisi aslinya!
+        if (!empty($result->revisi) && $result->revisi !== '-') {
+            $data['revisi'] = $result->revisi;
         }
 
         if ($result->par045 == 'Process Complete') {
