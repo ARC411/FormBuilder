@@ -23,7 +23,7 @@ class PdfGenerator
             $judulProses = $cleanFg . ' Foregoing Check Sheet';
         }
 
-        // 2. Ekstrak elemen tabel & terapkan aturan sanitasi DOM (sama seperti ExcelGenerator)
+        // 2. Ekstrak elemen tabel & terapkan aturan sanitasi DOM
         $extractResult = $this->extractTableElement(
             $htmlString,
             'table1',
@@ -44,7 +44,7 @@ class PdfGenerator
         $grid           = $this->buildGrid($tableElement);
         $headerRowCount = $this->countHeaderRows($grid);
 
-        // 4. Siapkan HTML Kop Surat 5 baris (seragam untuk Production, Startup, dan Foregoing)
+        // 4. Siapkan HTML Kop Surat yang ringkas & proporsional
         $kopSuratHtml = $this->buildKopSuratHtml(
             (string) ($namaProduk ?? ''),
             (string) ($judulProses ?? ''),
@@ -65,7 +65,7 @@ class PdfGenerator
             $dataColsCount = count($alldata ?? []);
             $totalPages    = max(1, (int) ceil($dataColsCount / $perPageCols));
 
-            // Cari batas baris akhir yang sah (baris 'Note') agar baris sampah di bawahnya tidak ikut tercetak
+            // Cari batas baris akhir yang sah (baris 'Note')
             $validEndRow = $grid['totalRows'];
             for ($r = $grid['totalRows']; $r >= 1; $r--) {
                 $firstVal = strtolower(trim((string) ($grid['origins'][$r][1]['value'] ?? '')));
@@ -110,7 +110,7 @@ class PdfGenerator
         }
 
         $customCSS = $this->buildStylesheet($typeProcess);
-        $finalHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+        $finalHtml = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">'
             . $customCSS
             . '</head><body>'
             . $pagesHtml
@@ -122,7 +122,7 @@ class PdfGenerator
         $options->set('defaultFont', 'Arial');
 
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($finalHtml);
+        $dompdf->loadHtml($finalHtml, 'UTF-8');
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
@@ -137,18 +137,34 @@ class PdfGenerator
     }
 
     /**
-     * CSS terkalibrasi untuk A4 Landscape (841.89pt x 595.28pt) agar setiap chunk pas 1 halaman penuh
+     * CSS terkalibrasi untuk A4 Landscape (841.89pt x 595.28pt)
+     * Font & padding Production/Foregoing diperbesar agar memenuhi tinggi kertas secara proporsional.
      */
     private function buildStylesheet(string $typeProcess): string
     {
-        $dataFontSize = ($typeProcess === 'startup') ? '7.2pt' : (($typeProcess === 'foregoing') ? '8.5pt' : '9pt');
-        $hdrFontSize  = ($typeProcess === 'startup') ? '7.2pt' : '7.2pt';
+        if ($typeProcess === 'startup') {
+            $hdrFontSize  = '6.2pt';
+            $dataFontSize = '6.0pt';
+            $cellPadding  = '1.1pt 1.8pt';
+            $nowrapRule   = '';
+        } elseif ($typeProcess === 'foregoing') {
+            $hdrFontSize  = '6.5pt';
+            $dataFontSize = '6.8pt';
+            $cellPadding  = '2.2pt 1pt';
+            $nowrapRule   = 'white-space: nowrap;';
+        } else {
+            // Production
+            $hdrFontSize  = '6.8pt';
+            $dataFontSize = '7.6pt';
+            $cellPadding  = '2.5pt 1.2pt';
+            $nowrapRule   = 'white-space: nowrap;';
+        }
 
         return '
         <style>
             @page {
                 size: A4 landscape;
-                margin: 12pt 14pt 12pt 14pt;
+                margin: 10pt 12pt 10pt 12pt;
             }
             * {
                 box-sizing: border-box;
@@ -159,87 +175,99 @@ class PdfGenerator
                 padding: 0;
                 color: #000;
             }
+            .sym {
+                font-family: "DejaVu Sans", sans-serif;
+            }
             .page-chunk {
                 width: 100%;
+                page-break-inside: avoid;
             }
             .page-break {
                 page-break-after: always;
             }
-            /* Kop Surat 5 Baris Berbingkai */
+            /* Kop Surat Ringkas & Proporsional (Kiri 23%, Tengah 60%, Kanan 17%) */
             table.kop-table {
                 width: 100%;
                 border-collapse: collapse;
                 table-layout: fixed;
-                margin-bottom: 4pt;
-                border: 1pt solid #000;
+                margin-bottom: 3pt;
+                border: 0.8pt solid #000;
             }
             table.kop-table td {
-                border: 0.75pt solid #000;
-                padding: 1.5pt 4pt;
+                border: 0.6pt solid #000;
+                padding: 1pt 3pt;
                 vertical-align: middle;
-                font-size: 8.5pt;
-                line-height: 1.15;
+                font-size: 6.5pt;
+                line-height: 1.1;
             }
             table.kop-table td.kop-left {
                 font-weight: bold;
-                font-size: 8.5pt;
+                font-size: 6.5pt;
                 text-align: left;
                 vertical-align: middle;
             }
             table.kop-table td.kop-machine {
                 font-weight: bold;
-                font-size: 8.5pt;
+                font-size: 6.5pt;
                 text-align: left;
                 vertical-align: middle;
+                white-space: nowrap;
             }
             table.kop-table td.kop-center {
                 text-align: center;
                 vertical-align: middle;
+                padding: 1pt 4pt;
             }
             .kop-title {
-                font-size: 13pt;
+                font-size: 10pt;
                 font-weight: bold;
                 text-decoration: underline;
+                line-height: 1.15;
             }
             .kop-subtitle {
-                font-size: 11pt;
+                font-size: 8.5pt;
                 font-weight: bold;
+                line-height: 1.1;
             }
             table.kop-table td.kop-info-lbl {
                 font-weight: bold;
-                font-size: 8pt;
+                font-size: 6pt;
                 text-align: left;
                 white-space: nowrap;
+                padding: 0.8pt 2pt;
             }
             table.kop-table td.kop-info-val {
                 font-weight: bold;
-                font-size: 8pt;
+                font-size: 6pt;
                 text-align: left;
                 white-space: nowrap;
+                padding: 0.8pt 2pt;
             }
             table.kop-table td.kop-ttd-hdr {
                 font-weight: bold;
-                font-size: 8pt;
+                font-size: 6pt;
                 text-align: center;
                 background-color: #f2f2f2;
+                padding: 0.8pt 2pt;
             }
             table.kop-table td.kop-ttd-box {
                 font-weight: bold;
-                font-size: 7pt;
+                font-size: 5.5pt;
                 text-align: center;
                 vertical-align: middle;
-                line-height: 1.1;
+                line-height: 1.05;
+                padding: 1pt 2pt;
             }
             /* Tabel Checksheet Utama */
             table.table-cs {
                 width: 100%;
                 border-collapse: collapse;
                 table-layout: fixed;
-                border: 1pt solid #000;
+                border: 0.8pt solid #000;
             }
             table.table-cs th,
             table.table-cs td {
-                border: 0.75pt solid #000;
+                border: 0.6pt solid #000;
                 text-align: center;
                 vertical-align: middle;
                 word-wrap: break-word;
@@ -249,17 +277,19 @@ class PdfGenerator
                 background-color: #f2f2f2;
                 font-weight: bold;
                 font-size: ' . $hdrFontSize . ';
-                padding: 1pt 1.5pt;
+                padding: 1.2pt 1pt;
                 line-height: 1.08;
             }
             table.table-cs td {
                 font-size: ' . $dataFontSize . ';
-                padding: 1pt 1.5pt;
+                padding: ' . $cellPadding . ';
                 line-height: 1.1;
+                ' . $nowrapRule . '
             }
             table.table-cs td.startup-id-cell {
-                font-size: 7.2pt;
-                padding: 1pt 2.5pt;
+                font-size: 6.0pt;
+                padding: 1pt 2pt;
+                white-space: normal;
             }
             tr {
                 page-break-inside: avoid;
@@ -268,7 +298,27 @@ class PdfGenerator
     }
 
     /**
-     * Ekstrak elemen tabel dari HTML view, hapus baris judul ganda, dan terapkan aturan Startup/Production
+     * Format teks sel ke HTML dengan dukungan penuh simbol Unicode (θ, ✓, ✔, ✖) melalui font DejaVu Sans
+     */
+    private function formatPdfCellHtml(string $rawText): string
+    {
+        $escaped = htmlspecialchars($rawText, ENT_QUOTES, 'UTF-8');
+        $escaped = str_replace(
+            ['θ', '&theta;', '✓', '✔', '✖'],
+            [
+                '<span class="sym">&#952;</span>',
+                '<span class="sym">&#952;</span>',
+                '<span class="sym">&#10003;</span>',
+                '<span class="sym">&#10004;</span>',
+                '<span class="sym">&#10006;</span>',
+            ],
+            $escaped
+        );
+        return nl2br($escaped);
+    }
+
+    /**
+     * Ekstrak elemen tabel dari HTML view dengan menjaga encoding UTF-8
      */
     private function extractTableElement(
         string $html,
@@ -278,9 +328,10 @@ class PdfGenerator
         array $alldata,
         string $process = ''
     ): ?array {
-        $doc = new \DOMDocument();
+        $doc = new \DOMDocument('1.0', 'UTF-8');
         libxml_use_internal_errors(true);
-        $doc->loadHTML('<?xml encoding="UTF-8">' . $html);
+        $utf8Html = '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' . $html;
+        $doc->loadHTML($utf8Html);
         libxml_clear_errors();
 
         $xpath = new \DOMXPath($doc);
@@ -305,7 +356,6 @@ class PdfGenerator
             }
         }
 
-        // Aturan Poin 1 Production: Jika Operator Finish kosong, ubah jam Out "07:00" menjadi "-"
         if ($typeProcess === 'production') {
             $this->sanitizeProductionDom($table, $alldata);
         }
@@ -461,9 +511,6 @@ class PdfGenerator
         $noteTr->parentNode->insertBefore($appTr, $noteTr);
     }
 
-    /**
-     * Bersihkan sel "07:00" pada kolom Time Out Production jika Operator Finish kosong
-     */
     private function sanitizeProductionDom(\DOMElement $table, array $alldata): void
     {
         $tbodies = $table->getElementsByTagName('tbody');
@@ -500,9 +547,6 @@ class PdfGenerator
         }
     }
 
-    /**
-     * Bangun struktur Grid 2D dengan mempertahankan baris baru (\n)
-     */
     private function buildGrid(\DOMElement $table): array
     {
         $occupied   = [];
@@ -528,7 +572,7 @@ class PdfGenerator
                 $colspan = max(1, (int) ($cell->getAttribute('colspan') ?: 1));
                 $rowspan = max(1, (int) ($cell->getAttribute('rowspan') ?: 1));
 
-                $rawText = html_entity_decode(strip_tags($cell->textContent ?? ''), ENT_QUOTES, 'UTF-8');
+                $rawText = html_entity_decode(strip_tags($cell->textContent ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 $lines   = preg_split('/\r\n|\r|\n/', $rawText);
                 $cleanLines = [];
                 foreach ($lines as $ln) {
@@ -585,60 +629,7 @@ class PdfGenerator
     }
 
     /**
-     * Hitung estimasi jumlah baris teks setelah word-wrap (untuk tinggi baris dinamis Startup)
-     */
-    private function countWrappedLines(string $text, float $colWidthUnits, float $charsPerUnit = 0.88): int
-    {
-        $text = trim($text);
-        if ($text === '' || $text === '-') {
-            return 1;
-        }
-
-        $effChars   = max(1.0, ($colWidthUnits - 1.2) * $charsPerUnit);
-        $totalLines = 0;
-        $paragraphs = preg_split('/\r\n|\r|\n/', $text);
-
-        foreach ($paragraphs as $para) {
-            $para = trim((string) preg_replace('/[ \t]+/', ' ', $para));
-            if ($para === '') {
-                $totalLines += 1;
-                continue;
-            }
-
-            $words   = explode(' ', $para);
-            $currLen = 0;
-            $pLines  = 1;
-
-            foreach ($words as $w) {
-                $wLen = mb_strlen($w);
-                if ($currLen === 0) {
-                    $currLen = $wLen;
-                    if ($currLen > $effChars) {
-                        $extra   = (int) ceil($currLen / $effChars) - 1;
-                        $pLines += $extra;
-                        $currLen = $currLen % max(1, (int) $effChars);
-                    }
-                } elseif (($currLen + 1 + $wLen) <= $effChars) {
-                    $currLen += 1 + $wLen;
-                } else {
-                    $pLines++;
-                    $currLen = $wLen;
-                    if ($currLen > $effChars) {
-                        $extra   = (int) ceil($currLen / $effChars) - 1;
-                        $pLines += $extra;
-                        $currLen = $currLen % max(1, (int) $effChars);
-                    }
-                }
-            }
-
-            $totalLines += $pLines;
-        }
-
-        return max(1, $totalLines);
-    }
-
-    /**
-     * Render tabel Startup per chunk (Kolom Identitas + 14 Kolom Data) dengan tinggi baris dinamis
+     * Render tabel Startup per chunk (Kolom Identitas + 14 Kolom Data)
      */
     private function buildStartupChunkTableHtml(
         array $grid,
@@ -650,151 +641,58 @@ class PdfGenerator
         [$startCol, $endCol] = $colRange;
         $perPageCols = $endCol - $startCol + 1;
 
-        // Bobot lebar kolom Startup persis seperti ExcelGenerator
-        $colWeights = [];
-        $colWeights[1] = 5.0; // No
+        $colPcts = [];
+        $colPcts[1] = 2.5;
         if ($identityColCount === 4) {
-            $colWeights[2] = 22.0; // Start Up Check Item
-            $colWeights[3] = 15.0; // Sub Item
-            $colWeights[4] = 30.0; // Standard
+            $colPcts[2] = 13.5;
+            $colPcts[3] = 8.0;
+            $colPcts[4] = 18.0;
         } elseif ($identityColCount === 3) {
-            $colWeights[2] = 28.0;
-            $colWeights[3] = 30.0;
+            $colPcts[2] = 21.5;
+            $colPcts[3] = 18.0;
         } else {
+            $remId = 39.5 / max(1, $identityColCount - 1);
             for ($c = 2; $c <= $identityColCount; $c++) {
-                $colWeights[$c] = ($c === $identityColCount) ? 30.0 : 20.0;
+                $colPcts[$c] = $remId;
             }
         }
+        $dataColPct = round(58.0 / max(1, $perPageCols), 3);
         for ($d = 1; $d <= $perPageCols; $d++) {
-            $colWeights[$identityColCount + $d] = 14.5;
+            $colPcts[$identityColCount + $d] = $dataColPct;
         }
 
-        $totalWeight = array_sum($colWeights);
-        $colgroup    = '<colgroup>';
-        foreach ($colWeights as $w) {
-            $pct       = round(($w / $totalWeight) * 100, 3);
-            $colgroup .= '<col style="width: ' . $pct . '%;">';
-        }
-        $colgroup .= '</colgroup>';
-
-        // Hitung tinggi baris dinamis agar kalimat panjang tidak terpotong & muat 1 halaman A4 Landscape (anggaran 465pt)
-        $linePt    = 8.2;
-        $padPt     = 4.0;
-        $minRowPts = [];
-        for ($r = 1; $r <= $validEndRow; $r++) {
-            $minRowPts[$r] = 11.5;
-        }
-
-        for ($r = 1; $r <= $validEndRow; $r++) {
-            for ($c = 1; $c <= $identityColCount; $c++) {
-                if (!isset($grid['origins'][$r][$c])) {
-                    continue;
-                }
-                $cell = $grid['origins'][$r][$c];
-                $rs   = max(1, (int) ($cell['rowspan'] ?? 1));
-                $cs   = min((int) ($cell['colspan'] ?? 1), $identityColCount - $c + 1);
-                if ($rs === 1) {
-                    $wSum = 0.0;
-                    for ($cc = $c; $cc < $c + $cs; $cc++) {
-                        $wSum += ($colWeights[$cc] ?? 14.5);
-                    }
-                    $lines  = $this->countWrappedLines((string) ($cell['value'] ?? ''), $wSum);
-                    $needed = ceil($lines * $linePt + $padPt);
-                    if ($needed > $minRowPts[$r]) {
-                        $minRowPts[$r] = $needed;
-                    }
-                }
+        $sumSpanPct = function (int $startIdx, int $span) use ($colPcts): float {
+            $sum = 0.0;
+            for ($i = $startIdx; $i < $startIdx + $span; $i++) {
+                $sum += ($colPcts[$i] ?? 4.14);
             }
+            return round($sum, 2);
+        };
 
-            for ($d = 1; $d <= $perPageCols; $d++) {
-                $gridCol = $startCol + $d - 1;
-                if (!isset($grid['origins'][$r][$gridCol])) {
-                    continue;
-                }
-                $cell = $grid['origins'][$r][$gridCol];
-                $rs   = max(1, (int) ($cell['rowspan'] ?? 1));
-                $cs   = min((int) ($cell['colspan'] ?? 1), $perPageCols - $d + 1);
-                if ($rs === 1) {
-                    $wSum  = $cs * 14.5;
-                    $lines = $this->countWrappedLines((string) ($cell['value'] ?? ''), $wSum);
-                    $needed = ceil($lines * $linePt + $padPt);
-                    if ($needed > $minRowPts[$r]) {
-                        $minRowPts[$r] = $needed;
-                    }
-                }
-            }
-        }
-
-        // Cek sel gabungan multi-baris (rowspan > 1)
-        for ($r = 1; $r <= $validEndRow; $r++) {
-            for ($c = 1; $c <= $identityColCount; $c++) {
-                if (!isset($grid['origins'][$r][$c])) {
-                    continue;
-                }
-                $cell = $grid['origins'][$r][$c];
-                $rs   = max(1, (int) ($cell['rowspan'] ?? 1));
-                $cs   = min((int) ($cell['colspan'] ?? 1), $identityColCount - $c + 1);
-                if ($rs > 1) {
-                    $endR     = min($validEndRow, $r + $rs - 1);
-                    $actualRs = max(1, $endR - $r + 1);
-                    $wSum     = 0.0;
-                    for ($cc = $c; $cc < $c + $cs; $cc++) {
-                        $wSum += ($colWeights[$cc] ?? 14.5);
-                    }
-                    $lines       = $this->countWrappedLines((string) ($cell['value'] ?? ''), $wSum);
-                    $neededTotal = ceil($lines * $linePt + $padPt);
-                    $currTotal   = 0.0;
-                    for ($rr = $r; $rr <= $endR; $rr++) {
-                        $currTotal += $minRowPts[$rr];
-                    }
-                    if ($neededTotal > $currTotal) {
-                        $add = ceil(($neededTotal - $currTotal) / $actualRs);
-                        for ($rr = $r; $rr <= $endR; $rr++) {
-                            $minRowPts[$rr] += $add;
-                        }
-                    }
-                }
-            }
-        }
-
-        $targetBudgetPt = 465.0;
-        $rawSumPt       = array_sum($minRowPts);
-        $finalRowPts    = [];
-        for ($r = 1; $r <= $validEndRow; $r++) {
-            if ($rawSumPt < $targetBudgetPt) {
-                $extra           = ($targetBudgetPt - $rawSumPt) / max(1, $validEndRow);
-                $finalRowPts[$r] = round($minRowPts[$r] + $extra, 1);
-            } else {
-                $scale           = $targetBudgetPt / max(1.0, $rawSumPt);
-                $finalRowPts[$r] = round(max(10.0, $minRowPts[$r] * $scale), 1);
-            }
-        }
-
-        $html = '<table class="table-cs">' . $colgroup . '<thead>';
+        $html = '<table class="table-cs"><thead>';
 
         for ($r = 1; $r <= $validEndRow; $r++) {
             if ($r === $headerRowCount + 1) {
                 $html .= '</thead><tbody>';
             }
-            $rowH  = $finalRowPts[$r] ?? 14.0;
-            $html .= '<tr style="height: ' . $rowH . 'pt;">';
+            $html .= '<tr>';
 
             // 1. Render Kolom Identitas (1 .. $identityColCount)
             for ($c = 1; $c <= $identityColCount; $c++) {
                 if (isset($grid['origins'][$r][$c])) {
-                    $cell       = $grid['origins'][$r][$c];
-                    $tag        = !empty($cell['isHeader']) ? 'th' : 'td';
-                    $cls        = ($tag === 'td') ? ' class="startup-id-cell"' : '';
-                    $cs         = min((int) ($cell['colspan'] ?? 1), $identityColCount - $c + 1);
-                    $rs         = min((int) ($cell['rowspan'] ?? 1), $validEndRow - $r + 1);
-                    $csAttr     = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
-                    $rsAttr     = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
-                    $valEsc     = nl2br(htmlspecialchars((string) ($cell['value'] ?? ''), ENT_QUOTES, 'UTF-8'));
-                    $html      .= "<{$tag}{$cls}{$rsAttr}{$csAttr}>{$valEsc}</{$tag}>";
+                    $cell   = $grid['origins'][$r][$c];
+                    $tag    = !empty($cell['isHeader']) ? 'th' : 'td';
+                    $cls    = ($tag === 'td') ? ' class="startup-id-cell"' : '';
+                    $cs     = min((int) ($cell['colspan'] ?? 1), $identityColCount - $c + 1);
+                    $rs     = min((int) ($cell['rowspan'] ?? 1), $validEndRow - $r + 1);
+                    $csAttr = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
+                    $rsAttr = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
+                    $wPct   = $sumSpanPct($c, $cs);
+                    $valHtml = $this->formatPdfCellHtml((string) ($cell['value'] ?? ''));
+                    $html   .= "<{$tag}{$cls}{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</{$tag}>";
                 }
             }
 
-            // Cek apakah baris ini memiliki Header Besar (misal "Hasil Start Up Check") di atas kolom data
             $massiveHeaderCell = null;
             if (isset($grid['origins'][$r][$identityColCount + 1])) {
                 $checkCell = $grid['origins'][$r][$identityColCount + 1];
@@ -806,32 +704,36 @@ class PdfGenerator
             // 2. Render 14 Kolom Data
             $dIdx = 1;
             while ($dIdx <= $perPageCols) {
-                $gridCol = $startCol + $dIdx - 1;
+                $gridCol   = $startCol + $dIdx - 1;
+                $targetCol = $identityColCount + $dIdx;
 
                 if ($dIdx === 1 && $massiveHeaderCell !== null) {
-                    $rs     = min((int) ($massiveHeaderCell['rowspan'] ?? 1), $validEndRow - $r + 1);
-                    $rsAttr = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
-                    $csAttr = ($perPageCols > 1) ? ' colspan="' . $perPageCols . '"' : '';
-                    $valEsc = nl2br(htmlspecialchars((string) ($massiveHeaderCell['value'] ?? ''), ENT_QUOTES, 'UTF-8'));
-                    $html  .= "<th{$rsAttr}{$csAttr}>{$valEsc}</th>";
-                    $dIdx  += $perPageCols;
+                    $rs      = min((int) ($massiveHeaderCell['rowspan'] ?? 1), $validEndRow - $r + 1);
+                    $rsAttr  = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
+                    $csAttr  = ($perPageCols > 1) ? ' colspan="' . $perPageCols . '"' : '';
+                    $wPct    = $sumSpanPct($targetCol, $perPageCols);
+                    $valHtml = $this->formatPdfCellHtml((string) ($massiveHeaderCell['value'] ?? ''));
+                    $html   .= "<th{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</th>";
+                    $dIdx   += $perPageCols;
                     continue;
                 }
 
                 if (isset($grid['origins'][$r][$gridCol])) {
-                    $cell      = $grid['origins'][$r][$gridCol];
-                    $tag       = !empty($cell['isHeader']) ? 'th' : 'td';
-                    $cs        = min((int) ($cell['colspan'] ?? 1), $perPageCols - $dIdx + 1);
-                    $rs        = min((int) ($cell['rowspan'] ?? 1), $validEndRow - $r + 1);
-                    $csAttr    = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
-                    $rsAttr    = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
-                    $rawVal    = (string) ($cell['value'] ?? '');
-                    $valEsc    = ($rawVal !== '') ? nl2br(htmlspecialchars($rawVal, ENT_QUOTES, 'UTF-8')) : '-';
-                    $html     .= "<{$tag}{$rsAttr}{$csAttr}>{$valEsc}</{$tag}>";
-                    $dIdx     += $cs;
+                    $cell    = $grid['origins'][$r][$gridCol];
+                    $tag     = !empty($cell['isHeader']) ? 'th' : 'td';
+                    $cs      = min((int) ($cell['colspan'] ?? 1), $perPageCols - $dIdx + 1);
+                    $rs      = min((int) ($cell['rowspan'] ?? 1), $validEndRow - $r + 1);
+                    $csAttr  = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
+                    $rsAttr  = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
+                    $wPct    = $sumSpanPct($targetCol, $cs);
+                    $rawVal  = (string) ($cell['value'] ?? '');
+                    $valHtml = ($rawVal !== '') ? $this->formatPdfCellHtml($rawVal) : '-';
+                    $html   .= "<{$tag}{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</{$tag}>";
+                    $dIdx   += $cs;
                 } else {
                     if (empty($grid['occupied'][$r][$gridCol])) {
-                        $html .= '<td>-</td>';
+                        $wPct  = $sumSpanPct($targetCol, 1);
+                        $html .= "<td style=\"width: {$wPct}%;\">-</td>";
                     }
                     $dIdx++;
                 }
@@ -845,7 +747,8 @@ class PdfGenerator
     }
 
     /**
-     * Render tabel Production / Foregoing per 20 baris data + Dummy Rows & proporsi kolom Excel
+     * Render tabel Production / Foregoing per 20 baris data + Dummy Rows
+     * Tinggi baris data dinaikkan (21.5pt s/d 22.2pt) agar tabel memanjang penuh ke bawah kertas (~95% tinggi A4).
      */
     private function buildHorizontalRowChunkTableHtml(
         array $grid,
@@ -857,7 +760,6 @@ class PdfGenerator
     ): string {
         $totalCols = $grid['totalCols'];
 
-        // Hitung bobot lebar kolom sesuai spesifikasi ExcelGenerator
         $colWeights = [];
         for ($col = 1; $col <= $totalCols; $col++) {
             $headerLabel = '';
@@ -872,41 +774,42 @@ class PdfGenerator
             $headerLabel = trim((string) preg_replace('/\s+/', ' ', $headerLabel));
 
             if ($typeProcess === 'foregoing') {
-                $w = 6.5;
+                $w = 6.6;
                 if ($col === 1 && ($headerLabel === 'no' || $headerLabel === 'no.')) {
-                    $w = 4.5;
+                    $w = 3.5;
                 } elseif (strpos($headerLabel, 'mch') !== false || strpos($headerLabel, 'mach') !== false) {
-                    $w = 11.20;
+                    $w = 9.0;
                 } elseif (strpos($headerLabel, 'model') !== false) {
-                    $w = 15.70;
+                    $w = 14.5;
                 } elseif (strpos($headerLabel, 'lot') !== false) {
-                    $w = 14.0;
+                    $w = 13.2;
                 } elseif (strpos($headerLabel, 'operator') !== false) {
-                    $w = 12.0;
+                    $w = 8.0;
                 } elseif (strpos($headerLabel, 'shift') !== false || strpos($headerLabel, 'group') !== false) {
-                    $w = 11.70;
+                    $w = 10.0;
                 } elseif (strpos($headerLabel, 'date') !== false) {
-                    $w = 11.10;
+                    $w = 9.8;
                 } elseif (strpos($headerLabel, 'pos') !== false) {
-                    $w = 6.5;
+                    $w = 4.2;
                 } elseif (strpos($headerLabel, 'judge') !== false || strpos($headerLabel, 'ok/ng') !== false) {
-                    $w = 5.8;
+                    $w = 4.6;
                 }
             } else {
+                // Production: proporsi optimal agar seluruh sel data 1 baris
                 if ($col === 1 && ($headerLabel === 'no' || $headerLabel === 'no.')) {
                     $w = 4.5;
                 } elseif (strpos($headerLabel, 'operator') !== false) {
-                    $w = 14.0;
+                    $w = 9.5;
                 } elseif (strpos($headerLabel, 'shift') !== false || strpos($headerLabel, 'group') !== false) {
-                    $w = 12.55;
+                    $w = 12.0;
                 } elseif (strpos($headerLabel, 'mch') !== false || strpos($headerLabel, 'mach') !== false) {
-                    $w = 10.10;
+                    $w = 10.0;
                 } elseif (strpos($headerLabel, 'model') !== false) {
-                    $w = 15.5;
+                    $w = 16.5;
                 } elseif (strpos($headerLabel, 'lot') !== false) {
-                    $w = 14.10;
+                    $w = 15.0;
                 } elseif (strpos($headerLabel, 'date') !== false) {
-                    $w = 14.55;
+                    $w = 11.5;
                 } elseif (
                     strpos($headerLabel, 'in') !== false ||
                     strpos($headerLabel, 'out') !== false ||
@@ -917,7 +820,7 @@ class PdfGenerator
                     strpos($headerLabel, 'pressure') !== false ||
                     strpos($headerLabel, 'time') !== false
                 ) {
-                    $w = 6.2;
+                    $w = 6.0;
                 } else {
                     $w = 5.2;
                 }
@@ -926,32 +829,41 @@ class PdfGenerator
         }
 
         $totalWeight = max(1.0, array_sum($colWeights));
-        $colgroup    = '<colgroup>';
-        foreach ($colWeights as $w) {
-            $pct       = round(($w / $totalWeight) * 100, 3);
-            $colgroup .= '<col style="width: ' . $pct . '%;">';
+        $colPcts     = [];
+        foreach ($colWeights as $cIdx => $w) {
+            $colPcts[$cIdx] = ($w / $totalWeight) * 100.0;
         }
-        $colgroup .= '</colgroup>';
 
-        $hdrRowHeightPt  = 13.5;
-        $dataRowHeightPt = ($typeProcess === 'foregoing') ? 21.0 : 20.5;
+        $sumSpanPct = function (int $startIdx, int $span) use ($colPcts): float {
+            $sum = 0.0;
+            for ($i = $startIdx; $i < $startIdx + $span; $i++) {
+                $sum += ($colPcts[$i] ?? 2.5);
+            }
+            return round($sum, 2);
+        };
 
-        $html = '<table class="table-cs">' . $colgroup . '<thead>';
+        // Tinggi baris optimal agar 20 baris data mengisi penuh halaman A4 Landscape (~95% tinggi kertas)
+        $hdrRowHeightPt  = ($typeProcess === 'foregoing') ? 16.5 : 16.0;
+        $dataRowHeightPt = ($typeProcess === 'foregoing') ? 22.2 : 21.5;
+
+        $html = '<table class="table-cs"><thead>';
 
         // 1. Render Baris Header (1 .. $headerRowCount)
         for ($r = 1; $r <= $headerRowCount; $r++) {
             $html .= '<tr style="height: ' . $hdrRowHeightPt . 'pt;">';
             for ($c = 1; $c <= $totalCols; $c++) {
                 if (isset($grid['origins'][$r][$c])) {
-                    $cell   = $grid['origins'][$r][$c];
-                    $cs     = min((int) ($cell['colspan'] ?? 1), $totalCols - $c + 1);
-                    $rs     = min((int) ($cell['rowspan'] ?? 1), $headerRowCount - $r + 1);
-                    $csAttr = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
-                    $rsAttr = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
-                    $valEsc = nl2br(htmlspecialchars((string) ($cell['value'] ?? ''), ENT_QUOTES, 'UTF-8'));
-                    $html  .= "<th{$rsAttr}{$csAttr}>{$valEsc}</th>";
+                    $cell    = $grid['origins'][$r][$c];
+                    $cs      = min((int) ($cell['colspan'] ?? 1), $totalCols - $c + 1);
+                    $rs      = min((int) ($cell['rowspan'] ?? 1), $headerRowCount - $r + 1);
+                    $csAttr  = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
+                    $rsAttr  = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
+                    $wPct    = $sumSpanPct($c, $cs);
+                    $valHtml = $this->formatPdfCellHtml((string) ($cell['value'] ?? ''));
+                    $html   .= "<th{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</th>";
                 } elseif (empty($grid['occupied'][$r][$c])) {
-                    $html .= '<th></th>';
+                    $wPct  = $sumSpanPct($c, 1);
+                    $html .= "<th style=\"width: {$wPct}%;\"></th>";
                 }
             }
             $html .= '</tr>';
@@ -959,23 +871,25 @@ class PdfGenerator
 
         $html .= '</thead><tbody>';
 
-        // 2. Render Baris Data pada Chunk Ini
+        // 2. Render Baris Data (Maksimal 20 baris per halaman)
         $actualRowsRendered = 0;
         if ($startDataRow <= $endDataRow && $startDataRow <= $grid['totalRows']) {
             for ($r = $startDataRow; $r <= $endDataRow; $r++) {
                 $html .= '<tr style="height: ' . $dataRowHeightPt . 'pt;">';
                 for ($c = 1; $c <= $totalCols; $c++) {
                     if (isset($grid['origins'][$r][$c])) {
-                        $cell   = $grid['origins'][$r][$c];
-                        $cs     = min((int) ($cell['colspan'] ?? 1), $totalCols - $c + 1);
-                        $rs     = min((int) ($cell['rowspan'] ?? 1), $endDataRow - $r + 1);
-                        $csAttr = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
-                        $rsAttr = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
-                        $rawVal = (string) ($cell['value'] ?? '');
-                        $valEsc = ($rawVal !== '') ? nl2br(htmlspecialchars($rawVal, ENT_QUOTES, 'UTF-8')) : '-';
-                        $html  .= "<td{$rsAttr}{$csAttr}>{$valEsc}</td>";
+                        $cell    = $grid['origins'][$r][$c];
+                        $cs      = min((int) ($cell['colspan'] ?? 1), $totalCols - $c + 1);
+                        $rs      = min((int) ($cell['rowspan'] ?? 1), $endDataRow - $r + 1);
+                        $csAttr  = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
+                        $rsAttr  = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
+                        $wPct    = $sumSpanPct($c, $cs);
+                        $rawVal  = (string) ($cell['value'] ?? '');
+                        $valHtml = ($rawVal !== '') ? $this->formatPdfCellHtml($rawVal) : '-';
+                        $html   .= "<td{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</td>";
                     } elseif (empty($grid['occupied'][$r][$c])) {
-                        $html .= '<td>-</td>';
+                        $wPct  = $sumSpanPct($c, 1);
+                        $html .= "<td style=\"width: {$wPct}%;\">-</td>";
                     }
                 }
                 $html .= '</tr>';
@@ -987,7 +901,6 @@ class PdfGenerator
         $dummyNeeded = max(0, $perPageRows - $actualRowsRendered);
         if ($dummyNeeded > 0) {
             if ($typeProcess === 'foregoing') {
-                // Dummy rows Foregoing dibuat per blok 4 baris (X, Y, Z, θ) dengan rowspan=4 pada 7 kolom identitas lot
                 $posCycle = ['X', 'Y', 'Z', 'θ'];
                 $d        = 0;
                 while ($d < $dummyNeeded) {
@@ -997,15 +910,18 @@ class PdfGenerator
                         if ($s === 0) {
                             $rsAttr = ($blockSize > 1) ? ' rowspan="' . $blockSize . '"' : '';
                             for ($c = 1; $c <= min(7, $totalCols); $c++) {
-                                $html .= "<td{$rsAttr}>-</td>";
+                                $wPct  = $sumSpanPct($c, 1);
+                                $html .= "<td{$rsAttr} style=\"width: {$wPct}%;\">-</td>";
                             }
                         }
                         if ($totalCols >= 8) {
-                            $posLbl = htmlspecialchars($posCycle[$s] ?? '-', ENT_QUOTES, 'UTF-8');
-                            $html  .= "<td>{$posLbl}</td>";
+                            $wPct   = $sumSpanPct(8, 1);
+                            $posLbl = $this->formatPdfCellHtml($posCycle[$s] ?? '-');
+                            $html  .= "<td style=\"width: {$wPct}%;\">{$posLbl}</td>";
                         }
                         for ($c = 9; $c <= $totalCols; $c++) {
-                            $html .= '<td>-</td>';
+                            $wPct  = $sumSpanPct($c, 1);
+                            $html .= "<td style=\"width: {$wPct}%;\">-</td>";
                         }
                         $html .= '</tr>';
                     }
@@ -1015,7 +931,8 @@ class PdfGenerator
                 for ($d = 1; $d <= $dummyNeeded; $d++) {
                     $html .= '<tr style="height: ' . $dataRowHeightPt . 'pt;">';
                     for ($c = 1; $c <= $totalCols; $c++) {
-                        $html .= '<td>-</td>';
+                        $wPct  = $sumSpanPct($c, 1);
+                        $html .= "<td style=\"width: {$wPct}%;\">-</td>";
                     }
                     $html .= '</tr>';
                 }
@@ -1027,7 +944,7 @@ class PdfGenerator
     }
 
     /**
-     * Bangun Kop Surat 5 Baris Berbingkai (Seragam untuk Production, Startup, dan Foregoing)
+     * Bangun Kop Surat 5 Baris yang Ringkas & Proporsional
      */
     private function buildKopSuratHtml(
         string $namaProduk,
@@ -1074,40 +991,33 @@ class PdfGenerator
 
             return '
             <table class="kop-table">
-                <colgroup>
-                    <col style="width: 26%;">
-                    <col style="width: 52%;">
-                    <col style="width: 9%;">
-                    <col style="width: 13%;">
-                </colgroup>
-                <tr style="height: 11pt;">
-                    <td rowspan="4" class="kop-left">' . $ptBlockHtml . '</td>
-                    <td rowspan="4" class="kop-center">' . $titleHtml . '</td>
-                    <td class="kop-info-lbl">Doc No.</td>
-                    <td class="kop-info-val">: ' . htmlspecialchars($docNoClean, ENT_QUOTES, 'UTF-8') . '</td>
+                <tr style="height: 7.5pt;">
+                    <td rowspan="4" class="kop-left" style="width: 23%;">' . $ptBlockHtml . '</td>
+                    <td rowspan="4" class="kop-center" style="width: 60%;">' . $titleHtml . '</td>
+                    <td class="kop-info-lbl" style="width: 6.5%;">Doc No.</td>
+                    <td class="kop-info-val" style="width: 10.5%;">: ' . htmlspecialchars($docNoClean, ENT_QUOTES, 'UTF-8') . '</td>
                 </tr>
-                <tr style="height: 11pt;">
-                    <td class="kop-info-lbl">Revisi</td>
-                    <td class="kop-info-val">: ' . htmlspecialchars((string) $revisiClean, ENT_QUOTES, 'UTF-8') . '</td>
+                <tr style="height: 7.5pt;">
+                    <td class="kop-info-lbl" style="width: 6.5%;">Revisi</td>
+                    <td class="kop-info-val" style="width: 10.5%;">: ' . htmlspecialchars((string) $revisiClean, ENT_QUOTES, 'UTF-8') . '</td>
                 </tr>
-                <tr style="height: 11pt;">
-                    <td class="kop-info-lbl">Berlaku</td>
-                    <td class="kop-info-val">: ' . htmlspecialchars($tglBerlaku, ENT_QUOTES, 'UTF-8') . '</td>
+                <tr style="height: 7.5pt;">
+                    <td class="kop-info-lbl" style="width: 6.5%;">Berlaku</td>
+                    <td class="kop-info-val" style="width: 10.5%;">: ' . htmlspecialchars($tglBerlaku, ENT_QUOTES, 'UTF-8') . '</td>
                 </tr>
-                <tr style="height: 11pt;">
-                    <td class="kop-ttd-hdr">QC</td>
-                    <td class="kop-ttd-hdr">Production</td>
+                <tr style="height: 7.5pt;">
+                    <td class="kop-ttd-hdr" style="width: 6.5%;">QC</td>
+                    <td class="kop-ttd-hdr" style="width: 10.5%;">Production</td>
                 </tr>
-                <tr style="height: 28pt;">
-                    <td class="kop-machine">' . $machHtml . '</td>
-                    <td></td>
-                    <td class="kop-ttd-box">' . $qcBox . '</td>
-                    <td class="kop-ttd-box">' . $prodBox . '</td>
+                <tr style="height: 17pt;">
+                    <td class="kop-machine" style="width: 23%;">' . $machHtml . '</td>
+                    <td style="width: 60%;"></td>
+                    <td class="kop-ttd-box" style="width: 6.5%;">' . $qcBox . '</td>
+                    <td class="kop-ttd-box" style="width: 10.5%;">' . $prodBox . '</td>
                 </tr>
             </table>';
         }
 
-        // Production & Foregoing (Lengkap dengan baris Revisi & Kotak Checked / Approved by)
         $ttdHtml = '';
         if (trim($namaApprover) !== '' && trim($namaApprover) !== '-') {
             $ttdHtml = 'Approved by:<br>' . nl2br(htmlspecialchars(trim($namaApprover), ENT_QUOTES, 'UTF-8'));
@@ -1115,33 +1025,27 @@ class PdfGenerator
 
         return '
         <table class="kop-table">
-            <colgroup>
-                <col style="width: 24%;">
-                <col style="width: 54%;">
-                <col style="width: 9%;">
-                <col style="width: 13%;">
-            </colgroup>
-            <tr style="height: 11pt;">
-                <td rowspan="4" class="kop-left">' . $ptBlockHtml . '</td>
-                <td rowspan="4" class="kop-center">' . $titleHtml . '</td>
-                <td class="kop-info-lbl">No. Dok / No.</td>
-                <td class="kop-info-val">: ' . htmlspecialchars($docNoClean, ENT_QUOTES, 'UTF-8') . '</td>
+            <tr style="height: 7.5pt;">
+                <td rowspan="4" class="kop-left" style="width: 23%;">' . $ptBlockHtml . '</td>
+                <td rowspan="4" class="kop-center" style="width: 60%;">' . $titleHtml . '</td>
+                <td class="kop-info-lbl" style="width: 6.5%;">No. Dok / No.</td>
+                <td class="kop-info-val" style="width: 10.5%;">: ' . htmlspecialchars($docNoClean, ENT_QUOTES, 'UTF-8') . '</td>
             </tr>
-            <tr style="height: 11pt;">
-                <td class="kop-info-lbl">Revisi</td>
-                <td class="kop-info-val">: ' . htmlspecialchars((string) $revisiClean, ENT_QUOTES, 'UTF-8') . '</td>
+            <tr style="height: 7.5pt;">
+                <td class="kop-info-lbl" style="width: 6.5%;">Revisi</td>
+                <td class="kop-info-val" style="width: 10.5%;">: ' . htmlspecialchars((string) $revisiClean, ENT_QUOTES, 'UTF-8') . '</td>
             </tr>
-            <tr style="height: 11pt;">
-                <td class="kop-info-lbl">Berlaku</td>
-                <td class="kop-info-val">: ' . htmlspecialchars($tglBerlaku, ENT_QUOTES, 'UTF-8') . '</td>
+            <tr style="height: 7.5pt;">
+                <td class="kop-info-lbl" style="width: 6.5%;">Berlaku</td>
+                <td class="kop-info-val" style="width: 10.5%;">: ' . htmlspecialchars($tglBerlaku, ENT_QUOTES, 'UTF-8') . '</td>
             </tr>
-            <tr style="height: 11pt;">
-                <td colspan="2" class="kop-ttd-hdr">Checked</td>
+            <tr style="height: 7.5pt;">
+                <td colspan="2" class="kop-ttd-hdr" style="width: 17%;">Checked</td>
             </tr>
-            <tr style="height: 28pt;">
-                <td class="kop-machine">' . $machHtml . '</td>
-                <td></td>
-                <td colspan="2" class="kop-ttd-box">' . $ttdHtml . '</td>
+            <tr style="height: 17pt;">
+                <td class="kop-machine" style="width: 23%;">' . $machHtml . '</td>
+                <td style="width: 60%;"></td>
+                <td colspan="2" class="kop-ttd-box" style="width: 17%;">' . $ttdHtml . '</td>
             </tr>
         </table>';
     }
