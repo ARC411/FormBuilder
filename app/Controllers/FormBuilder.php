@@ -18,13 +18,20 @@ class FormBuilder extends BaseController
 
     public function __construct()
     {
-        $uri = service('uri');
-        $seg1 = strtolower($uri->getTotalSegments() >= 1 ? $uri->getSegment(1) : '');
-        $seg2 = strtolower($uri->getTotalSegments() >= 2 ? $uri->getSegment(2) : '');
+        // 1. Inisialisasi Model terlebih dahulu agar tidak pernah bernilai null
+        $this->deviceModel      = new DeviceModel();
+        $this->processModel     = new ProcessModel();
+        $this->formRevModel     = new FormRevisionModel();
+        $this->formParamModel   = new FormParameterModel();
+        $this->logActivityModel = new LogActivityModel();
 
-        // Hanya batasi jika user mengakses URL /form-builder secara langsung (kecuali render-input)
+        // 2. Pengecekan hak akses URL
+        $uri   = service('uri');
+        $seg1  = strtolower($uri->getTotalSegments() >= 1 ? (string)$uri->getSegment(1) : '');
+        $seg2  = strtolower($uri->getTotalSegments() >= 2 ? (string)$uri->getSegment(2) : '');
+
         $isDirectFormBuilderRoute = ($seg1 === 'form-builder' || $seg1 === 'formbuilder');
-        $isRenderInput = ($seg2 === 'render-input');
+        $isRenderInput            = ($seg2 === 'render-input');
 
         if ($isDirectFormBuilderRoute && !$isRenderInput && !session()->get('isadmin')) {
             echo "<script>alert('Akses Ditolak! Khusus Admin/QC.'); window.location.href='" . base_url('home') . "';</script>";
