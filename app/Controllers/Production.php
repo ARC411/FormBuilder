@@ -28,7 +28,7 @@ class Production extends BaseController
         return $value;
     }
 
-    public function index(): string
+    public function index()
     {
         if (!$this->session->has('empid')) {
             return redirect()->to(base_url('login'));

@@ -355,7 +355,7 @@ window.validateDynamicUnit = function(paramId) {
     if (!isNaN(minVal)) valEl.setAttribute('min', minVal);
     if (!isNaN(maxVal)) valEl.setAttribute('max', maxVal);
 
-    if (valEl.value === '') {
+    if (valEl.value === '' || valEl.value === '-' || valEl.readOnly) {
         window.combineData(paramId);
         return;
     }
@@ -387,6 +387,11 @@ window.validateDynamicUnit = function(paramId) {
 
     if (formEl) {
         formEl.addEventListener('submit', function(e) {
+            var isStandbyActive = (document.getElementById('is-standby') && document.getElementById('is-standby').checked) || (valEl && valEl.value === '-');
+            if (isStandbyActive) {
+                window.combineData('par008');
+                return;
+            }
             window.validateDynamicUnit('par008');
             window.combineData('par008');
 

@@ -88,7 +88,9 @@ class StartupModel extends Model
 
     public function getAllData(
         $empid = null,
-        $name = null
+        $name = null,
+        $dateStart = null,
+        $dateEnd = null
     ) {
         $whereEmp = "";
         $conds = [];
@@ -109,15 +111,32 @@ class StartupModel extends Model
             $whereEmp = " AND (" . implode(" OR ", $conds) . ")";
         }
 
-        $query = "SELECT DISTINCT s.id, s.`number`, s.created_at, s.`process`, d.name as device_name, 
+        $whereDate = "";
+        if (!empty($dateStart)) {
+            $tsS = strtotime($dateStart);
+            $startStr = ($tsS ? date('Y-m-d', $tsS) : $dateStart) . ' 00:00:00';
+            $whereDate .= " AND s.created_at >= " . $this->db->escape($startStr);
+        }
+        if (!empty($dateEnd)) {
+            $tsE = strtotime($dateEnd);
+            $endStr = ($tsE ? date('Y-m-d', $tsE) : $dateEnd) . ' 23:59:59';
+            $whereDate .= " AND s.created_at <= " . $this->db->escape($endStr);
+        }
+
+        $query = "SELECT DISTINCT s.id, s.`number`, s.created_at, s.`process`, 
+                  COALESCE(s.device, p.device, d.code) as device,
+                  d.code as device_code,
+                  COALESCE(d.name, s.device, p.device) as device_name, 
                   s.`machno`, s.`model`, s.`lotno`, s.`empid`, s.`shift`, s.`group`, s.`status`, s.`role`, 
-                  s.`foreman`, s.`leader`, s.`supervisor`, s.name, p.name as process_name, 
+                  s.`foreman`, s.`leader`, s.`supervisor`, s.name, 
+                  COALESCE(p.name, s.process) as process_name, 
                   s.edit_status, s.unlocked_by, s.reject_reason, s.reject_by, s.reject_date
                   FROM `startup` as s
-                  INNER JOIN `proses` as p ON s.process = p.process_code 
-                  INNER JOIN `device` as d ON p.device = d.code
+                  LEFT JOIN `proses` as p ON s.process = p.process_code 
+                  LEFT JOIN `device` as d ON COALESCE(s.device, p.device) = d.code
                   WHERE s.`par000` = '1' "
                   . $whereEmp
+                  . $whereDate
                   . " ORDER BY CASE WHEN s.status = 'Reject' THEN 0 ELSE 1 END, s.created_at DESC";
 
         return $this->query(

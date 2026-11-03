@@ -209,7 +209,29 @@
               echo '<p id=msgsuccess class="invisible">Kosong</p>';
             }
           ?>
-          <div id="form-input" class="mt-3">
+                    <!-- Banner & Toggle Mesin Stand By (Tampil khusus untuk Doc. Type: Startup) -->
+          <div id="standby-wrapper" class="card border-warning mb-3 shadow-sm" style="display: none; background: #fffdf5; border-radius: 6px;">
+            <div class="card-body py-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="d-flex align-items-center">
+                <div class="form-check form-switch me-2 mb-0" style="min-height: auto;">
+                  <input class="form-check-input" type="checkbox" id="is-standby" name="is_standby" value="1" style="cursor: pointer; width: 2em; height: 1.1em; margin-top: 0.15em;">
+                </div>
+                <div>
+                  <label for="is-standby" class="form-check-label fw-bold text-dark mb-0 small" style="cursor: pointer;">
+                    <i class="fas fa-power-off text-warning me-1"></i> Mesin Stand By
+                  </label>
+                  <span class="text-muted ms-2 d-none d-sm-inline" style="font-size: 0.78rem;">
+                    (Aktifkan jika mesin idle/standby: parameter otomatis "-", Note wajib diisi)
+                  </span>
+                </div>
+              </div>
+              <div id="standby-badge" class="badge bg-warning text-dark px-2 py-1 fw-bold shadow-sm" style="display: none; font-size: 0.75rem;">
+                <i class="fas fa-pause-circle me-1"></i> STAND BY AKTIF
+              </div>
+            </div>
+          </div>
+
+          <div id="form-input" class="">
 
           </div>
           <div class="d-flex justify-content-center mt-3">
@@ -301,6 +323,19 @@ function checkSubmit() {
         alert("GAGAL: Machine Number WAJIB dipilih atau diisi sebelum Submit!");
         return false;
     }
+
+    // Pengecekan khusus Mode Mesin Stand By
+    if ($('#is-standby').is(':checked')) {
+        var $noteInput = findNoteInput();
+        if ($noteInput && (!$.trim($noteInput.val()) || $.trim($noteInput.val()) === '-')) {
+            alert("GAGAL: Mesin dalam status STAND BY.\nKolom Catatan/Note WAJIB diisi keterangan/alasan standby!");
+            $noteInput.focus();
+            return false;
+        }
+        // Pastikan seluruh parameter non-note terisi strip '-'
+        applyStandbyMode(true);
+    }
+
     $('#form-input input[name="machno-txt"]').remove();
     return confirm('Apakah kamu yakin ingin menyimpan data ini?');
 }
@@ -430,8 +465,10 @@ function updateInput() {
 
     if (!process || process === 'null' || process === '-') {
         $('#submit').hide();
-        $('#form-input').empty();
-        document.getElementById('revisi-txt').value = "";
+        $('#standby-wrapper').hide();
+        $('#is-standby').prop('checked', false);
+        form_input.innerHTML = "";
+        document.getElementById('revisi-txt').value = ""; // Kosongkan revisi
         return;
     }
 
@@ -442,15 +479,22 @@ function updateInput() {
     if (selectedDocType === 'production' || process.split("-")[1] == 'p') {
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
-        typeProcess = "production";
-    } else if (selectedDocType === 'foregoing' || process.split("-")[1] == 'f') {
+        typeProcess="production";
+        $('#standby-wrapper').hide();
+        $('#is-standby').prop('checked', false);
+    }
+    else if(process.split("-")[1] == 'f'){
         document.getElementById('model-txt').disabled = false;
         document.getElementById('lotno-txt').disabled = false;
-        typeProcess = "foregoing";
-    } else {
+        typeProcess="foregoing";
+        $('#standby-wrapper').hide();
+        $('#is-standby').prop('checked', false);
+    }
+    else{
         document.getElementById('model-txt').disabled = true;
         document.getElementById('lotno-txt').disabled = true;
-        typeProcess = "startup";
+        typeProcess="startup";
+        $('#standby-wrapper').slideDown();
     }
 
     document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + typeProcess;
@@ -526,6 +570,11 @@ function loadStaticFallbackForm(typeProcess, device, process) {
                 if (processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
                     header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
                 }
+
+                // Jika checkbox Stand By aktif saat form dimuat, langsung terapkan
+                if ($('#is-standby').is(':checked')) {
+                    applyStandbyMode(true);
+                }
             } else {
                 $('#submit').hide();
                 $('#form-input').empty();
@@ -563,97 +612,161 @@ function updateDocNo() {
         docNo.value = text.split(" ")[0];
     }
 }
+// Helper untuk mencari input Note / Catatan di form startup apapun
+function findNoteInput() {
+    var $trs = $('#form-input table tbody tr');
+    // 1. Cari baris yang kolom labelnya memiliki kata 'note' atau 'catatan'
+    var $targetTr = $trs.filter(function() {
+        var labelText = $(this).children('td:not(:last-child)').text().toLowerCase();
+        return labelText.indexOf('note') !== -1 || labelText.indexOf('catatan') !== -1;
+    }).last();
 
-// FUNGSI UPDATE DROPDOWN MODEL NAME PER PROSES
-window.modelsCacheByProcess = {};
-window.activeModelStandards = null;
-
-function updateModelList() {
-    var processCode = document.getElementById("process-txt").value;
-    var modelSelect = $('#model-txt');
-    var currentVal  = modelSelect.val();
-
-    modelSelect.empty().append('<option value="">-- Ketik atau Pilih Model Name --</option>');
-
-    if (!processCode || processCode === '-' || processCode === 'null') {
-        modelSelect.trigger('change');
-        return;
+    if ($targetTr.length) {
+        var $inp = $targetTr.find('input[type="text"], textarea');
+        if ($inp.length) return $inp;
     }
 
-    $.ajax({
-        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode),
-        dataType: 'JSON',
-        success: function(data) {
-            window.modelsCacheByProcess = {};
-            if (data && data.length > 0) {
-                for (let i = 0; i < data.length; i++) {
-                    var mName = data[i].model_name;
-                    window.modelsCacheByProcess[mName] = data[i].standards || null;
-                    var isSel = (mName === currentVal);
-                    modelSelect.append(new Option(mName, mName, isSel, isSel));
-                }
-            }
-            modelSelect.trigger('change');
-        }
-    });
+    // 2. Baris terakhir di tbody tabel
+    var $lastTr = $trs.last();
+    var $lastInp = $lastTr.find('input[type="text"], textarea');
+    if ($lastInp.length) return $lastInp;
+
+    // 3. Fallback: input tipe teks terakhir
+    return $('#form-input input[type="text"]').last();
 }
 
-// TERAPKAN STANDAR BATAS MIN/MAX (X, Y, Z, θ) SESUAI MODEL YANG DIPILIH PADA FORM FOREGOING
-function applyForegoingModelStandards() {
-    var selectedModel = $('#model-txt').val();
-    var stdMap = window.activeModelStandards || (selectedModel ? window.modelsCacheByProcess[selectedModel] : null);
+// Fungsi aktivasi / deaktivasi Mode Mesin Stand By
+function applyStandbyMode(isActive) {
+    var $form = $('#form-input');
+    if (!$form.length || !$form.children().length) return;
 
-    $('#form-input tr[data-grid-row]').each(function() {
-        var rowName = $(this).attr('data-grid-row');
-        var cfg = (stdMap && stdMap[rowName]) ? stdMap[rowName] : null;
+    var $note = findNoteInput();
 
-        // Hanya ubah input sampel angka (jangan ubah kolom Offset Parameter From/To di sebelah kanan Judge)
-        $(this).find('input.dyn-number-input').each(function() {
-            var el = this;
-            var $td = $(el).closest('td');$td.find('.std-model-hint').remove();
+    if (isActive) {
+        $('#standby-badge').fadeIn();
+        $('#standby-wrapper').css('background', 'linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%)');
 
-            if (!cfg) {
-                // Kembalikan ke normal jika model belum dipilih / belum punya standar khusus
-                if (!el.hasAttribute('readonly')) {
-                    el.disabled = false;
-                    el.style.backgroundColor = '';
-                }
+        $form.find('input, select, textarea').each(function() {
+            var $el = $(this);
+
+            // Lewati token csrf & hidden non-parameter
+            if ($el.attr('type') === 'hidden' && (!$el.attr('name') || $el.attr('name').indexOf('par') !== 0)) {
                 return;
             }
 
-            if (parseInt(cfg.active) === 0) {
-                // Jika baris ini tidak diukur untuk model tersebut (Contoh: Baris Y pada GH16330A8C)
-                el.value = '';
-                el.disabled = true;
-                el.style.backgroundColor = '#e2e8f0';
-                el.removeAttribute('data-min');
-                el.removeAttribute('data-max');
-                $td.append('<small class="text-muted d-block mt-1 std-model-hint" style="font-size:10px;">Tidak Diukur</small>');
-            } else {
-                el.disabled = false;
-                var minVal = (cfg.min !== null && cfg.min !== undefined && cfg.min !== '') ? cfg.min : '';
-                var maxVal = (cfg.max !== null && cfg.max !== undefined && cfg.max !== '') ? cfg.max : '';
-                el.setAttribute('data-min', minVal);
-                el.setAttribute('data-max', maxVal);
-
-                if (minVal !== '' || maxVal !== '') {
-                    $td.append(`<small class="text-primary fw-semibold d-block mt-1 std-model-hint" style="font-size:10px;">Std: ${minVal !== '' ? minVal : '-∞'} ~ ${maxVal !== '' ? maxVal : '∞'}</small>`);
+            // Jika ini adalah input Note/Catatan
+            if ($note && $el.is($note)) {
+                $el.prop('readonly', false);
+                $el.prop('required', true);
+                if (!$.trim($el.val()) || $.trim($el.val()) === '-') {
+                    $el.val('Mesin Stand By');
                 }
+                $el.css({
+                    'border': '2px solid #ffc107',
+                    'background-color': '#fffde7'
+                });
+                return;
+            }
 
-                // Cek ulang warna validasi jika kotak sudah terisi angka
-                if (el.value !== '') {
-                    var v = parseFloat(el.value);
-                    if ((minVal !== '' && v < parseFloat(minVal)) || (maxVal !== '' && v > parseFloat(maxVal))) {
-                        el.style.backgroundColor = '#ffcccc';
-                    } else {
-                        el.style.backgroundColor = '';
-                    }
-                } else {
-                    el.style.backgroundColor = '';
+            // Input number / text parameter
+            if ($el.is('input[type="number"], input[type="text"], textarea')) {
+                if ($el.attr('type') === 'number') {
+                    $el.data('orig-type', 'number');
+                    $el.attr('type', 'text');
+                }
+                if ($el.prop('required')) {
+                    $el.data('orig-required', true);
+                    $el.prop('required', false);
+                }
+                $el.val('-');
+                $el.prop('readonly', true);
+                $el.css({
+                    'background-color': '#f8f9fa',
+                    'color': '#495057'
+                });
+                this.dataset.hasError = "0";
+            } else if ($el.is('select')) {
+                if ($el.prop('required')) {
+                    $el.data('orig-required', true);
+                    $el.prop('required', false);
+                }
+                if (!$el.find('option[value="-"]').length) {
+                    $el.append('<option value="-" class="standby-temp-opt">-</option>');
+                }
+                $el.val('-');
+                $el.css({
+                    'pointer-events': 'none',
+                    'background-color': '#f8f9fa'
+                });
+                this.dataset.hasError = "0";
+            }
+        });
+
+        // Hilangkan semua indikator error validasi form
+        $('#cnt-error-input').val(0);
+        if (typeof changeDisableSubmit === 'function') {
+            changeDisableSubmit(false);
+        }
+        $('#submit').prop('disabled', false);
+
+        if ($note && $note.length) {
+            $note.focus();
+        }
+    } else {
+        // Matikan Mode Stand By
+        $('#standby-badge').fadeOut();
+        $('#standby-wrapper').css('background', 'linear-gradient(135deg, #fffcf0 0%, #fff3cd 100%)');
+
+        $form.find('input, select, textarea').each(function() {
+            var $el = $(this);
+
+            if ($note && $el.is($note)) {
+                $el.prop('required', false);
+                if ($el.val() === 'Mesin Stand By') {
+                    $el.val('');
+                }
+                $el.css({
+                    'border': '',
+                    'background-color': ''
+                });
+                return;
+            }
+
+            if ($el.data('orig-type') === 'number') {
+                $el.attr('type', 'number');
+                $el.removeData('orig-type');
+            }
+            if ($el.data('orig-required')) {
+                $el.prop('required', true);
+                $el.removeData('orig-required');
+            }
+            if ($el.val() === '-') {
+                $el.val('');
+            }
+            $el.prop('readonly', false);
+            $el.css({
+                'background-color': '',
+                'color': ''
+            });
+
+            if ($el.is('select')) {
+                $el.find('.standby-temp-opt').remove();
+                $el.css('pointer-events', '');
+                if ($el.val() === '-') {
+                    $el.val('');
                 }
             }
         });
-    });
+
+        if (typeof syncErrorCount === 'function') {
+            syncErrorCount();
+        }
+    }
 }
+
+// Event listener toggle Mesin Stand By
+$(document).on('change', '#is-standby', function() {
+    applyStandbyMode($(this).is(':checked'));
+});
 </script>
 <?= $this->endSection(); ?>
