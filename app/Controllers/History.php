@@ -189,17 +189,9 @@ class History extends BaseController
         foreach ($alldata as $row) {
             $rowRev = isset($row['revisi']) ? trim((string)$row['revisi']) : '';
 
-            // Jika kolom revisi kosong, cek apakah ada di segmen ke-4 docno
-            if (($rowRev === '' || $rowRev === '-') && !empty($row['docno']) && $row['docno'] !== '-') {
-                $dParts = explode('-', trim((string)$row['docno']));
-                if (count($dParts) >= 4 && is_numeric(end($dParts))) {
-                    $rowRev = end($dParts);
-                }
-            }
-
-            // Data legacy tanpa nomor revisi HANYA boleh tampil di revisi paling tua ($includeEmptyLegacy === true)
-            if ($rowRev === '' || $rowRev === '-') {
-                if ($includeEmptyLegacy) {
+            // Jika revisi kosong, HANYA boleh muncul jika yang dibuka adalah revisi paling awal/pertama
+            if ($rowRev === '' || $rowRev === '-' || $rowRev === '0') {
+                if ($includeEmptyLegacy && ($selInt === 0 || $selInt === 1 || $selectedRevisi === '00' || $selectedRevisi === '01')) {
                     $filtered[] = $row;
                 }
                 continue;
@@ -212,7 +204,6 @@ class History extends BaseController
             }
         }
 
-        // Kembalikan $filtered apa adanya (JANGAN fallback ke $alldata jika data revisi baru memang masih kosong!)
         return $filtered;
     }
 
@@ -239,7 +230,8 @@ class History extends BaseController
                     $process,
                     $model,
                     $lotno,
-                    $machno
+                    $machno,
+                    $selectedRevisi
                 );
             }
         } elseif ($typeProcess === 'foregoing') {
@@ -250,7 +242,8 @@ class History extends BaseController
                 $process,
                 $model,
                 $lotno,
-                $machno
+                $machno,
+                $selectedRevisi
             );
         } else {
             $alldata = $this->StartupModel->getAll(
@@ -260,7 +253,8 @@ class History extends BaseController
                 $process,
                 $model,
                 $lotno,
-                $machno
+                $machno,
+                $selectedRevisi
             );
         }
 

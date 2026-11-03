@@ -311,6 +311,7 @@ class Production extends BaseController
             'process'      => $req->getVar('process-txt'),
             'lotno'        => $req->getVar('lotno-txt'),
             'machno'       => $req->getVar('machno-txt'),
+            'revisi'       => $req->getVar('revisi-txt') ?: null,
             'empid'        => $startEmpId,
             'group'        => $startGroup,
             'shift'        => $startShift,

@@ -132,16 +132,16 @@ class Foregoing extends BaseController
         $data = [
             'title' => 'History | Startup Management',
             'alldata' => $this->ForegoingModel->getAll(
-                $_GET['dateStart'], 
-                $_GET['dateEnd'], 
-                $_GET['device'], 
-                $_GET['process'], 
-                $_GET['model'] ?? '', 
-                $_GET['lotno'] ?? '', 
+                $_GET['dateStart'],
+                $_GET['dateEnd'],
+                $_GET['device'],
+                $_GET['process'],
+                $_GET['model'] ?? '',
+                $_GET['lotno'] ?? '',
                 $_GET['machno'] ?? ''
             )
         ];
-        return view("/layout/".$_GET['device']."/history/foregoing/".$_GET['process'],$data);
+        return view("/layout/" . $_GET['device'] . "/history/foregoing/" . $_GET['process'], $data);
     }
 
     public function formEdit()
@@ -196,7 +196,7 @@ class Foregoing extends BaseController
             'validation' => \Config\Services::validation(),
             'alldata'    => $alldata
         ];
-        
+
         return view('edit-foregoing', $data);
     }
 
@@ -296,9 +296,9 @@ class Foregoing extends BaseController
 
     public function deleteForegoing($number)
     {
-        if(!$this->session->has('empid')){
+        if (!$this->session->has('empid')) {
             session()->setFlashdata('message', 'Login terlebih dahulu');
-            return redirect()->to(base_url()."login");
+            return redirect()->to(base_url() . "login");
         }
         $result = $this->ForegoingModel->deleteByNumber($number);
         if ($result) {
@@ -327,31 +327,31 @@ class Foregoing extends BaseController
 
     public function formInputForegoing()
     {
-        if(!$this->session->has('empid')){
-            return redirect()->to(base_url()."login");
+        if (!$this->session->has('empid')) {
+            return redirect()->to(base_url() . "login");
         }
 
         $data = [
             'title' => 'Input | Startup Management',
             'validation' => \Config\Services::validation()
         ];
-        
-        if($_GET['device']=='' || $_GET['process']==''){
+
+        if ($_GET['device'] == '' || $_GET['process'] == '') {
             return "";
         }
 
-        return view('/layout/'.$_GET['device']."/input/foregoing/".$_GET['process'],$data);
+        return view('/layout/' . $_GET['device'] . "/input/foregoing/" . $_GET['process'], $data);
     }
 
     public function createForegoing()
     {
-        if(!$this->session->has('empid')){
-            return redirect()->to(base_url()."login");
+        if (!$this->session->has('empid')) {
+            return redirect()->to(base_url() . "login");
         }
 
         $isEdit = !empty($this->request->getVar('number-edit'));
-        $number = $isEdit ? $this->request->getVar('number-edit') : ($this->ForegoingModel->getLatestId()+1);
-        $cnt_input = $this->request->getVar('cnt-proses') ? $this->request->getVar('cnt-proses') : 1; 
+        $number = $isEdit ? $this->request->getVar('number-edit') : ($this->ForegoingModel->getLatestId() + 1);
+        $cnt_input = $this->request->getVar('cnt-proses') ? $this->request->getVar('cnt-proses') : 1;
 
         $operatorName = trim((string)$this->request->getVar('name-txt'));
         if ($operatorName === '' || $operatorName === '-') {
@@ -371,6 +371,7 @@ class Foregoing extends BaseController
                 'process' => (string)$this->request->getVar('process-txt'),
                 'lotno'   => (string)$this->request->getVar('lotno-txt'),
                 'machno'  => (string)$this->request->getVar('machno-txt'),
+                'revisi'  => (string)($this->request->getVar('revisi-txt') ?: ''), // <-- Tambahkan baris ini
                 'empid'   => (string)$this->request->getVar('empid-txt'),
                 'group'   => (string)$this->request->getVar('group-txt'),
                 'shift'   => (string)$this->request->getVar('shift-txt'),

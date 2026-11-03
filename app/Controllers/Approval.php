@@ -29,8 +29,16 @@ class Approval extends BaseController
         if(!$this->session->has('name')){
             return redirect()->to(base_url().'login');
         }
+
+        // Cek apakah user adalah operator murni (non-admin)
+        $pos = (string) $this->session->get('positionid');
+        $isAdmin = (bool) $this->session->get('isadmin');
+        $isOperator = (!$isAdmin && stripos($pos, 'operator') !== false);
+
         $data = [
-            'title' => 'Approval | Startup Management'
+            'title' => 'Approval | Startup Management',
+            'list_request_reject' => $this->StartupModel->getRequestRejectList(),
+            'isOperator' => $isOperator
         ];
 
         return view("approval",$data);
@@ -117,10 +125,16 @@ class Approval extends BaseController
         }
 
         // Tampilan Hub (Pusat Approval Checksheet)
+        $pos = (string) $this->session->get('positionid');
+        $isAdmin = (bool) $this->session->get('isadmin');
+        $isOperator = (!$isAdmin && stripos($pos, 'operator') !== false);
+
         $data = [
             'title'     => 'Pusat Approval Checksheet | Antigravity',
             'user_role' => $this->session->get('role'),
-            'is_admin'  => !empty($this->session->get('isadmin'))
+            'is_admin'  => $isAdmin,
+            'list_request_reject' => $this->StartupModel->getRequestRejectList(),
+            'isOperator' => $isOperator
         ];
 
         return view('approval_hub', $data);
@@ -484,6 +498,7 @@ class Approval extends BaseController
 
         return redirect()->to(base_url().'approval/weekly?type=startup');
     }
+    
     /**
      * Auto-sync data startup minggu berjalan yang belum memiliki weekly_id
      * agar langsung muncul di tabel Weekly Approval secara real-time.
@@ -572,7 +587,6 @@ class Approval extends BaseController
         }
     }
 
-    // Helper untuk menentukan tipe folder layout
     // Fungsi untuk memproses Granular Day-Unlock Reject khusus Weekly Startup
     public function rejectWeeklyStartup()
     {
@@ -743,6 +757,7 @@ class Approval extends BaseController
 
         return redirect()->to($backUrl);
     }
+    
     private function getFolderType($processStr) 
     {
         if (empty($processStr)) return 'startup';
@@ -937,6 +952,7 @@ class Approval extends BaseController
 
         return view('weekly_detail', $data);
     }
+    
     // Fungsi untuk menampilkan Form Checksheet Mingguan Lengkap (7 Hari: Senin s/d Minggu 23:59)
     public function weekly_form($weekly_id)
     {

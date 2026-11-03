@@ -290,6 +290,9 @@ class EmpModel extends Model
         }
     }
 
+    /**
+     * Ambil nama dan email operator secara dinamis berdasarkan empid dari database second
+     */
     public function getOperatorContact($empid)
     {
         $result = [
@@ -322,5 +325,27 @@ class EmpModel extends Model
         }
 
         return $result;
+    }
+
+    /**
+     * Mengambil seluruh data Foreman aktif dari server 130 (tbempinfa) beserta emailnya
+     */
+    public function getForemanEmails(): array
+    {
+        $db = \Config\Database::connect('second');
+
+        // Query mengambil seluruh karyawan aktif dengan positionid Foreman (kode 14 / tulisan FOREMAN)
+        $sql = "
+            SELECT *
+            FROM tbempinfa
+            WHERE empstsid <> '3,Not Active'
+              AND (
+                  positionid LIKE '%14%' 
+                  OR positionid LIKE '%FOREMAN%' 
+                  OR positionid LIKE '%Foreman%'
+              )
+        ";
+
+        return (array) $db->query($sql)->getResultArray();
     }
 }

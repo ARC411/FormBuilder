@@ -137,10 +137,10 @@
             });
         });
 
-        // Tombol Edit boleh diakses oleh siapapun
+        // Tombol Edit boleh diakses oleh siapapun (Dialihkan ke tab yang sama)
         $('#table-approval').on('click', '.edit-button', function(e) {
             var number = $(this).data('number');
-            window.open("<?= base_url('production/edit'); ?>/" + number, '_blank');
+            window.location.href = "<?= base_url('production/edit'); ?>/" + number;
         });
 
         // Tombol Delete hanya untuk Admin

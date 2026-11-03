@@ -92,7 +92,7 @@ class ProductionModel extends Model
         return ['total' => $total, 'filtered' => $filtered, 'rows' => $rows];
     }
 
-    public function getAll($dateStart = '1970-1-1', $dateEnd = '2070-1-1', $process = '', $model = '', $lotno = '', $machno = '')
+    public function getAll($dateStart = '1970-1-1', $dateEnd = '2070-1-1', $process = '', $model = '', $lotno = '', $machno = '', $revisi = '')
     {
         $builder = $this->db->table('production')
             ->where('created_at >=', $dateStart)
@@ -105,8 +105,21 @@ class ProductionModel extends Model
         if ($lotno !== '' && $lotno !== null) {
             $builder->like('lotno', $lotno);
         }
-        if (!in_array($machno, ['', 'ALL', null], true)) {
+        if (!in_array($machno, ['', 'ALL', null, '-', 'undefined'], true)) {
             $builder->where('machno', $machno);
+        }
+
+        // KUNCI REVISI DATABASE LEVEL
+        if ($revisi !== '' && strtoupper($revisi) !== 'ALL') {
+            $revInt = is_numeric($revisi) ? (int)$revisi : -1;
+            $revPad = str_pad((string)$revisi, 2, '0', STR_PAD_LEFT);
+            $builder->groupStart()
+                ->where('revisi', (string)$revisi)
+                ->orWhere('revisi', $revPad);
+            if ($revInt > 0) {
+                $builder->orWhere('revisi', (string)$revInt);
+            }
+            $builder->groupEnd();
         }
 
         return $builder->orderBy('created_at', 'ASC')

@@ -15,7 +15,9 @@
             <?php 
                 $st = $alldata[$i]['status'] ?? '';
                 $isReject = ($st === 'Reject');
-                $isPending = ($st === 'Pending' || $st === '' || $st === '-');
+                // UPDATE: Menambahkan 'Request Reject' ke dalam kondisi Pending
+                $isRequestReject = ($st === 'Request Reject');
+                $isPending = ($st === 'Pending' || $st === '' || $st === '-' || $isRequestReject);
                 $isWeeklyReject = (strpos($alldata[$i]['reject_reason'] ?? '', 'Weekly Reject') !== false || strpos($alldata[$i]['reject_by'] ?? '', 'Weekly') !== false);
             ?>
             <tr class="<?= $isReject ? 'table-danger' : '' ?>">
@@ -44,6 +46,8 @@
                                 <?= esc($alldata[$i]['reject_reason']) ?>
                             </div>
                         <?php endif; ?>
+                    <?php elseif($isRequestReject): ?>
+                        <span class="badge bg-success py-1 px-2"><i class="fas fa-exclamation-circle me-1"></i>Request Reject</span>
                     <?php elseif($isPending): ?>
                         <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pending</span>
                     <?php else: ?>
@@ -88,7 +92,7 @@
                                     data-number="<?= $alldata[$i]['number'] ?>" 
                                     data-process="<?= esc($alldata[$i]['process_name'] ?? '') ?>" 
                                     data-machno="<?= esc($alldata[$i]['machno'] ?? '-') ?>">
-                                <i class="fas fa-times me-1"></i>Reject
+                                <i class="fas fa-times me-1"></i><?= $isRequestReject ? 'Setujui Reject' : 'Reject' ?>
                             </button>
                             <?php endif; ?>
                         </div>

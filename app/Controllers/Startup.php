@@ -41,81 +41,6 @@ class Startup extends BaseController
         return 'startup';
     }
 
-    /**
-     * Mengambil daftar email semua user yang memiliki role Foreman
-     */
-    private function getForemanEmails(): array
-    {
-        $emails = [];
-        try {
-            $db = \Config\Database::connect();
-            if ($db->tableExists('users')) {
-                $users = $db->table('users')
-                            ->select('email')
-                            ->groupStart()
-                                ->where('role', 'foreman')
-                                ->orLike('role', 'foreman')
-                            ->groupEnd()
-                            ->where('email IS NOT NULL')
-                            ->where("TRIM(email) != ''")
-                            ->get()
-                            ->getResultArray();
-                
-                foreach ($users as $u) {
-                    $em = trim((string)$u['email']);
-                    if (filter_var($em, FILTER_VALIDATE_EMAIL)) {
-                        $emails[] = strtolower($em);
-                    }
-                }
-            }
-
-            $empModel = new EmpModel();
-            $rows = [];
-            if (method_exists($empModel, 'getForemanEmails')) {
-                $rows = (array) $empModel->getForemanEmails();
-            } elseif (method_exists($empModel, 'testing')) {
-                $rows = (array) $empModel->testing();
-            }
-
-            foreach ($rows as $r) {
-                $r = (array) $r;
-                $roleStr = implode(' ', [
-                    (string)($r['positionid'] ?? ''),
-                    (string)($r['position'] ?? ''),
-                    (string)($r['position_name'] ?? ''),
-                    (string)($r['jabatan'] ?? ''),
-                    (string)($r['role'] ?? ''),
-                ]);
-
-                $isForeman = (stripos($roleStr, 'foreman') !== false);
-                if (!$isForeman && preg_match('/\b14\b/', (string)($r['positionid'] ?? ''))) {
-                    $isForeman = true;
-                }
-
-                if ($isForeman) {
-                    foreach (['email', 'mail', 'email_address', 'user_email', 'work_email'] as $col) {
-                        if (!empty($r[$col]) && filter_var(trim((string)$r[$col]), FILTER_VALIDATE_EMAIL)) {
-                            $emails[] = strtolower(trim((string)$r[$col]));
-                        }
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            log_message('error', 'Gagal mengambil email Foreman: ' . $e->getMessage());
-        }
-
-        $envEmails = env('email.foremanEmails', '');
-        if (!empty($envEmails)) {
-            foreach (explode(',', (string)$envEmails) as $em) {
-                $em = strtolower(trim($em));
-                if (filter_var($em, FILTER_VALIDATE_EMAIL)) {
-                    $emails[] = $em;
-                }
-            }
-        }
-        return array_values(array_unique($emails));
-    }
-
     public function index()
     {
         if (!$this->session->has('empid')) {
@@ -147,6 +72,7 @@ class Startup extends BaseController
         if (empty($_GET['device']) || empty($_GET['process'])) {
             return "";
         }
+
         $folder = $this->getFolderType($_GET['process']);
 
         try {
@@ -219,11 +145,12 @@ class Startup extends BaseController
             'validation' => \Config\Services::validation(),
             'alldata'    => $alldata
         ];
+
         return view('edit-startup', $data);
     }
 
     /**
-     * MENGIRIM EMAIL REQUEST REJECT KE SEMUA FOREMAN (PENGIRIM DINAMIS VIA RELAY INTERNAL)
+     * MENYIMPAN ALASAN REJECT DAN MEMBERIKAN NOTIFIKASI KE FOREMAN (Tanpa Email)
      */
     public function requestReject($number)
     {
@@ -236,109 +163,18 @@ class Startup extends BaseController
             return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Data checksheet tidak ditemukan.']);
         }
 
-        $row = $alldata[0];
         $note = trim((string)$this->request->getPost('reason'));
         if ($note === '') {
             return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'Alasan / catatan pengajuan reject wajib diisi.']);
         }
 
-        $foremanEmails = $this->getForemanEmails();
-        if (empty($foremanEmails)) {
-            $this->StartupModel->markRejectRequested($number);
-            return $this->response->setStatusCode(500)->setJSON([
-                'status'  => 'error',
-                'message' => 'Email permintaan reject tidak terkirim karena tidak ada email Foreman yang ditemukan di database, namun permintaan tetap tercatat di sistem.'
-            ]);
-        }
+        // Kirim note ke Model untuk disimpan di database dan mengubah status
+        $this->StartupModel->markRejectRequested($number, $note);
 
-        $tanggalInput = !empty($row['created_at']) ? date('d/m/Y H:i', strtotime($row['created_at'])) : date('d/m/Y H:i');
-        $operatorName = !empty($row['name']) ? $row['name'] : ($this->session->get('name') ?: 'Operator');
-        $empId        = !empty($row['empid']) ? $row['empid'] : ($this->session->get('empid') ?: '-');
-        
-        $operatorEmail = trim((string) $this->session->get('email'));
-        if (empty($operatorEmail) && $empId !== '-') {
-            try {
-                $db2 = \Config\Database::connect('second');
-                $empRow = $db2->table('tbempinfa')->select('email')->where('empid', $empId)->get()->getRow();
-                if ($empRow && !empty($empRow->email) && filter_var(trim($empRow->email), FILTER_VALIDATE_EMAIL)) {
-                    $operatorEmail = trim($empRow->email);
-                }
-            } catch (\Throwable $e) {}
-        }
-        
-        $senderEmail = !empty($operatorEmail) ? $operatorEmail : 'operator_' . $empId . '@ssi.sharp-world.com';
-        $senderName  = $operatorName . ' (EmpID: ' . $empId . ')';
-
-        $shiftGroup   = ($row['shift'] ?? '-') . ' / ' . ($row['group'] ?? '-');
-        $deviceName   = $row['device_name'] ?? $row['device'] ?? '-';
-        $processName  = $row['process_name'] ?? $row['process'] ?? '-';
-        $docNo        = $row['docno'] ?? '-';
-        $machNo       = !empty($row['machno']) ? $row['machno'] : '-';
-        $modelName    = !empty($row['model']) ? $row['model'] : '-';
-        $lotNo        = !empty($row['lotno']) ? $row['lotno'] : '-';
-        $approvalUrl  = base_url('approval');
-
-        $subject = "[Request Reject] {$processName} - Lot {$lotNo} - Oleh: {$empId}";
-
-        $htmlMessage = "
-        <div style='font-family: Arial, sans-serif; font-size: 14px; color: #333;'>
-            <h3 style='color: #d9534f; margin-bottom: 5px;'>Permohonan Reject Checksheet</h3>
-            <p>Halo Foreman,</p>
-            <p>Terdapat permintaan reject checksheet dari operator dengan rincian berikut:</p>
-            <table style='border-collapse: collapse; width: 100%; max-width: 600px; margin-bottom: 15px;' border='1' cellpadding='8'>
-                <tr style='background-color: #f8f9fa;'><td style='width: 180px;'><strong>Kategori</strong></td><td>Startup Checksheet (#{$number})</td></tr>
-                <tr><td><strong>Tanggal Input</strong></td><td>{$tanggalInput}</td></tr>
-                <tr style='background-color: #f8f9fa;'><td><strong>Nama Operator</strong></td><td>" . esc($operatorName) . "</td></tr>
-                <tr><td><strong>Emp. ID</strong></td><td>" . esc($empId) . "</td></tr>
-                <tr style='background-color: #f8f9fa;'><td><strong>Shift / Group</strong></td><td>" . esc($shiftGroup) . "</td></tr>
-                <tr><td><strong>Device</strong></td><td>" . esc($deviceName) . "</td></tr>
-                <tr style='background-color: #f8f9fa;'><td><strong>Process / Doc. No</strong></td><td>" . esc($processName) . " (" . esc($docNo) . ")</td></tr>
-                <tr><td><strong>Machine Number</strong></td><td>" . esc($machNo) . "</td></tr>
-                <tr style='background-color: #f8f9fa;'><td><strong>Model</strong></td><td>" . esc($modelName) . "</td></tr>
-                <tr><td><strong>Lot Number</strong></td><td>" . esc($lotNo) . "</td></tr>
-                <tr style='background-color: #fff3cd;'><td><strong>Alasan Minta Reject</strong></td><td><strong>" . nl2br(esc($note)) . "</strong></td></tr>
-            </table>
-            <p>Silakan login ke sistem Checksheet Management untuk melakukan peninjauan atau konfirmasi reject.</p>
-            <p><a href='{$approvalUrl}' style='display:inline-block;padding:8px 14px;background-color:#0d6efd;color:#fff;text-decoration:none;border-radius:4px;'>Buka Halaman Approval</a></p>
-        </div>";
-
-        try {
-            $emailConfig = new \Config\Email();
-            $email = \Config\Services::email($emailConfig);
-
-            $email->setFrom($senderEmail, $senderName);
-            $email->setTo($foremanEmails);
-            $email->setMailType('html');
-            $email->setNewline("\r\n");
-            $email->setCRLF("\r\n");
-            $email->setSubject($subject);
-            $email->setMessage($htmlMessage);
-
-            if ($email->send(false)) {
-                $this->StartupModel->markRejectRequested($number);
-                return $this->response->setJSON([
-                    'status'  => 'success',
-                    'message' => 'Permintaan Reject berhasil dikirim ke Foreman.'
-                ]);
-            } else {
-                $debug = strip_tags((string) $email->printDebugger(['headers']));
-                log_message('error', 'Gagal kirim email Request Reject: ' . $debug);
-                $this->StartupModel->markRejectRequested($number);
-                
-                $shortDebug = trim(preg_replace('/\s+/', ' ', substr($debug, 0, 350)));
-                return $this->response->setStatusCode(500)->setJSON([
-                    'status'  => 'error',
-                    'message' => "Gagal mengirim email lewat server internal, namun permintaan tetap tercatat di sistem.\nDetail: " . $shortDebug
-                ]);
-            }
-        } catch (\Throwable $e) {
-            log_message('error', 'Exception Request Reject: ' . $e->getMessage());
-            $this->StartupModel->markRejectRequested($number);
-            return $this->response->setStatusCode(500)->setJSON([
-                'status'  => 'error',
-                'message' => 'Gagal mengirim email: ' . $e->getMessage() . '. Permintaan tetap tercatat.'
-            ]);
-        }
+        return $this->response->setJSON([
+            'status'  => 'success',
+            'message' => 'Notifikasi permintaan reject berhasil dikirim dan akan muncul di layar Approval Foreman.'
+        ]);
     }
 
     public function startupByNumber($number)
@@ -347,7 +183,8 @@ class Startup extends BaseController
             'alldata' => $this->StartupModel->getByNumber($number)
         ];
 
-        if(empty($data['alldata'])) return "Data tidak ditemukan.";
+        if (empty($data['alldata'])) return "Data tidak ditemukan.";
+
         $folder = $this->getFolderType($data['alldata'][0]['process']);
 
         try {
@@ -355,7 +192,7 @@ class Startup extends BaseController
             $machnoHidden = '<input type="hidden" id="detail-machno" value="' . $machno . '">';
             $fb = new \App\Controllers\FormBuilder();
             $tableHtml = $fb->renderDetailTableByRows($data['alldata'][0]['process'], 'startup', $data['alldata']);
-           
+
             if ($this->request->isAJAX()) {
                 return $machnoHidden . $tableHtml;
             }
@@ -452,8 +289,8 @@ class Startup extends BaseController
         }
 
         $redirectUrl = $isEdit ? base_url('startup') : base_url('input');
+
         $suffixes = ['a', 'b', 'c', 'd', 'e'];
-        
         foreach ($suffixes as $idx => $sfx) {
             $blockNo = $idx + 1;
             $rowPayload = [
@@ -464,6 +301,7 @@ class Startup extends BaseController
                 'process' => (string)$this->request->getVar('process-txt'),
                 'lotno'   => (string)$this->request->getVar('lotno-txt'),
                 'machno'  => (string)$this->request->getVar('machno-txt'),
+                'revisi'  => (string)($this->request->getVar('revisi-txt') ?: ''), // <-- Tambahkan baris ini
                 'empid'   => (string)$this->request->getVar('empid-txt'),
                 'group'   => (string)$this->request->getVar('group-txt'),
                 'shift'   => (string)$this->request->getVar('shift-txt'),
@@ -495,6 +333,7 @@ class Startup extends BaseController
                 return redirect()->to($redirectUrl);
             }
         }
+
         return redirect()->to($redirectUrl);
     }
 }

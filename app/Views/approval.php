@@ -14,6 +14,43 @@
     </style>
 
     <div class="container-fluid">
+        <!-- BANNER NOTIFIKASI PERMINTAAN REJECT (KHUSUS FOREMAN/LEADER/SUPERVISOR) -->
+    <?php if (isset($isOperator) && !$isOperator && !empty($list_request_reject)): ?>
+        <div class="alert alert-warning shadow-sm mb-4 mt-3" role="alert" style="border-left: 5px solid #ffc107; background-color: #fff8e5;">
+            <h5 class="alert-heading text-dark mb-3"><i class="fas fa-exclamation-circle text-danger"></i> <b>Perhatian: Ada Permintaan Reject!</b></h5>
+            <p class="mb-2 text-dark">Terdapat <b><?= count($list_request_reject) ?></b> form checksheet yang diajukan untuk di-reject oleh Operator:</p>
+            <hr class="border-warning">
+            <ul class="mb-0 text-dark" style="list-style-type: none; padding-left: 0;">
+                <?php foreach ($list_request_reject as $req): ?>
+                    <li class="mb-3 p-3 border rounded shadow-sm" style="background-color: #ffffff;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong>Form #<?= esc($req['number']) ?> (<?= esc($req['process_name'] ?? $req['process']) ?>)</strong>
+                            <span class="badge bg-secondary">Lot: <?= esc($req['lotno']) ?></span>
+                        </div>
+                        <small class="text-muted d-block mb-2">Diajukan oleh: <?= esc($req['empid']) ?> - <?= esc($req['name']) ?></small>
+                        <span class="text-danger d-block p-2" style="background-color: #fff5f5; border-left: 3px solid #dc3545; font-size: 14px;">
+                            <b>Alasan Minta Reject:</b> <i>"<?= nl2br(esc($req['reject_reason'])) ?>"</i>
+                        </span>
+                        
+                        <!-- TOMBOL ACTION LANGSUNG DI DALAM BANNER -->
+                        <div class="mt-3">
+                            <form action="<?= base_url('approve') ?>" method="post" class="d-inline">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="number" value="<?= esc($req['number']) ?>">
+                                <input type="hidden" name="action" value="Reject">
+                                <input type="hidden" name="reject_reason" value="Disetujui dari permintaan: <?= esc($req['reject_reason']) ?>">
+                                <button type="submit" class="btn btn-sm btn-danger font-weight-bold shadow-sm" onclick="return confirm('Apakah Anda yakin menyetujui permintaan Reject form ini agar operator bisa mengeditnya?');">
+                                    <i class="fas fa-check-circle me-1"></i> Setujui Reject Ini
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+    <!-- END BANNER NOTIFIKASI -->
+
         <div class="card shadow mb-5">
             <div class="card-header py-3">
                 <h3 class="m-0 font-weight-bold">Approval </h3>

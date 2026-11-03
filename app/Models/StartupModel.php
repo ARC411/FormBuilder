@@ -125,14 +125,31 @@ class StartupModel extends Model
         )->getResultArray();
     }
 
-    public function markRejectRequested($number)
+    // Fungsi Baru: Mengambil daftar checksheet yang berstatus "Request Reject"
+    public function getRequestRejectList()
+    {
+        return $this->db->table('startup as s')
+            ->select('s.number, s.process, s.device, s.machno, s.lotno, s.empid, s.name, s.reject_reason, s.created_at, p.name as process_name')
+            ->join('proses as p', 's.process = p.process_code', 'left')
+            ->where('s.status', 'Request Reject')
+            ->where('s.par000', '1')
+            ->orderBy('s.created_at', 'DESC')
+            ->get()->getResultArray();
+    }
+
+    // Update Fungsi: Menyimpan alasan reject dan mengganti status
+    public function markRejectRequested($number, $reason = '')
     {
         $builder = $this->db->table(
             $this->table
         );
         return $builder
             ->where('number', (int) $number)
-            ->update(['edit_status' => 1]);
+            ->update([
+                'status' => 'Request Reject', // Diubah dari status awal agar tertangkap oleh notifikasi
+                'reject_reason' => $reason,
+                'edit_status' => 1
+            ]);
     }
 
     public function updateApproval(
@@ -152,7 +169,7 @@ class StartupModel extends Model
         }
 
         $curStatus = (string) ($data['status'] ?? '');
-        $allowedStatuses = ['Pending', 'Reject', '', '-'];
+        $allowedStatuses = ['Pending', 'Reject', 'Request Reject', '', '-']; // Request Reject dimasukkan
         if (!in_array($curStatus, $allowedStatuses, true)) {
             return false;
         }
@@ -424,7 +441,8 @@ class StartupModel extends Model
         $process = '',
         $model = '',
         $lotno = '',
-        $machno = ''
+        $machno = '',
+        $revisi = ''
     ) {
         if (empty($dateStart)) {
             $startStr = '1970-01-01 00:00:00';
@@ -440,21 +458,14 @@ class StartupModel extends Model
             $endStr = ($tsE ? date('Y-m-d', $tsE) : '2070-01-01') . ' 23:59:59';
         }
 
-        $sql = "SELECT DISTINCT s.*, p.device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
+        $sql = "SELECT DISTINCT s.*, p.device as p_device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
                 FROM `startup` as s
                 INNER JOIN `proses` as p ON s.process = p.process_code 
                 INNER JOIN `device` as d ON p.device = d.code
-                WHERE s.created_at >= '"
-                . $startStr
-                . "' AND s.created_at <= '"
-                . $endStr
-                . "' AND (s.device LIKE '%"
-                . $device
-                . "%' OR p.device LIKE '%"
-                . $device
-                . "%') AND s.process LIKE '%"
-                . $process
-                . "%'";
+                WHERE s.created_at >= '" . $startStr . "' 
+                AND s.created_at <= '" . $endStr . "' 
+                AND (s.device LIKE '%" . $device . "%' OR p.device LIKE '%" . $device . "%') 
+                AND s.process LIKE '%" . $process . "%'";
 
         if ($model !== '') {
             $sql .= " AND s.model LIKE '%" . $model . "%'";
@@ -464,15 +475,28 @@ class StartupModel extends Model
         }
 
         $ignoreMach = ['', 'ALL', 'null', '-', 'undefined'];
-        if (!in_array(trim((string) $machno), $ignoreMach, true)) {
+        if (!in_array(trim((string)$machno), $ignoreMach, true)) {
             $sql .= " AND s.machno = '" . $machno . "'";
+        }
+
+        // KUNCI REVISI KETAT (MENCEGAH REVISI LAMA BOCOR KE REVISI BARU)
+        if ($revisi !== '' && strtoupper($revisi) !== 'ALL') {
+            $revInt = is_numeric($revisi) ? (int)$revisi : -1;
+            $revPad = str_pad((string)$revisi, 2, '0', STR_PAD_LEFT);
+            $escRev = $this->db->escape((string)$revisi);
+            $escPad = $this->db->escape($revPad);
+
+            if ($revInt > 0) {
+                // Hanya ambil baris yang benar-benar bernilai revisi ini
+                $sql .= " AND (s.revisi = {$escRev} OR s.revisi = {$escPad} OR s.revisi = {$revInt})";
+            } else {
+                $sql .= " AND s.revisi = {$escRev}";
+            }
         }
 
         $sql .= " ORDER BY s.created_at ASC";
 
-        return $this->query(
-            $sql
-        )->getResultArray();
+        return $this->query($sql)->getResultArray();
     }
 
     public function deleteByNumber($number)
@@ -520,7 +544,12 @@ class StartupModel extends Model
         . "%') AND s.process LIKE '%"
         . $process
         . "%' AND s.par000 = 1
-        ORDER BY CASE WHEN s.status = 'Reject' THEN 0 WHEN s.status = 'Pending' OR s.status IS NULL OR s.status = '' THEN 1 ELSE 2 END, s.created_at DESC";
+        ORDER BY CASE 
+            WHEN s.status = 'Request Reject' THEN 0 
+            WHEN s.status = 'Reject' THEN 1 
+            WHEN s.status = 'Pending' OR s.status IS NULL OR s.status = '' THEN 2 
+            ELSE 3 
+        END, s.created_at DESC";
 
         return $this->query(
             $query

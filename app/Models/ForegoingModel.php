@@ -245,13 +245,14 @@ class ForegoingModel extends Model
         $process = '',
         $model = '',
         $lotno = '',
-        $machno = ''
+        $machno = '',
+        $revisi = ''
     ) {
         $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';
         $endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
 
         $machnoCondition = "";
-        if ($machno !== "" && $machno !== "ALL" && $machno !== "null" && $machno !== "-") {
+        if ($machno !== "" && $machno !== "ALL" && $machno !== "null" && $machno !== "-" && $machno !== "undefined") {
             $machnoCondition = " AND s.machno = '" . $machno . "'";
         }
 
@@ -269,6 +270,19 @@ class ForegoingModel extends Model
             $lotnoCondition = " AND s.lotno LIKE '%" . $lotno . "%'";
         }
 
+        $revisiCondition = "";
+        if ($revisi !== '' && strtoupper($revisi) !== 'ALL') {
+            $revInt = is_numeric($revisi) ? (int)$revisi : -1;
+            $revPad = str_pad((string)$revisi, 2, '0', STR_PAD_LEFT);
+            $escRev = $this->db->escape((string)$revisi);
+            $escPad = $this->db->escape($revPad);
+            if ($revInt > 0) {
+                $revisiCondition = " AND (s.revisi = {$escRev} OR s.revisi = {$escPad} OR s.revisi = {$revInt})";
+            } else {
+                $revisiCondition = " AND s.revisi = {$escRev}";
+            }
+        }
+
         $query = "SELECT DISTINCT s.*, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name 
                   FROM `foregoing` as s 
                   INNER JOIN `proses` as p ON s.process = p.process_code 
@@ -280,6 +294,7 @@ class ForegoingModel extends Model
                   . $modelCondition
                   . $lotnoCondition
                   . $machnoCondition
+                  . $revisiCondition
                   . " ORDER BY s.created_at ASC, s.number ASC, s.par000 ASC";
 
         $rows = $this->query($query)->getResultArray();
