@@ -50,14 +50,18 @@ class Startup extends BaseController
         $empFilter  = $this->isRegularOperator() ? (string) $this->session->get('empid') : null;
         $nameFilter = $this->isRegularOperator() ? (string) $this->session->get('name') : null;
 
+        $dateStart = $this->request->getGet('dateStart');
+        $dateEnd   = $this->request->getGet('dateEnd');
+
         $data = [
             'title'      => 'Data Startup | Startup Management',
-            'alldata'    => $this->StartupModel->getAllData($empFilter, $nameFilter),
+            'alldata'    => $this->StartupModel->getAllData($empFilter, $nameFilter, $dateStart, $dateEnd),
             'isOperator' => $this->isRegularOperator(),
+            'dateStart'  => $dateStart,
+            'dateEnd'    => $dateEnd,
         ];
         return view('startup', $data);
     }
-
     public function formInputStartup()
     {
         if(!$this->session->has('empid')){

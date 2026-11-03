@@ -62,6 +62,58 @@
                 </h3>
             </div>
             <div class="card-body">
+                <!-- Filter Bar: Date Range, Device (Doc Type), Status Approval -->
+                <div class="card bg-light border-0 shadow-sm mb-4">
+                    <div class="card-body py-3">
+                        <div class="row g-3 align-items-end">
+                            <!-- 1. Filter Date Range -->
+                            <div class="col-lg-4 col-md-6 col-12">
+                                <label for="daterange" class="form-label font-weight-bold small text-muted mb-1">
+                                    <i class="fa fa-calendar text-primary me-1"></i>Date Range
+                                </label>
+                                <div id="daterange" class="form-control" style="background: #fff; cursor: pointer; padding: 6px 12px; border: 1px solid #ced4da; width: 100%; border-radius: 6px;">
+                                    <i class="fa fa-calendar text-muted"></i>&nbsp;
+                                    <span></span> <i class="fa fa-caret-down float-end mt-1 text-muted"></i>
+                                </div>
+                            </div>
+
+                            <!-- 2. Filter Device / Doc Type -->
+                            <div class="col-lg-3 col-md-6 col-12">
+                                <label for="filter-device" class="form-label font-weight-bold small text-muted mb-1">
+                                    <i class="fa fa-microchip text-success me-1"></i>Doc Type / Device
+                                </label>
+                                <select class="form-select form-control" id="filter-device" style="border-radius: 6px;">
+                                    <option value="">-- Semua Device --</option>
+                                    <option value="fl18">Frame Laser 1.8</option>
+                                    <option value="sl33">Single Laser 3.3</option>
+                                    <option value="sl38">Single Laser 3.8</option>
+                                    <option value="sl56">Single Laser 5.6</option>
+                                    <option value="sl90">Single Laser 9.0</option>
+                                </select>
+                            </div>
+
+                            <!-- 3. Filter Status Approval -->
+                            <div class="col-lg-3 col-md-6 col-12">
+                                <label for="filter-status" class="form-label font-weight-bold small text-muted mb-1">
+                                    <i class="fa fa-check-circle text-info me-1"></i>Status Approval
+                                </label>
+                                <select class="form-select form-control" id="filter-status" style="border-radius: 6px;">
+                                    <option value="">-- Semua Status --</option>
+                                    <option value="approved">Sudah Approve (Approved)</option>
+                                    <option value="pending">Belum Approve (Pending)</option>
+                                    <option value="reject">Reject (Ditolak)</option>
+                                </select>
+                            </div>
+
+                            <!-- 4. Tombol Reset Filter -->
+                            <div class="col-lg-2 col-md-6 col-12">
+                                <button type="button" class="btn btn-outline-secondary w-100" id="btn-reset-filters" title="Reset Semua Filter ke Tampilan Awal">
+                                    <i class="fas fa-undo me-1"></i> Reset Filter
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <p class="text-muted small">Klik Lot No untuk melihat detail form checksheet</p>
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover align-middle mt-2" id="table-approval">
@@ -86,13 +138,43 @@
                                 $lotVal = isset($alldata[$i]['lotno']) ? trim((string)$alldata[$i]['lotno']) : '';
                                 $procLabel = $alldata[$i]['process_name'] ?? $alldata[$i]['name'] ?? '';
                                 $machVal = !empty($alldata[$i]['machno']) ? $alldata[$i]['machno'] : '-';
-                                $dateVal = !empty($alldata[$i]['created_at']) ? date('d/m/Y H:i', strtotime($alldata[$i]['created_at'])) : '-';
+                                $rawDate = $alldata[$i]['created_at'] ?? '';
+                                $dateVal = !empty($rawDate) ? date('d/m/Y H:i', strtotime($rawDate)) : '-';
+                                $dateYmd = !empty($rawDate) ? date('Y-m-d', strtotime($rawDate)) : '';
                                 $opName = !empty($alldata[$i]['name']) ? $alldata[$i]['name'] : $userName;
+                                $devName = trim((string)($alldata[$i]['device_name'] ?? ''));
+                                $devCode = trim((string)($alldata[$i]['device'] ?? $alldata[$i]['device_code'] ?? ''));
+                                $procRaw = trim((string)($alldata[$i]['process'] ?? ''));
+                                if ($devCode === '' && !empty($procRaw)) {
+                                    $procParts = explode('-', $procRaw);
+                                    $devCode = strtolower($procParts[0]);
+                                }
+
+                                // Klasifikasi status untuk filter (Bypass Leader & Bypass Supervisor termasuk status approved)
+                                $isApproved = (
+                                    stripos($rowStatus, 'approve') !== false ||
+                                    stripos($rowStatus, 'bypass') !== false ||
+                                    stripos($rowStatus, 'check') !== false
+                                );
+                                if ($isRowReject) {
+                                    $statusType = 'reject';
+                                } elseif ($isApproved) {
+                                    $statusType = 'approved';
+                                } else {
+                                    $statusType = 'pending';
+                                }
                             ?>
-                                <tr class="<?= $isRowReject ? 'table-danger border-start border-danger border-4' : '' ?>">
+                                <tr class="<?= $isRowReject ? 'table-danger border-start border-danger border-4' : '' ?>"
+                                    data-device-code="<?= esc($devCode); ?>"
+                                    data-device-name="<?= esc($devName); ?>"
+                                    data-process="<?= esc($procRaw); ?>"
+                                    data-status="<?= esc($statusType); ?>"
+                                    data-date="<?= esc($dateYmd); ?>">
                                     <td class="text-center font-weight-bold"><?= $i+1; ?></td>
-                                    <td class="text-center"><?= $dateVal; ?></td>
-                                    <td class="text-center"><span class="badge bg-secondary"><?= esc($alldata[$i]['device_name'] ?? ''); ?></span></td>
+                                    <td class="text-center" data-order="<?= esc($rawDate); ?>" data-date="<?= esc($dateYmd); ?>"><?= $dateVal; ?></td>
+                                    <td class="text-center" data-device-code="<?= esc($devCode); ?>" data-device-name="<?= esc($devName); ?>" data-process="<?= esc($procRaw); ?>">
+                                        <span class="badge bg-secondary"><?= esc($devName ?: $devCode); ?></span>
+                                    </td>
                                     <td>
                                         <strong><?= esc($procLabel); ?></strong>
                                         <?php if($machVal !== '-'): ?>
@@ -105,7 +187,7 @@
                                         </a>
                                     </td>
                                     <td class="text-center font-monospace small"><?= esc($alldata[$i]['empid'] ?? ''); ?></td>
-                                    <td class="text-center">
+                                    <td class="text-center" data-status="<?= esc($statusType); ?>">
                                         <?php if ($isRowReject): ?>
                                             <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
                                             <?php if (!empty($alldata[$i]['reject_reason'])): ?>
@@ -118,8 +200,10 @@
                                             <?php endif; ?>
                                         <?php elseif ($editStatus === 1): ?>
                                             <span class="badge bg-warning text-dark"><i class="fas fa-envelope-open-text me-1"></i>Menunggu Reject Foreman</span>
+                                        <?php elseif ($isApproved): ?>
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i><?= esc($rowStatus ?: 'Approved'); ?></span>
                                         <?php else: ?>
-                                            <span class="badge bg-secondary"><i class="fa-solid fa-lock me-1"></i><?= esc($rowStatus ?: 'Terkunci'); ?></span>
+                                            <span class="badge bg-secondary"><i class="fa-solid fa-lock me-1"></i><?= esc($rowStatus ?: 'Pending'); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
@@ -224,8 +308,208 @@
 <script src="assets/js/dataTables.bootstrap4.js"></script>
 <script>
     $(document).ready(function() {
-        $('#table-approval').DataTable({
-            order: []
+        var minDateFilter = null;
+        var maxDateFilter = null;
+
+        // Baca filter tersimpan dari sessionStorage agar setelah hapus atau reload, filter tidak hilang
+        var savedDevice = sessionStorage.getItem('startup_filter_device') || '';
+        var savedStatus = sessionStorage.getItem('startup_filter_status') || '';
+        var savedDateStart = sessionStorage.getItem('startup_filter_date_start');
+        var savedDateEnd = sessionStorage.getItem('startup_filter_date_end');
+        var savedDateLabel = sessionStorage.getItem('startup_filter_date_label');
+
+        var selectedDevice = savedDevice;
+        var selectedStatus = savedStatus;
+
+        if (savedDevice) {
+            $('#filter-device').val(savedDevice);
+        }
+        if (savedStatus) {
+            $('#filter-status').val(savedStatus);
+        }
+
+        // Custom filtering function untuk DataTable (Date Range + Device + Status)
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable.id !== 'table-approval') {
+                return true;
+            }
+
+            var rowNode = settings.aoData[dataIndex].nTr;
+            var $row = $(rowNode);
+
+            // 1. Filter Tanggal (kolom 1: Waktu Input)
+            if (minDateFilter && maxDateFilter) {
+                var rowDate = $row.attr('data-date') || $row.find('td:eq(1)').attr('data-date') || $row.find('td:eq(1)').data('date');
+                if (!rowDate) {
+                    var cellText = (data[1] || '').trim();
+                    var match = cellText.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+                    if (match) {
+                        rowDate = match[3] + '-' + match[2] + '-' + match[1];
+                    }
+                }
+                if (rowDate && (rowDate < minDateFilter || rowDate > maxDateFilter)) {
+                    return false;
+                }
+            }
+
+            // 2. Filter Device / Doc Type (kolom 2: Device)
+            if (selectedDevice) {
+                var devCode = ($row.attr('data-device-code') || $row.find('td:eq(2)').attr('data-device-code') || $row.find('td:eq(2)').data('device-code') || '').toString().toLowerCase();
+                var devName = ($row.attr('data-device-name') || $row.find('td:eq(2)').attr('data-device-name') || $row.find('td:eq(2)').data('device-name') || data[2] || '').toString().toLowerCase();
+                var procCode = ($row.attr('data-process') || $row.find('td:eq(2)').attr('data-process') || '').toString().toLowerCase();
+                var qDev = selectedDevice.toLowerCase();
+
+                var isDeviceMatch = false;
+                if (devCode === qDev || devCode.indexOf(qDev) !== -1) {
+                    isDeviceMatch = true;
+                } else if (procCode.indexOf(qDev) === 0 || procCode.indexOf(qDev) !== -1) {
+                    isDeviceMatch = true;
+                } else if (qDev === 'fl18' && (devName.indexOf('1.8') !== -1 || devName.indexOf('frame laser') !== -1 || devName.indexOf('fl') !== -1)) {
+                    isDeviceMatch = true;
+                } else if (qDev === 'sl33' && (devName.indexOf('3.3') !== -1 || devName.indexOf('sl') !== -1)) {
+                    isDeviceMatch = true;
+                } else if (qDev === 'sl38' && devName.indexOf('3.8') !== -1) {
+                    isDeviceMatch = true;
+                } else if (qDev === 'sl56' && devName.indexOf('5.6') !== -1) {
+                    isDeviceMatch = true;
+                } else if (qDev === 'sl90' && devName.indexOf('9.0') !== -1) {
+                    isDeviceMatch = true;
+                } else if (devName.indexOf(qDev) !== -1) {
+                    isDeviceMatch = true;
+                }
+
+                if (!isDeviceMatch) {
+                    return false;
+                }
+            }
+
+            // 3. Filter Status Approval (kolom 6: Status)
+            if (selectedStatus) {
+                var rowStatus = ($row.attr('data-status') || $row.find('td:eq(6)').attr('data-status') || $row.find('td:eq(6)').data('status') || '').toString().toLowerCase();
+                var qStatus = selectedStatus.toLowerCase();
+
+                if (rowStatus) {
+                    if (rowStatus !== qStatus) {
+                        return false;
+                    }
+                } else {
+                    var cellText = (data[6] || '').toLowerCase();
+                    var isCellApproved = (cellText.indexOf('approve') !== -1 || cellText.indexOf('bypass') !== -1 || cellText.indexOf('check') !== -1);
+                    var isCellReject = (cellText.indexOf('reject') !== -1);
+
+                    if (qStatus === 'approved' && !isCellApproved) return false;
+                    if (qStatus === 'reject' && !isCellReject) return false;
+                    if (qStatus === 'pending' && (isCellApproved || isCellReject)) return false;
+                }
+            }
+
+            return true;
+        });
+
+        var table = $('#table-approval').DataTable({
+            order: [],
+            pageLength: 35,
+            lengthMenu: [[10, 20, 35], [10, 20, 35]],
+            stateSave: true
+        });
+
+        // Update nomor urut otomatis saat data difilter / di-search / di-draw tanpa memanggil .nodes() agar tidak error anCells saat delete row
+        table.on('draw.dt', function () {
+            var info = table.page.info();
+            $('#table-approval tbody tr').each(function (i) {
+                if (!$(this).hasClass('dataTables_empty') && $(this).children('td').length > 1) {
+                    $(this).find('td:first').text(info.start + i + 1);
+                }
+            });
+        });
+
+        var urlStart = '<?= !empty($dateStart) ? esc($dateStart) : '' ?>';
+        var urlEnd = '<?= !empty($dateEnd) ? esc($dateEnd) : '' ?>';
+
+        var start = moment().subtract(29, 'days');
+        var end = moment();
+        var isAllInitial = false;
+
+        if (urlStart && urlEnd) {
+            start = moment(urlStart);
+            end = moment(urlEnd);
+        } else if (savedDateLabel === 'Semua Tanggal') {
+            isAllInitial = true;
+        } else if (savedDateStart && savedDateEnd) {
+            start = moment(savedDateStart);
+            end = moment(savedDateEnd);
+        }
+
+        function cb(start, end, isAll, label) {
+            if (isAll) {
+                $('#daterange span').html('<i class="fas fa-calendar-alt text-muted me-1"></i> Semua Tanggal');
+                minDateFilter = null;
+                maxDateFilter = null;
+                sessionStorage.setItem('startup_filter_date_label', 'Semua Tanggal');
+                sessionStorage.removeItem('startup_filter_date_start');
+                sessionStorage.removeItem('startup_filter_date_end');
+            } else {
+                $('#daterange span').html(start.format('D MMMM YYYY') + ' - ' + end.format('D MMMM YYYY'));
+                minDateFilter = start.format('YYYY-MM-DD');
+                maxDateFilter = end.format('YYYY-MM-DD');
+                sessionStorage.setItem('startup_filter_date_label', label || '');
+                sessionStorage.setItem('startup_filter_date_start', minDateFilter);
+                sessionStorage.setItem('startup_filter_date_end', maxDateFilter);
+            }
+            if (table) {
+                table.draw();
+            }
+        }
+
+        $('#daterange').daterangepicker({
+            startDate: isAllInitial ? moment().subtract(29, 'days') : start,
+            endDate: isAllInitial ? moment() : end,
+            ranges: {
+                'Today': [moment(), moment()],
+                'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                'This Month': [moment().startOf('month'), moment().endOf('month')],
+                'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                'Semua Tanggal': [moment('2020-01-01'), moment().add(1, 'year')]
+            }
+        }, function(start, end, label) {
+            if (label === 'Semua Tanggal') {
+                cb(null, null, true, label);
+            } else {
+                cb(start, end, false, label);
+            }
+        });
+
+        // Inisialisasi filter tanggal
+        cb(start, end, isAllInitial, savedDateLabel || (isAllInitial ? 'Semua Tanggal' : 'Last 30 Days'));
+
+        // Event listener dropdown Device
+        $('#filter-device').on('change', function() {
+            selectedDevice = $(this).val();
+            sessionStorage.setItem('startup_filter_device', selectedDevice);
+            table.draw();
+        });
+
+        // Event listener dropdown Status
+        $('#filter-status').on('change', function() {
+            selectedStatus = $(this).val();
+            sessionStorage.setItem('startup_filter_status', selectedStatus);
+            table.draw();
+        });
+
+        // Tombol Reset Semua Filter
+        $('#btn-reset-filters').on('click', function() {
+            selectedDevice = '';
+            selectedStatus = '';
+            $('#filter-device').val('');
+            $('#filter-status').val('');
+            sessionStorage.removeItem('startup_filter_device');
+            sessionStorage.removeItem('startup_filter_status');
+            sessionStorage.removeItem('startup_filter_date_label');
+            sessionStorage.removeItem('startup_filter_date_start');
+            sessionStorage.removeItem('startup_filter_date_end');
+            cb(null, null, true, 'Semua Tanggal');
         });
 
         $('#exampleModal').on('show.bs.modal', function (event) {
@@ -317,19 +601,24 @@
             });
         });
 
-        // Klik Delete (Khusus Admin)
+        // Klik Delete (Khusus Admin): hapus data via AJAX dan hapus row dari DataTables tanpa reload
         $(document).on('click', '.delete-button', function() {
-            var number = $(this).data('number');
-            if (confirm('Apakah kamu yakin ingin menghapus data ini?')) {
+            var $btn = $(this);
+            var $tr = $btn.closest('tr');
+            var number = $btn.data('number');
+            if (confirm('Apakah kamu yakin ingin menghapus checksheet #' + number + '?')) {
+                $btn.prop('disabled', true);
                 $.ajax({
                     url: "<?= base_url('startup/') ?>" + number,
                     type: 'DELETE',
                     success: function() {
-                        alert('Berhasil menghapus');
-                        location.reload();
+                        // Hapus baris dari DataTables secara realtime tanpa me-reload halaman
+                        table.row($tr).remove().draw(false);
+                        alert('Checksheet #' + number + ' berhasil dihapus.');
                     },
-                    error: function() {
-                        alert('Error deleting data.');
+                    error: function(xhr) {
+                        $btn.prop('disabled', false);
+                        alert('Error deleting data: ' + (xhr.statusText || 'Gagal menghapus'));
                     }
                 });
             }

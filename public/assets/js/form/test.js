@@ -190,7 +190,7 @@ function changeRange(id,rangeMin,rangeMax) {
     let rawVal = parameter.value.trim();
 
     // Jika input dikosongkan atau sedang disabled (gray-out), bersihkan error
-    if (rawVal === '' || parameter.disabled) {
+    if (rawVal === '' || rawVal === '-' || parameter.disabled || parameter.readOnly) {
         parameter.dataset.hasError = "0";
         parameter.style.backgroundColor = parameter.disabled ? '#e9ecef' : '';
         syncErrorCount();
@@ -218,7 +218,7 @@ function changeRange2(id,rangeMin1,rangeMax1,rangeMin2,rangeMax2) {
 
     let rawVal = parameter.value.trim();
 
-    if (rawVal === '' || parameter.disabled) {
+    if (rawVal === '' || rawVal === '-' || parameter.disabled || parameter.readOnly) {
         parameter.dataset.hasError = "0";
         parameter.style.backgroundColor = parameter.disabled ? '#e9ecef' : '';
         syncErrorCount();
@@ -255,8 +255,10 @@ function combineData(id) {
     let targetElem = document.getElementById(id);
     
     if (valElem && unitElem && targetElem) {
-        if (valElem.value.trim() !== '') {
-            targetElem.value = valElem.value.trim() + ' ' + unitElem.value;
+        if (valElem.value.trim() === '-') {
+            targetElem.value = '-';
+        } else if (valElem.value.trim() !== '') {
+            targetElem.value = valElem.value.trim() + (unitElem && unitElem.value ? (' ' + unitElem.value) : '');
         } else {
             targetElem.value = '';
         }
@@ -269,7 +271,7 @@ function validateDynamicUnit(id) {
     
     if (!inputElem || !unitElem) return;
 
-    if (inputElem.value.trim() === '' || inputElem.disabled) {
+    if (inputElem.value.trim() === '' || inputElem.value.trim() === '-' || inputElem.disabled || inputElem.readOnly) {
         inputElem.dataset.hasError = "0";
         inputElem.style.backgroundColor = inputElem.disabled ? '#e9ecef' : '';
         syncErrorCount();
