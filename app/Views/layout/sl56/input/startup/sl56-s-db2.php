@@ -205,7 +205,7 @@ if (!function_exists('getValUnit')) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par015" name="par015" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par015'] ?? '') : '' ?>">
-                <input class="form-control" type="number" step="0.000000001" min="<?= $min015 ?>" max="<?= $max015 ?>" id="par015_val" name="par015_val" value="<?= htmlspecialchars($p015['val']) ?>" 
+                <input class="form-control" type="number" step="0.000000001" data-min="<?= $min015 ?>" data-max="<?= $max015 ?>" id="par015_val" name="par015_val" value="<?= htmlspecialchars($p015['val']) ?>" 
                        oninput="combineData('par015')" 
                        onchange="combineData('par015'); validateDynamicUnit('par015')" placeholder="">
                 <select class="form-control" id="par015_unit" name="par015_unit" onchange="combineData('par015'); validateDynamicUnit('par015')" style="max-width: 80px; padding: 0.375rem;">
@@ -227,7 +227,7 @@ if (!function_exists('getValUnit')) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par016" name="par016" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par016'] ?? '') : '' ?>">
-                <input class="form-control" type="number" step="0.000000001" min="<?= $min016 ?>" max="<?= $max016 ?>" id="par016_val" name="par016_val" value="<?= htmlspecialchars($p016['val']) ?>" 
+                <input class="form-control" type="number" step="0.000000001" data-min="<?= $min016 ?>" data-max="<?= $max016 ?>" id="par016_val" name="par016_val" value="<?= htmlspecialchars($p016['val']) ?>" 
                        oninput="combineData('par016')" 
                        onchange="combineData('par016'); validateDynamicUnit('par016')" placeholder="">
                 <select class="form-control" id="par016_unit" name="par016_unit" onchange="combineData('par016'); validateDynamicUnit('par016')" style="max-width: 80px; padding: 0.375rem;">
@@ -264,7 +264,7 @@ if (!function_exists('getValUnit')) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par018" name="par018" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par018'] ?? '') : '' ?>">
-                <input class="form-control" type="number" step="0.000000001" min="<?= $min018 ?>" max="<?= $max018 ?>" id="par018_val" name="par018_val" value="<?= htmlspecialchars($p018['val']) ?>" 
+                <input class="form-control" type="number" step="0.000000001" data-min="<?= $min018 ?>" data-max="<?= $max018 ?>" id="par018_val" name="par018_val" value="<?= htmlspecialchars($p018['val']) ?>" 
                        oninput="combineData('par018'); togglePairLock('par018','par019')" 
                        onchange="combineData('par018'); togglePairLock('par018','par019'); validateDynamicUnit('par018')" placeholder="">
                 <select class="form-control" id="par018_unit" name="par018_unit" onchange="combineData('par018'); togglePairLock('par018','par019'); validateDynamicUnit('par018')" style="max-width: 95px; padding: 0.375rem;">
@@ -287,7 +287,7 @@ if (!function_exists('getValUnit')) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par019" name="par019" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par019'] ?? '') : '' ?>">
-                <input class="form-control" type="number" step="0.000000001" min="<?= $min019 ?>" max="<?= $max019 ?>" id="par019_val" name="par019_val" value="<?= htmlspecialchars($p019['val']) ?>" 
+                <input class="form-control" type="number" step="0.000000001" data-min="<?= $min019 ?>" data-max="<?= $max019 ?>" id="par019_val" name="par019_val" value="<?= htmlspecialchars($p019['val']) ?>" 
                        oninput="combineData('par019'); togglePairLock('par018','par019')" 
                        onchange="combineData('par019'); togglePairLock('par018','par019'); validateDynamicUnit('par019')" placeholder="">
                 <select class="form-control" id="par019_unit" name="par019_unit" onchange="combineData('par019'); togglePairLock('par018','par019'); validateDynamicUnit('par019')" style="max-width: 95px; padding: 0.375rem;">
@@ -311,7 +311,7 @@ if (!function_exists('getValUnit')) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par020" name="par020" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par020'] ?? '') : '' ?>">
-                <input class="form-control" type="number" step="0.000000001" min="<?= $min020 ?>" max="<?= $max020 ?>" id="par020_val" name="par020_val" value="<?= htmlspecialchars($p020['val']) ?>" 
+                <input class="form-control" type="number" step="0.000000001" data-min="<?= $min020 ?>" data-max="<?= $max020 ?>" id="par020_val" name="par020_val" value="<?= htmlspecialchars($p020['val']) ?>" 
                        oninput="combineData('par020'); togglePairLock('par020','par021')" 
                        onchange="combineData('par020'); togglePairLock('par020','par021'); validateDynamicUnit('par020')" placeholder="">
                 <select class="form-control" id="par020_unit" name="par020_unit" onchange="combineData('par020'); togglePairLock('par020','par021'); validateDynamicUnit('par020')" style="max-width: 80px; padding: 0.375rem;">
@@ -333,7 +333,7 @@ if (!function_exists('getValUnit')) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par021" name="par021" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par021'] ?? '') : '' ?>">
-                <input class="form-control" type="number" step="0.000000001" min="<?= $min021 ?>" max="<?= $max021 ?>" id="par021_val" name="par021_val" value="<?= htmlspecialchars($p021['val']) ?>" 
+                <input class="form-control" type="number" step="0.000000001" data-min="<?= $min021 ?>" data-max="<?= $max021 ?>" id="par021_val" name="par021_val" value="<?= htmlspecialchars($p021['val']) ?>" 
                        oninput="combineData('par021'); togglePairLock('par020','par021')" 
                        onchange="combineData('par021'); togglePairLock('par020','par021'); validateDynamicUnit('par021')" placeholder="">
                 <select class="form-control" id="par021_unit" name="par021_unit" onchange="combineData('par021'); togglePairLock('par020','par021'); validateDynamicUnit('par021')" style="max-width: 80px; padding: 0.375rem;">
@@ -367,7 +367,7 @@ if (!function_exists('getValUnit')) {
           <td>
             <div class="input-group">
                 <input type="hidden" id="par023" name="par023" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par023'] ?? '') : '' ?>">
-                <input class="form-control" type="number" step="0.000000001" min="<?= $min023 ?>" max="<?= $max023 ?>" id="par023_val" name="par023_val" value="<?= htmlspecialchars($p023['val']) ?>" 
+                <input class="form-control" type="number" step="0.000000001" data-min="<?= $min023 ?>" data-max="<?= $max023 ?>" id="par023_val" name="par023_val" value="<?= htmlspecialchars($p023['val']) ?>" 
                        oninput="combineData('par023'); togglePairLock('par022','par023')" 
                        onchange="combineData('par023'); togglePairLock('par022','par023'); validateDynamicUnit('par023')" placeholder="">
                 <select class="form-control" id="par023_unit" name="par023_unit" onchange="combineData('par023'); togglePairLock('par022','par023'); validateDynamicUnit('par023')" style="max-width: 95px; padding: 0.375rem;">

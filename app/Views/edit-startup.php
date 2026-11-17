@@ -14,7 +14,7 @@
   </section>
 
   <section class="container-fluid">
-    <form name="checksheet" action="<?= base_url('startup/update'); ?>" method="POST">
+    <form name="checksheet" action="<?= base_url('startup/update'); ?>" method="POST" novalidate>
       <?= csrf_field(); ?>
       <input type="hidden" name="type-input" value="manual">
       <input type="hidden" name="number-edit" value="<?= htmlspecialchars($alldata[0]["number"] ?? '') ?>">

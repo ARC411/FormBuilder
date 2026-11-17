@@ -116,7 +116,7 @@ if (!function_exists('getValUnit')) {
             <td >
                 <div class="input-group">
                     <input type="hidden" id="par008" name="par008" value="<?= isset($alldata) ? htmlspecialchars($alldata[0]['par008'] ?? '') : '' ?>">
-                    <input class="form-control" type="number" step="0.000000001" min="<?= $initMin ?>" max="<?= $initMax ?>" id="par008_val" name="par008_val" value="<?= htmlspecialchars($p008['val']) ?>" 
+                    <input class="form-control" type="number" step="0.000000001" data-min="<?= $initMin ?>" data-max="<?= $initMax ?>" id="par008_val" name="par008_val" value="<?= htmlspecialchars($p008['val']) ?>" 
                            oninput="combineData('par008')" 
                            onchange="validateDynamicUnit('par008'); combineData('par008')">
                     <select class="form-control" id="par008_unit" name="par008_unit" onchange="validateDynamicUnit('par008'); combineData('par008')" style="max-width: 80px; padding: 0.375rem;" required>

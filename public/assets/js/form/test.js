@@ -179,7 +179,8 @@ function syncErrorCount() {
     if (cnt_error) {
         cnt_error.value = totalError;
     }
-    changeDisableSubmit(totalError > 0);
+    // Form tetap dapat di-submit meskipun ada nilai di luar batas agar status NG (✖) tercatat di sistem
+    changeDisableSubmit(false);
 }
 
 function changeRange(id,rangeMin,rangeMax) {
@@ -205,7 +206,7 @@ function changeRange(id,rangeMin,rangeMax) {
     } else {
         parameter.dataset.hasError = "1";
         parameter.style.backgroundColor = 'red';
-        alert("Input diluar batas ("+rangeMin+"-"+rangeMax+")");
+        alert("Perhatian: Nilai input di luar batas standar ("+rangeMin+" - "+rangeMax+"). Judgment otomatis menjadi NG (✖).");
     }
 
     syncErrorCount();
@@ -233,7 +234,7 @@ function changeRange2(id,rangeMin1,rangeMax1,rangeMin2,rangeMax2) {
     } else {
         parameter.dataset.hasError = "1";
         parameter.style.backgroundColor = 'red';
-        alert("Input diluar batas ("+rangeMin1+"-"+rangeMax1+") atau "+"("+rangeMin2+"-"+rangeMax2+")");
+        alert("Perhatian: Nilai input di luar batas standar ("+rangeMin1+" - "+rangeMax1+" atau "+rangeMin2+" - "+rangeMax2+"). Judgment otomatis menjadi NG (✖).");
     }
 
     syncErrorCount();
@@ -242,7 +243,8 @@ function changeRange2(id,rangeMin1,rangeMax1,rangeMin2,rangeMax2) {
 function changeDisableSubmit(type){
     let submit_button = document.getElementById("submit");
     if (submit_button) {
-        submit_button.disabled = type;
+        // Tombol submit selalu dibuka agar data abnormal tetap bisa disubmit
+        submit_button.disabled = false;
     }
 }
 
@@ -287,8 +289,10 @@ function validateDynamicUnit(id) {
 
     // Jika data-min dan data-max tersedia, panggil changeRange
     if (min !== null && max !== null) {
-        inputElem.setAttribute('min', min);
-        inputElem.setAttribute('max', max);
+        inputElem.setAttribute('data-min', min);
+        inputElem.setAttribute('data-max', max);
+        inputElem.removeAttribute('min');
+        inputElem.removeAttribute('max');
         changeRange(id + '_val', min, max);
     }
 }

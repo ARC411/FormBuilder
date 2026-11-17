@@ -16,7 +16,7 @@
 
   <?= $this->include('layout/navbar'); ?>
 
-  <form name="checksheet" id="form-action" action="<?= base_url('input') ?>" method="POST">
+  <form name="checksheet" id="form-action" action="<?= base_url('input') ?>" method="POST" novalidate>
   <?= csrf_field(); ?>
   <?php
     $session = \Config\Services::session();
