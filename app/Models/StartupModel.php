@@ -10,7 +10,7 @@ class StartupModel extends Model
     protected $useTimestamps = true;
     protected $allowedFields = [
         'number','idcsheet','device','process','lotno','model','machno',
-        'empid','group','shift','par000','par001','par002','par003','par004',
+        'empid','group','shift','work_date','par000','par001','par002','par003','par004',
         'par005','par006','par007','par008','par009','par010','par011','par012',
         'par013','par014','par015','par016','par017','par018','par019','par020',
         'par021','par022','par023','par024','par025','par026','par027','par028',
@@ -32,6 +32,9 @@ class StartupModel extends Model
     {
         try {
             $db = \Config\Database::connect();
+            if (!$db->fieldExists('work_date', 'startup')) {
+                $db->query("ALTER TABLE `startup` ADD COLUMN `work_date` DATE NULL AFTER `shift`, ADD INDEX `idx_startup_work_date` (`work_date`)");
+            }
             if (!$db->fieldExists('reject_reason', 'startup')) {
                 $db->query("ALTER TABLE `startup` 
                     ADD COLUMN `reject_reason` TEXT NULL AFTER `status`,
@@ -118,16 +121,16 @@ class StartupModel extends Model
         $whereDate = "";
         if (!empty($dateStart)) {
             $tsS = strtotime($dateStart);
-            $startStr = ($tsS ? date('Y-m-d', $tsS) : $dateStart) . ' 00:00:00';
-            $whereDate .= " AND s.created_at >= " . $this->db->escape($startStr);
+            $startStr = ($tsS ? date('Y-m-d', $tsS) : $dateStart);
+            $whereDate .= " AND COALESCE(s.work_date, DATE(s.created_at)) >= " . $this->db->escape($startStr);
         }
         if (!empty($dateEnd)) {
             $tsE = strtotime($dateEnd);
-            $endStr = ($tsE ? date('Y-m-d', $tsE) : $dateEnd) . ' 23:59:59';
-            $whereDate .= " AND s.created_at <= " . $this->db->escape($endStr);
+            $endStr = ($tsE ? date('Y-m-d', $tsE) : $dateEnd);
+            $whereDate .= " AND COALESCE(s.work_date, DATE(s.created_at)) <= " . $this->db->escape($endStr);
         }
 
-        $query = "SELECT DISTINCT s.id, s.`number`, s.created_at, s.`process`, 
+        $query = "SELECT DISTINCT s.id, s.`number`, s.created_at, s.work_date, s.`process`, 
                   COALESCE(s.device, p.device, d.code) as device,
                   d.code as device_code,
                   COALESCE(d.name, s.device, p.device) as device_name, 
@@ -335,26 +338,26 @@ class StartupModel extends Model
             if (!empty($periodEnd)) {
                 $tsStart = strtotime($periodStart);
                 $tsEnd = strtotime($periodEnd);
-                $startStr = date('Y-m-d', $tsStart) . ' 00:00:00';
-                $endStr = date('Y-m-d', $tsEnd) . ' 23:59:59';
+                $startStr = date('Y-m-d', $tsStart);
+                $endStr = date('Y-m-d', $tsEnd);
                 $whereWeekly = "(s.weekly_id = "
                     . $escWeekly
-                    . " OR (s.created_at >= '"
+                    . " OR (COALESCE(s.work_date, DATE(s.created_at)) >= '"
                     . $startStr
-                    . "' AND s.created_at <= '"
+                    . "' AND COALESCE(s.work_date, DATE(s.created_at)) <= '"
                     . $endStr
                     . "'))";
             }
         }
 
-        $sql = "SELECT DISTINCT s.id, s.number, s.created_at, s.process, s.device, COALESCE(s.device, p.device) as final_device, d.name as device_name, s.machno, s.model, s.lotno, s.empid, s.shift, s.group, s.status, s.role, s.foreman, s.leader, s.supervisor, p.name as process_name, s.reject_reason, s.reject_by, s.reject_date
+        $sql = "SELECT DISTINCT s.id, s.number, s.created_at, s.work_date, s.process, s.device, COALESCE(s.device, p.device) as final_device, d.name as device_name, s.machno, s.model, s.lotno, s.empid, s.shift, s.group, s.status, s.role, s.foreman, s.leader, s.supervisor, p.name as process_name, s.reject_reason, s.reject_by, s.reject_date
         FROM `startup` as s
         INNER JOIN `proses` as p ON s.process = p.process_code 
         INNER JOIN `device` as d ON p.device = d.code
         WHERE "
         . $whereWeekly
         . " AND s.par000 = '1'
-        ORDER BY s.created_at ASC, s.id ASC";
+        ORDER BY COALESCE(s.work_date, DATE(s.created_at)) ASC, s.created_at ASC, s.id ASC";
 
         return $this->query(
             $sql
@@ -403,13 +406,13 @@ class StartupModel extends Model
             );
             $tsS = strtotime($periodStart);
             $tsE = strtotime($periodEnd);
-            $startStr = date('Y-m-d', $tsS) . ' 00:00:00';
-            $endStr = date('Y-m-d', $tsE) . ' 23:59:59';
+            $startStr = date('Y-m-d', $tsS);
+            $endStr = date('Y-m-d', $tsE);
             $sql .= " AND (s.weekly_id = "
                 . $escW
-                . " OR (s.created_at >= '"
+                . " OR (COALESCE(s.work_date, DATE(s.created_at)) >= '"
                 . $startStr
-                . "' AND s.created_at <= '"
+                . "' AND COALESCE(s.work_date, DATE(s.created_at)) <= '"
                 . $endStr
                 . "'))";
         } elseif ($hasWeekly) {
@@ -420,11 +423,11 @@ class StartupModel extends Model
         } elseif ($hasStart && $hasEnd) {
             $tsS = strtotime($periodStart);
             $tsE = strtotime($periodEnd);
-            $startStr = date('Y-m-d', $tsS) . ' 00:00:00';
-            $endStr = date('Y-m-d', $tsE) . ' 23:59:59';
-            $sql .= " AND s.created_at >= '"
+            $startStr = date('Y-m-d', $tsS);
+            $endStr = date('Y-m-d', $tsE);
+            $sql .= " AND COALESCE(s.work_date, DATE(s.created_at)) >= '"
                 . $startStr
-                . "' AND s.created_at <= '"
+                . "' AND COALESCE(s.work_date, DATE(s.created_at)) <= '"
                 . $endStr
                 . "'";
         }
@@ -439,7 +442,7 @@ class StartupModel extends Model
             $sql .= " AND (s.machno = '' OR s.machno IS NULL OR s.machno = '-')";
         }
 
-        $sql .= " ORDER BY s.created_at ASC, s.id ASC";
+        $sql .= " ORDER BY COALESCE(s.work_date, DATE(s.created_at)) ASC, s.created_at ASC, s.id ASC";
 
         return $this->query(
             $sql
@@ -468,28 +471,17 @@ class StartupModel extends Model
         $lotno = '',
         $machno = ''
     ) {
-        if (empty($dateStart)) {
-            $startStr = '1970-01-01 00:00:00';
-        } else {
-            $tsS = strtotime($dateStart);
-            $startStr = ($tsS ? date('Y-m-d', $tsS) : '1970-01-01') . ' 00:00:00';
-        }
-
-        if (empty($dateEnd)) {
-            $endStr = '2070-01-01 23:59:59';
-        } else {
-            $tsE = strtotime($dateEnd);
-            $endStr = ($tsE ? date('Y-m-d', $tsE) : '2070-01-01') . ' 23:59:59';
-        }
+        $startDateOnly = empty($dateStart) ? '1970-01-01' : date('Y-m-d', strtotime($dateStart));
+        $endDateOnly   = empty($dateEnd)   ? '2070-01-01' : date('Y-m-d', strtotime($dateEnd));
 
         $sql = "SELECT DISTINCT s.*, p.device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
                 FROM `startup` as s
                 INNER JOIN `proses` as p ON s.process = p.process_code 
                 INNER JOIN `device` as d ON p.device = d.code
-                WHERE s.created_at >= '"
-                . $startStr
-                . "' AND s.created_at <= '"
-                . $endStr
+                WHERE COALESCE(s.work_date, DATE(s.created_at)) >= '"
+                . $startDateOnly
+                . "' AND COALESCE(s.work_date, DATE(s.created_at)) <= '"
+                . $endDateOnly
                 . "' AND (s.device LIKE '%"
                 . $device
                 . "%' OR p.device LIKE '%"
@@ -510,7 +502,7 @@ class StartupModel extends Model
             $sql .= " AND s.machno = '" . $machno . "'";
         }
 
-        $sql .= " ORDER BY s.created_at ASC";
+        $sql .= " ORDER BY COALESCE(s.work_date, DATE(s.created_at)) ASC, s.created_at ASC";
 
         return $this->query(
             $sql
@@ -533,28 +525,17 @@ class StartupModel extends Model
         $device = '',
         $process = ''
     ) {
-        if (empty($dateStart)) {
-            $start = '1970-01-01 00:00:00';
-        } else {
-            $tsS = strtotime($dateStart);
-            $start = ($tsS ? date('Y-m-d', $tsS) : '1970-01-01') . ' 00:00:00';
-        }
-
-        if (empty($dateEnd)) {
-            $end = date('Y-m-d') . ' 23:59:59';
-        } else {
-            $tsE = strtotime($dateEnd);
-            $end = ($tsE ? date('Y-m-d', $tsE) : date('Y-m-d')) . ' 23:59:59';
-        }
+        $startDateOnly = empty($dateStart) ? '1970-01-01' : date('Y-m-d', strtotime($dateStart));
+        $endDateOnly   = empty($dateEnd)   ? date('Y-m-d') : date('Y-m-d', strtotime($dateEnd));
 
         $query = "SELECT DISTINCT s.*, p.device as proc_device, p.type, p.process_code, p.name as process_name, p.docno, d.name as device_name
         FROM `startup` as s
         INNER JOIN `proses` as p ON s.process = p.process_code 
         INNER JOIN `device` as d ON p.device = d.code
-        WHERE s.created_at >= '"
-        . $start
-        . "' AND s.created_at <= '"
-        . $end
+        WHERE COALESCE(s.work_date, DATE(s.created_at)) >= '"
+        . $startDateOnly
+        . "' AND COALESCE(s.work_date, DATE(s.created_at)) <= '"
+        . $endDateOnly
         . "' AND (s.device LIKE '%"
         . $device
         . "%' OR p.device LIKE '%"

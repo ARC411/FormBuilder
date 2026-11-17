@@ -435,6 +435,7 @@ class Production extends BaseController
             : ($req->getVar('name-txt') ?: '');
 
             $timeInDateTime = $nowDateTime;
+            $workDate = calculateWorkDate($timeInDateTime, $startShift);
 
         $common = [
             'number'       => $number,
@@ -446,6 +447,7 @@ class Production extends BaseController
             'empid'        => $startEmpId,
             'group'        => $startGroup,
             'shift'        => $startShift,
+            'work_date'    => $workDate,
             'name'         => $startName,
             'empid2'       => $hasOperatorFinish ? $empid2Val : null,
             'group2'       => $hasOperatorFinish ? $group2Val : null,

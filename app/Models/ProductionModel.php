@@ -16,6 +16,9 @@ class ProductionModel extends Model
     {
         try {
             $db = \Config\Database::connect();
+            if ($db->tableExists($this->table) && !$db->fieldExists('work_date', $this->table)) {
+                $db->query("ALTER TABLE `production` ADD COLUMN `work_date` DATE NULL AFTER `shift`, ADD INDEX `idx_prod_work_date` (`work_date`)");
+            }
             if ($db->tableExists($this->table) && !$db->fieldExists('weekly_id', $this->table)) {
                 $db->query("ALTER TABLE `production` ADD COLUMN `weekly_id` INT(11) UNSIGNED NULL DEFAULT NULL AFTER `revisi`, ADD INDEX `idx_prod_weekly_id` (`weekly_id`)");
             }
@@ -28,7 +31,7 @@ class ProductionModel extends Model
     protected $useTimestamps = true;
     protected $allowedFields = [
         'id', 'number', 'device', 'process', 'model', 'lotno', 'machno',
-        'empid', 'group', 'shift', 'name', 'empid2', 'group2', 'shift2', 'name2', 'std_die_bond',
+        'empid', 'group', 'shift', 'work_date', 'name', 'empid2', 'group2', 'shift2', 'name2', 'std_die_bond',
         'par001', 'par002', 'par003', 'par004', 'par005', 'par006', 'par007',
         'par008', 'par009', 'par010', 'par011', 'par012', 'par013', 'par014',
         'par015', 'par016', 'par017', 'par018', 'par019', 'par020', 'par021',
@@ -98,12 +101,14 @@ class ProductionModel extends Model
         $builder = $this->db->table('production')
             ->where('process', $process);
 
-        // Filter tanggal hanya dipakai jika diisi (string kosong membuat hasil query selalu kosong)
+        // Filter tanggal berdasarkan tanggal operasional (work_date)
         if (!empty($dateStart)) {
-            $builder->where('created_at >=', $dateStart);
+            $startDateOnly = date('Y-m-d', strtotime($dateStart));
+            $builder->where("COALESCE(work_date, DATE(created_at)) >= '" . $startDateOnly . "'", null, false);
         }
         if (!empty($dateEnd)) {
-            $builder->where('created_at <=', $dateEnd);
+            $endDateOnly = date('Y-m-d', strtotime($dateEnd));
+            $builder->where("COALESCE(work_date, DATE(created_at)) <= '" . $endDateOnly . "'", null, false);
         }
 
         if ($model !== '' && $model !== null) {
@@ -116,7 +121,7 @@ class ProductionModel extends Model
             $builder->where('machno', $machno);
         }
 
-        return $builder->orderBy('created_at', 'ASC')
+        return $builder->orderBy('COALESCE(work_date, DATE(created_at)) ASC, created_at ASC', '', false)
             ->get()
             ->getResultArray();
     }

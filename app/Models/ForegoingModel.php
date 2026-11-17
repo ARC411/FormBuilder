@@ -9,7 +9,7 @@ class ForegoingModel extends Model
     protected $table = 'foregoing';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'number', 'idcsheet', 'device', 'process', 'lotno', 'model', 'machno', 'empid', 'group', 'shift', 'name',
+        'number', 'idcsheet', 'device', 'process', 'lotno', 'model', 'machno', 'empid', 'group', 'shift', 'work_date', 'name',
         'par000', 'par001', 'par002', 'par003', 'par004', 'par005', 'par006', 'par007', 'par008',
         'par009', 'par010', 'par011', 'par012', 'par013', 'par014', 'par015', 'par016', 'par017', 'par018',
         'par019', 'par020', 'par021', 'par022', 'par023', 'par024', 'par025', 'par026', 'par027', 'par028',
@@ -31,6 +31,7 @@ class ForegoingModel extends Model
         try {
             $db = \Config\Database::connect();
             $colsToCheck = [
+                'work_date'     => "ALTER TABLE `foregoing` ADD COLUMN `work_date` DATE NULL AFTER `shift`, ADD INDEX `idx_foregoing_work_date` (`work_date`)",
                 'name'          => "ALTER TABLE `foregoing` ADD COLUMN `name` VARCHAR(100) NULL DEFAULT NULL AFTER `shift`",
                 'status'        => "ALTER TABLE `foregoing` ADD COLUMN `status` VARCHAR(50) NULL DEFAULT 'Pending' AFTER `revisi`",
                 'role'          => "ALTER TABLE `foregoing` ADD COLUMN `role` VARCHAR(50) NULL DEFAULT NULL AFTER `status`",
@@ -241,8 +242,8 @@ class ForegoingModel extends Model
         $lotno = '',
         $machno = ''
     ) {
-        $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';
-        $endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
+        $startDateOnly = empty($dateStart) ? '1970-01-01' : date('Y-m-d', strtotime($dateStart));
+        $endDateOnly   = empty($dateEnd)   ? '2070-01-01' : date('Y-m-d', strtotime($dateEnd));
 
         $machnoCondition = "";
         if ($machno !== "" && $machno !== "ALL" && $machno !== "null" && $machno !== "-") {
@@ -267,14 +268,14 @@ class ForegoingModel extends Model
                   FROM `foregoing` as s 
                   INNER JOIN `proses` as p ON s.process = p.process_code 
                   INNER JOIN `device` as d ON p.device = d.code 
-                  WHERE s.created_at >= '" . $startStr . "' 
-                  AND s.created_at <= '" . $endStr . "' 
+                  WHERE COALESCE(s.work_date, DATE(s.created_at)) >= '" . $startDateOnly . "' 
+                  AND COALESCE(s.work_date, DATE(s.created_at)) <= '" . $endDateOnly . "' 
                   AND s.device LIKE '%" . $device . "%' 
                   AND s.process LIKE '%" . $process . "%'"
                   . $modelCondition
                   . $lotnoCondition
                   . $machnoCondition
-                  . " ORDER BY s.created_at ASC, s.number ASC, s.par000 ASC";
+                  . " ORDER BY COALESCE(s.work_date, DATE(s.created_at)) ASC, s.created_at ASC, s.number ASC, s.par000 ASC";
 
         $rows = $this->query($query)->getResultArray();
         return $this->attachOperatorNames($rows);

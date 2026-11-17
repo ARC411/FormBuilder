@@ -142,7 +142,8 @@
                                 $shiftVal = strtoupper(trim((string)($alldata[$i]['shift'] ?? '')));
                                 $isShiftC = ($shiftVal === 'C' || $shiftVal === '3');
                                 $dateVal = !empty($rawDate) ? date('d/m/Y H:i', strtotime($rawDate)) : '-';
-                                $dateYmd = !empty($rawDate) ? date('Y-m-d', strtotime($rawDate)) : '';
+                                $effectiveDate = getRecordWorkDate($alldata[$i], 'Y-m-d');
+                                $dateYmd = !empty($effectiveDate) ? $effectiveDate : (!empty($rawDate) ? date('Y-m-d', strtotime($rawDate)) : '');
                                 $opName = !empty($alldata[$i]['name']) ? $alldata[$i]['name'] : $userName;
                                 $devName = trim((string)($alldata[$i]['device_name'] ?? ''));
                                 $devCode = trim((string)($alldata[$i]['device'] ?? $alldata[$i]['device_code'] ?? ''));
@@ -173,7 +174,7 @@
                                     data-status="<?= esc($statusType); ?>"
                                     data-date="<?= esc($dateYmd); ?>">
                                     <td class="text-center font-weight-bold"><?= $i+1; ?></td>
-                                    <td class="text-center" data-order="<?= esc($rawDate); ?>" data-date="<?= esc($dateYmd); ?>"><?= $dateVal; ?><?= $isShiftC ? ' <span class="text-danger font-weight-bold" title="Shift C (Malam)">*</span>' : ''; ?></td>
+                                    <td class="text-center" data-order="<?= esc($rawDate); ?>" data-date="<?= esc($dateYmd); ?>"><?= $dateVal; ?><?= $isShiftC ? ' <span class="text-danger font-weight-bold" title="Shift C (Malam) - Tanggal Operasional: ' . esc(getRecordWorkDate($alldata[$i], 'd/m/Y')) . '">*</span>' : ''; ?></td>
                                     <td class="text-center" data-device-code="<?= esc($devCode); ?>" data-device-name="<?= esc($devName); ?>" data-process="<?= esc($procRaw); ?>">
                                         <span class="badge bg-secondary"><?= esc($devName ?: $devCode); ?></span>
                                     </td>

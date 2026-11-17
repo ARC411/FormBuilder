@@ -218,10 +218,10 @@ class Approval extends BaseController
 
         if (!empty($weeklyIds)) {
             $activeDatesQuery = $db->table('startup')
-                ->select('weekly_id, DATE(created_at) as doc_date, COUNT(*) as doc_count, SUM(CASE WHEN status = "Reject" THEN 1 ELSE 0 END) as reject_count, SUM(CASE WHEN status = "Pending" OR status = "" OR status = "-" OR status IS NULL THEN 1 ELSE 0 END) as pending_count')
+                ->select('weekly_id, COALESCE(work_date, DATE(created_at)) as doc_date, COUNT(*) as doc_count, SUM(CASE WHEN status = "Reject" THEN 1 ELSE 0 END) as reject_count, SUM(CASE WHEN status = "Pending" OR status = "" OR status = "-" OR status IS NULL THEN 1 ELSE 0 END) as pending_count')
                 ->where('par000', '1')
                 ->whereIn('weekly_id', $weeklyIds)
-                ->groupBy('weekly_id, DATE(created_at)')
+                ->groupBy('weekly_id, COALESCE(work_date, DATE(created_at))')
                 ->get()->getResultArray();
 
             foreach ($activeDatesQuery as $ad) {
@@ -276,7 +276,10 @@ class Approval extends BaseController
                       startup.device, 
                       startup.process, 
                       startup.machno, 
-                      DATE(startup.created_at) as doc_date, 
+                      startup.shift,
+                      startup.work_date,
+                      startup.created_at,
+                      COALESCE(startup.work_date, DATE(startup.created_at)) as doc_date, 
                       startup.status,
                       proses.name as process_name,
                       device.name as device_name')
@@ -286,6 +289,7 @@ class Approval extends BaseController
             ->where('startup.weekly_id', $weeklyId)
             ->orderBy('startup.device', 'ASC')
             ->orderBy('startup.machno', 'ASC')
+            ->orderBy('COALESCE(startup.work_date, DATE(startup.created_at))', 'ASC')
             ->orderBy('startup.created_at', 'ASC')
             ->get()->getResultArray();
 
@@ -1031,12 +1035,8 @@ class Approval extends BaseController
             $dayName = $dayNamesIndo[date('l', $ts)] ?? date('l', $ts);
             $unlockedDatesFormatted[] = $dayName . ' (' . date('d/m', $ts) . ')';
 
-            $startOfDay = $dayClean . ' 00:00:00';
-            $endOfDay   = $dayClean . ' 23:59:59';
-
             $syncStartup = $db->table('startup')
-                ->where('created_at >=', $startOfDay)
-                ->where('created_at <=', $endOfDay)
+                ->where('COALESCE(work_date, DATE(created_at)) =', $dayClean)
                 ->where('par000', '1')
                 ->groupStart()
                     ->where('weekly_id', $weekly_id)
@@ -1212,10 +1212,10 @@ class Approval extends BaseController
                 ];
             }
 
-            $dateLabel = date('d/m', strtotime($doc['created_at']));
-            $fullDateYmd = date('Y-m-d', strtotime($doc['created_at']));
-            $dayTs = strtotime($doc['created_at']);
-            $dayName = $dayNamesIndo[(int)date('w', $dayTs)];
+            $fullDateYmd = getRecordWorkDate($doc, 'Y-m-d');
+            $workTs = strtotime($fullDateYmd);
+            $dateLabel = date('d/m', $workTs);
+            $dayName = $dayNamesIndo[(int)date('w', $workTs)];
 
             if (!in_array($dateLabel, $groupedData[$groupKey]['dates'])) {
                 $groupedData[$groupKey]['dates'][] = $dateLabel;
@@ -1226,7 +1226,7 @@ class Approval extends BaseController
             if (!isset($groupedData[$groupKey]['dates_detail'][$fullDateYmd])) {
                 $groupedData[$groupKey]['dates_detail'][$fullDateYmd] = [
                     'date'          => $fullDateYmd,
-                    'date_label'    => $dayName . ', ' . date('d/m/Y', $dayTs),
+                    'date_label'    => $dayName . ', ' . date('d/m/Y', $workTs),
                     'status'        => $canonicalSt,
                     'raw_status'    => $st,
                     'reject_reason' => $doc['reject_reason'] ?? '',

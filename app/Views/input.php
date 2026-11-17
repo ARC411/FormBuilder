@@ -80,22 +80,23 @@
               </div>
 
               <div class="mb-3 row">
-                <label for="process-txt" class="col-sm-2 col-form-label">Doc. Type</label>
+                <label for="process-name-txt" class="col-sm-2 col-form-label">Process</label>
                 <div class="col-sm-6">
-                  <select class="form-control" id="type-process-txt" name="type-process-txt" onchange="updateDevice()" required>
-                    <option class="dropdown-item" value="-">choose type document</option>
-                    <option value="production">Production Control Sheet</option>
-                    <option value="startup">Startup Control Sheet</option>
-                    <option value="foregoing">Foregoing Control Sheet</option>
+                  <select class="form-control" id="process-name-txt">
+                    <option value="-">choose process</option>
                   </select>
                 </div>
               </div>
 
               <div class="mb-3 row">
-                <label for="process-txt" class="col-sm-2 col-form-label">Process</label>
+                <label for="process-txt" class="col-sm-2 col-form-label">Doc. Type</label>
                 <div class="col-sm-6">
+                  <!-- name="process-txt" tetap berisi process_code, jadi backend tidak berubah -->
                   <select class="form-control" id="process-txt" name="process-txt" required>
+                    <option value="-">choose type document</option>
                   </select>
+                  <!-- name="type-process-txt" tetap dikirim (production/startup/foregoing), diisi otomatis -->
+                  <input type="hidden" id="type-process-txt" name="type-process-txt" value="-">
                 </div>
               </div>
 
@@ -256,15 +257,14 @@ $(document).ready(function()
         alert($('#msgsuccess').html());
     }
 
+    $('#process-name-txt').change(fillDocType);
+
     $('#process-txt').change(function()
     {
+        $('#type-process-txt').val($(this).find('option:selected').data('type') || '-');
         updateInput();
         updateDocNo();
         updateMachine();
-    });
-
-    $('#type-process-txt').change(function(){
-        document.getElementById("form-action").action = "<?= base_url(); ?>" + document.getElementById("type-process-txt").value;
     });
 
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl');
@@ -345,45 +345,99 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
         });
 }
 
+var processRows = [];
+var TYPE_ORDER = {production: 1, startup: 2, foregoing: 3};
+var TYPE_LABEL = {production: 'Production', startup: 'Startup', foregoing: 'Foregoing'};
+
+// "LD Die Bonding 1 Type GH16PSeries" -> base "LD Die Bonding 1", variant "Type GH16PSeries"
+function splitName(name) {
+    name = $.trim(name || '');
+    var i = name.indexOf(' Type ');
+    if (i === -1) return { base: name, variant: '' };
+    return { base: $.trim(name.substring(0, i)), variant: $.trim(name.substring(i + 1)) };
+}
+
+// "SL-D2-002-04" -> "SL-D2-002" (revisi dibuang); docno tanpa revisi dibiarkan
+function stripRevision(docno) {
+    var p = (docno || '').split('-');
+    return p.length >= 4 ? p.slice(0, -1).join('-') : (docno || '');
+}
+
 function updateDevice() {
-    var docType = $('#type-process-txt').val();
     var device = $('#device-txt').val();
 
-    if(device === '-' || docType === '-') {
-        $('#process-txt').empty().append('<option value="-">choose process</option>');
+    processRows = [];
+    if (device === '-') {
+        populateProcessName();
         return;
     }
 
     $.ajax({
-        url: "<?php echo base_url();?>process/list?device="+device+"&type="+docType,
+        url: "<?php echo base_url();?>process/list?device=" + encodeURIComponent(device),
         dataType: 'JSON',
         success: function(data) {
-            populateProcess(data);
+            processRows = data || [];
+            populateProcessName();
         },
         error: function(xhr) {
             if (xhr.responseText) {
                 try {
                     var data = JSON.parse(xhr.responseText);
-                    if(data) { populateProcess(data); return; }
+                    if (data) { processRows = data; populateProcessName(); return; }
                 } catch(e) {}
             }
+            processRows = [];
+            populateProcessName();
         }
     });
 }
 
-function populateProcess(data) {
-    var processDropdown = $('#process-txt');
-    processDropdown.empty();
-    if(data && data.length > 0) {
-        $.each(data, function(index, item) {
-            processDropdown.append(new Option(item.name, item.process_code));
-        });
+// Dropdown Process: nama proses unik (tanpa variasi "Type ...") untuk device terpilih
+function populateProcessName() {
+    var $sel = $('#process-name-txt').empty();
+    var names = [];
+    $.each(processRows, function(i, r) {
+        var base = splitName(r.process_name || r.name).base;
+        if (base && names.indexOf(base) === -1) names.push(base);
+    });
+    names.sort();
+
+    if (names.length === 0) {
+        $sel.append(new Option($('#device-txt').val() === '-' ? 'choose process' : '-- Data Kosong --', '-'));
     } else {
-        processDropdown.append(new Option("-- Data Kosong --", "-"));
+        $sel.append(new Option('choose process', '-'));
+        $.each(names, function(i, n) { $sel.append(new Option(n, n)); });
     }
-    updateInput();
-    updateDocNo();
-    updateMachine();
+    fillDocType();
+}
+
+// Dropdown Doc. Type: semua baris (production/startup/foregoing + variasi) dari proses terpilih
+function fillDocType() {
+    var chosen = $('#process-name-txt').val();
+    var $sel = $('#process-txt').empty();
+    $sel.append(new Option('choose type document', '-'));
+
+    if (chosen && chosen !== '-') {
+        var rows = $.grep(processRows, function(r) {
+            return splitName(r.process_name || r.name).base === chosen;
+        });
+        rows.sort(function(a, b) {
+            var ta = TYPE_ORDER[a.type] || 9, tb = TYPE_ORDER[b.type] || 9;
+            if (ta !== tb) return ta - tb;
+            return String(a.docno).localeCompare(String(b.docno));
+        });
+        $.each(rows, function(i, r) {
+            var variant = splitName(r.process_name || r.name).variant;
+            var label = stripRevision(r.docno) + ' (' + (TYPE_LABEL[r.type] || r.type) + ')' + (variant ? ' - ' + variant : '');
+            var opt = new Option(label, r.process_code);
+            $(opt).attr('data-type', r.type)
+                  .attr('data-docno', r.docno)
+                  .attr('data-name', r.process_name || r.name);
+            $sel.append(opt);
+        });
+    }
+    // memicu updateInput, updateDocNo, updateMachine; kalau masih "choose", form dikosongkan
+    $sel.trigger('change');
 }
 
 function updateMachine() {
@@ -502,8 +556,7 @@ function updateInput() {
         error: function() {
             var processValue = document.getElementById("process-txt");
             if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-                var text = processValue.options[processValue.selectedIndex].text; 
-                var docno = text.split(" ")[0]; 
+                var docno = $(processValue.options[processValue.selectedIndex]).data('docno') || "";
                 var parts = docno.split("-");
                 if (parts.length > 1) {
                     var lastPart = parts[parts.length - 1]; 
@@ -527,7 +580,8 @@ function updateInput() {
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
                 if(processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-                    header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
+                    var $o = $(processValue.options[processValue.selectedIndex]);
+                    header_modal.innerHTML = ($o.data('docno') || '') + ' (' + ($o.data('name') || $o.text()) + ')';
                 }
 
                 if ($('#is-standby').is(':checked')) {
@@ -563,12 +617,8 @@ function updateSetting(processCode) {
 }
 
 function updateDocNo() {
-    var docNo = document.getElementById("docno");
-    var processValue = document.getElementById("process-txt");
-    if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-        var text = processValue.options[processValue.selectedIndex].text;
-        docNo.value=text.split(" ")[0];
-    }
+    // Doc. No tetap menampilkan docno lengkap (dengan revisi) dari baris yang dipilih
+    $('#docno').val($('#process-txt option:selected').data('docno') || '-');
 }
 
 function findNoteInput() {

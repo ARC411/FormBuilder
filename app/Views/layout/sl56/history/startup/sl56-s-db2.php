@@ -84,7 +84,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
         <!-- BARIS TANGGAL -->
         <tr>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td><?= !empty($alldata[$i]['created_at']) ? date('d/m/Y', strtotime((string)$alldata[$i]['created_at'])) : '-'; ?></td>
+                <td><?= getRecordWorkDate($alldata[$i], 'd/m/Y'); ?></td>
             <?php } ?>
         </tr>
     </thead>

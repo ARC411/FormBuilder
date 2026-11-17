@@ -47,20 +47,17 @@
           </div>
 
           <div class="mb-3 row">
-            <label for="type-process" class="col-sm-1 col-form-label">Doc. Type</label>
+            <label for="process-name" class="col-sm-1 col-form-label">Process</label>
             <div class="col-sm-3">
-              <select class="form-control" id="type-process" name="type-process" onchange=changeDevice() required>
-                <option class="dropdown-item" value="">choose type document</option>
-                <option value="production">Production Control Sheet</option>
-                <option value="startup">Startup Control Sheet</option>
-                <option value="foregoing">Foregoing Control Sheet</option>
+              <select class="form-control" id="process-name" onchange="fillDocType()">
               </select>
             </div>
           </div>
 
           <div class="mb-3 row">
-            <label for="process" class="col-sm-1 col-form-label">Process</label>
+            <label for="process" class="col-sm-1 col-form-label">Doc. Type</label>
             <div class="col-sm-3">
+              <!-- id="process" tetap berisi process_code, jadi updateMachine/export/clipboard tidak berubah -->
               <select class="form-control" id="process">
               </select>
             </div>
@@ -167,7 +164,7 @@
 
       $('#fldb1, #slcs, #submit').hide();
 
-      // #type-process tidak ikut di sini: perubahan Doc. Type ditangani changeDevice()
+      // perubahan Process/Doc. Type ditangani fillDocType() lalu memicu change pada #process
       $('#ModelName,#lotNo,#machno,#process').change(function() {
         updateTable()
         updateDocNo()
@@ -246,7 +243,7 @@
       let device = "";
 
       // Tipe proses diambil murni dari dropdown
-      let typeProcess = document.getElementById("type-process").value;
+      let typeProcess = getDocType();
 
       if (process != null && process !== "") {
         device = process.split("-")[0];
@@ -297,12 +294,13 @@
     }
 
     function updateDocNo() {
-      var docNo = document.getElementById("docno");
-      var processValue = document.getElementById("process");
-      if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-        var text = processValue.options[processValue.selectedIndex].text;
-        docNo.value = text.split(" ")[0];
-      }
+      // Doc. No menampilkan docno lengkap (dengan revisi) dari baris yang dipilih
+      $('#docno').val($('#process option:selected').data('docno') || '-');
+    }
+
+    // Tipe dokumen (production/startup/foregoing) diambil dari opsi Doc. Type yang dipilih
+    function getDocType() {
+      return $('#process option:selected').data('type') || '';
     }
 
     function convertDate() {
@@ -315,45 +313,106 @@
       return { dateStart, dateEnd };
     }
 
-    function changeDevice() {
-      var docType = document.getElementById('type-process').value;
-      var device = document.getElementById("device").value;
+    var processRows = [];
+    var TYPE_ORDER = { production: 1, startup: 2, foregoing: 3 };
+    var TYPE_LABEL = { production: 'Production', startup: 'Startup', foregoing: 'Foregoing' };
 
-      // Jangan kirim AJAX kalau Doc Type atau Device masih kosong
-      if (!docType || docType === "" || !device || device === "") {
-          $('#process').empty().append('<option value="">-- Pilih Device & Doc Type --</option>');
-          updateMachine();
-          return;
+    // "LD Die Bonding 1 Type GH16PSeries" -> base "LD Die Bonding 1", variant "Type GH16PSeries"
+    function splitName(name) {
+      name = $.trim(name || '');
+      var i = name.indexOf(' Type ');
+      if (i === -1) return { base: name, variant: '' };
+      return { base: $.trim(name.substring(0, i)), variant: $.trim(name.substring(i + 1)) };
+    }
+
+    // "SL-D2-002-04" -> "SL-D2-002"; docno tanpa revisi dibiarkan
+    function stripRevision(docno) {
+      var p = (docno || '').split('-');
+      return p.length >= 4 ? p.slice(0, -1).join('-') : (docno || '');
+    }
+
+    function changeDevice() {
+      var device = document.getElementById("device").value;
+      processRows = [];
+
+      if (!device) {
+        populateProcessName();
+        return;
       }
 
-      // Kosongkan process lama lebih dulu agar tidak ada request dengan process basi
-      $('#process').empty();
-
       $.ajax({
-        url: "<?php echo base_url(); ?>process/list?device=" + device + "&type=" + docType,
+        url: "<?php echo base_url(); ?>process/list?device=" + encodeURIComponent(device),
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
-          var processValue = document.getElementById("process");
-          var processValueLen = processValue.length;
-          for (let i = 0; i < processValueLen; i++) {
-            processValue.remove(0);
+          processRows = data || [];
+          populateProcessName();
+        },
+        error: function(xhr) {
+          if (xhr.responseText) {
+            try {
+              var data = JSON.parse(xhr.responseText);
+              if (data) { processRows = data; populateProcessName(); return; }
+            } catch (e) {}
           }
-          for (let i = 0; i < data.length; i++) {
-            var option = document.createElement("option");
-            option.text = data[i].name;
-            option.value = data[i].process_code;
-            if (processValue.length == 0) {
-              processValue.add(option, processValue[0]);
-            } else {
-              processValue.add(option, processValue[processValue.length]);
-            }
-          }
-          updateMachine();
-          updateTable();
-          updateDocNo();
+          processRows = [];
+          populateProcessName();
         }
       });
+    }
+
+    // Dropdown Process: nama proses unik (tanpa variasi "Type ...") untuk device terpilih
+    function populateProcessName() {
+      var $sel = $('#process-name').empty();
+      var names = [];
+      $.each(processRows, function(i, r) {
+        var base = splitName(r.process_name || r.name).base;
+        if (base && names.indexOf(base) === -1) names.push(base);
+      });
+      names.sort();
+
+      if (names.length === 0) {
+        $sel.append(new Option($('#device').val() ? '-- Data Kosong --' : '-- Pilih Device --', ''));
+      } else {
+        $sel.append(new Option('-- Pilih Process --', ''));
+        $.each(names, function(i, n) { $sel.append(new Option(n, n)); });
+      }
+      fillDocType();
+    }
+
+    // Dropdown Doc. Type: semua baris (production/startup/foregoing + variasi) dari proses terpilih
+    function fillDocType() {
+      var chosen = $('#process-name').val();
+      var $sel = $('#process').empty();
+      var rows = [];
+
+      if (chosen) {
+        rows = $.grep(processRows, function(r) {
+          return splitName(r.process_name || r.name).base === chosen;
+        });
+        rows.sort(function(a, b) {
+          var ta = TYPE_ORDER[a.type] || 9, tb = TYPE_ORDER[b.type] || 9;
+          if (ta !== tb) return ta - tb;
+          return String(a.docno).localeCompare(String(b.docno));
+        });
+      }
+
+      if (rows.length !== 1) {
+        $sel.append(new Option(chosen ? '-- Pilih Doc. Type --' : '-- Pilih Process --', ''));
+      }
+      $.each(rows, function(i, r) {
+        var variant = splitName(r.process_name || r.name).variant;
+        var label = stripRevision(r.docno) + ' (' + (TYPE_LABEL[r.type] || r.type) + ')' + (variant ? ' - ' + variant : '');
+        var opt = new Option(label, r.process_code);
+        $(opt).attr('data-type', r.type).attr('data-docno', r.docno);
+        $sel.append(opt);
+      });
+
+      if (rows.length === 0) {
+        $('#table').empty();
+      }
+      // memicu updateTable, updateDocNo, updateMachine (kalau cuma 1 Doc. Type, otomatis terpilih)
+      $sel.trigger('change');
     }
 
     function copy_clipboard() {
@@ -386,7 +445,7 @@
       machno = encodeURIComponent(machno);
 
       let device = "";
-      let typeProcess = document.getElementById("type-process").value;
+      let typeProcess = getDocType();
 
       if (process != null && process !== "") {
         device = process.split("-")[0];
@@ -414,7 +473,7 @@
       machno = encodeURIComponent(machno);
 
       let device = "";
-      let typeProcess = document.getElementById("type-process").value;
+      let typeProcess = getDocType();
 
       if (process != null && process !== "") {
         device = process.split("-")[0];

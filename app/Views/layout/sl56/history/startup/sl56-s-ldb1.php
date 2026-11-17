@@ -18,7 +18,7 @@
 
         <tr>
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
-                <td colspan="col"><?= date('d/m/Y', strtotime((string)$alldata[$i]['created_at'])); ?></td>
+                <td colspan="col"><?= getRecordWorkDate($alldata[$i], 'd/m/Y'); ?></td>
             <?php } ?>
         </tr>
     </thead>

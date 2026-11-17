@@ -350,6 +350,8 @@ class Foregoing extends BaseController
         }
 
         $redirectUrl = $isEdit ? base_url('foregoing') : base_url('input');
+        $rowCreatedAt = (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s');
+        $workDate = calculateWorkDate($rowCreatedAt, $shiftVal);
 
         $suffixes = ['a', 'b', 'c', 'd', 'e'];
         foreach ($suffixes as $idx => $sfx) {
@@ -365,8 +367,9 @@ class Foregoing extends BaseController
                 'empid'   => (string)$this->request->getVar('empid-txt'),
                 'group'   => (string)$this->request->getVar('group-txt'),
                 'shift'   => $shiftVal,
+                'work_date' => $workDate,
                 'name'    => $operatorName,
-                'created_at' => (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s'),
+                'created_at' => $rowCreatedAt,
             ];
 
             for ($p = 1; $p <= 44; $p++) {
