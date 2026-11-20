@@ -4,7 +4,7 @@
     <table class="table table-bordered table-hover"  id="table1">
         <thead align="center">
             <tr>
-            <th colspan="23" scope="col"><?php echo nl2br("FINAL TEST GH15Series Model")?></th>
+            <th colspan="22" scope="col"><?php echo nl2br("PRODUCTION CONTROL SHEET OF FINAL TEST GH15SERIES MODEL\n(FRAME LASER 1.8t)")?></th>
             </tr>
         </thead>
         <thead align="center">
@@ -18,14 +18,13 @@
                 <th rowspan="4" >Model</th>
                 <th rowspan="4" >Lot No.</th> 
                 <th rowspan="4" >Date (dd/mm/yyyy)</th>
-                <th colspan="4" scope="col" >Quantity</th>
+                <th colspan="3" scope="col" >Quantity</th>
                 <th colspan="10" scope="col" >Failure Item</th>
             </tr>
         
             <tr>            
                 <th rowspan="3">Input</th>
                 <th rowspan="1" colspan="2">Output</th>
-                <th rowspan="3">Yield</th>
                 <th >lfP/RdP/ldk1/lmp/mKi (00) </th>
                 <th >lf.LD (01) </th>
                 <th >LD-ir (02)</th>
@@ -67,7 +66,7 @@
 
         </thead>
         <tbody>
-            <?php for($i = 0; $i < count($alldata); $i=$i+3) { ?>
+            <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+3) { ?>
                 <tr>
                     <td rowspan="3" ><?= $i/3+1; ?></td>
                     <td rowspan="3" ><?= $alldata[$i]['name'];?></td>
@@ -99,7 +98,6 @@
                     <td rowspan="3" ><?= (string)$alldata[$i]['par013']; ?></td>
                     <td rowspan="3" ><?= (string)$alldata[$i]['par014']; ?></td>
                     <td rowspan="3" ><?= (string)$alldata[$i]['par015']; ?></td>
-                    <td rowspan="3" ><?= (string)$alldata[$i]['par016']; ?></td>
                     <td rowspan="1" ><?= (string)$alldata[$i]['par017']; ?></td>
                     <td rowspan="1" ><?= (string)$alldata[$i]['par018']; ?></td>
                     <td rowspan="1" ><?= (string)$alldata[$i]['par019']; ?></td>
@@ -112,28 +110,28 @@
                     <td rowspan="1" ><?= (string)$alldata[$i]['par026']; ?></td>
                 </tr>
                 <tr>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par017']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par018']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par019']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par020']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par021']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par022']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par023']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par024']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par025']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+1]['par026']; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par017'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par018'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par019'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par020'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par021'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par022'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par023'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par024'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par025'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par026'] : ''; ?></td>
                 </tr>
                 <tr>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par017']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par018']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par019']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par020']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par021']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par022']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par023']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par024']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par025']; ?></td>
-                    <td rowspan="1" ><?= (string)$alldata[$i+2]['par026']; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par017'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par018'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par019'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par020'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par021'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par022'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par023'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par024'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par025'] : ''; ?></td>
+                    <td rowspan="1" ><?= isset($alldata[$i+2]) ? (string)$alldata[$i+2]['par026'] : ''; ?></td>
                 </tr>
             <?php } ?>
         </tbody>

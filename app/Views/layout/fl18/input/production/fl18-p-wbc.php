@@ -1,7 +1,7 @@
 <div class="table-responsive" id="fl18-p-wbc">
 <?= csrf_field(); ?>
 <input type="hidden" name="cnt-proses" value="1">
-<input type="hidden" id="number-edit" name="number-edit" value=<?php if(isset($alldata)){echo $number;} ?>>
+<input type="hidden" id="number-edit" name="number-edit" value=<?php if(!empty($alldata)){echo $number;} ?>>
       <table class="table table-striped-columns" 
         >
         <thead align="center">
@@ -46,20 +46,20 @@
         </thead>
         <tbody>
             <td>
-              <input type="text" class="form-control" id="par002" name="par002" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par002'];} ?> >
+              <input type="text" class="form-control" id="par002" name="par002" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par002'];} ?> >
             </td>
             <td>
-              <input type="text" class="form-control" id="par003" name="par003" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par003'];} ?> >
+              <input type="text" class="form-control" id="par003" name="par003" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par003'];} ?> >
             </td>
             <td>
-              <input type="text" class="form-control" id="par004" name="par004" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par004'];} ?> >
+              <input type="text" class="form-control" id="par004" name="par004" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par004'];} ?> >
             </td>
             <td class="input-form">
-              <input type="number" step="0.01" class="form-control" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par017" name="par017" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
             </td>
             <td class="input-form">
                 <select class="form-select" id="par035" name="par035">
-                <?php if(isset($alldata)){
+                <?php if(!empty($alldata)){
                     if($alldata[0]["par035"]=="-"){
                         echo '
                         <option value="-" selected>-</option>
@@ -93,7 +93,7 @@
             </td>
             <td >
                 <select class="form-select" id="par036" name="par036">
-                <?php if(isset($alldata)){
+                <?php if(!empty($alldata)){
                     if($alldata[0]["par036"]=="-"){
                         echo '
                         <option value="-" selected>-</option>
@@ -126,11 +126,11 @@
                 </select>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par018" name="par018" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
             </td>
             <td >
                 <select class="form-select" id="par037" name="par037">
-                <?php if(isset($alldata)){
+                <?php if(!empty($alldata)){
                     if($alldata[0]["par037"]=="-"){
                         echo '
                         <option value="-" selected>-</option>
@@ -163,32 +163,32 @@
                 </select>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par019" name="par019" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par019" name="par019" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par020" name="par020" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par020" name="par020" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par021" name="par021" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par021'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par021" name="par021" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par021'];} ?>>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par022" name="par022" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par022'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par022" name="par022" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par022'];} ?>>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par023" name="par023" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par023'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par023" name="par023" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par023'];} ?>>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par024" name="par024" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par024'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par024" name="par024" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par024'];} ?>>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par025" name="par025" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par025'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par025" name="par025" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par025'];} ?>>
             </td>
             <td>
-              <input type="number" step="0.01" class="form-control" id="par026" name="par026" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par026'];} ?>>
+              <input type="number" step="0.01" class="form-control" id="par026" name="par026" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par026'];} ?>>
             </td>
             <td >
                 <select class="form-select" id="par038" name="par038">
-                <?php if(isset($alldata)){
+                <?php if(!empty($alldata)){
                     if($alldata[0]["par038"]=="-"){
                         echo '
                         <option value="-" selected>-</option>
@@ -222,7 +222,7 @@
             </td>
             <td >
                 <select class="form-select" id="par039" name="par039">
-                <?php if(isset($alldata)){
+                <?php if(!empty($alldata)){
                     if($alldata[0]["par039"]=="-"){
                         echo '
                         <option value="-" selected>-</option>
@@ -255,10 +255,10 @@
                 </select>
             </td>
             <td>
-              <input type="text" class="form-control" id="par005" name="par005" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par005'];} ?> >
+              <input type="text" class="form-control" id="par005" name="par005" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par005'];} ?> >
             </td>
             <td>
-              <input type="text" class="form-control" id="par006" name="par006" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par006'];} ?> >
+              <input type="text" class="form-control" id="par006" name="par006" <?php if(!empty($alldata)){echo 'value='.$alldata[0]['par006'];} ?> >
             </td>
         </tbody>
     </table>

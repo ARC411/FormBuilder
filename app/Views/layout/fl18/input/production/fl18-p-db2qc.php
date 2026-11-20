@@ -1,11 +1,11 @@
-<div class="table-responsive">
+<div class="table-responsive" id="fl18-p-db2qc">
   <?= csrf_field(); ?>
   <input type="hidden" name="cnt-proses" value="1">
 <input type="hidden" id="number-edit" name="number-edit" value=<?php if(isset($alldata)){echo $number;} ?>>
   <table class="table table-striped-columns">
     <thead align="center">
       <tr>
-        <th colspan="23" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL DIE BONDING 2")?></th>
+        <th colspan="24" scope="col"><?php echo nl2br("INSPECTION LD D/B 2 CONTROL CHECK SHEET\n(FRAME LASER 1.8t, 1.3t & GREEN FRAME 1.8t)")?></th>
       </tr>
       <tr>
         <th class="input-form" colspan="4" scope="col">Quantity</th>

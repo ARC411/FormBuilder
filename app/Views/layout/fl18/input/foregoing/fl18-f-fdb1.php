@@ -6,24 +6,29 @@
   <table class="table table-striped-columns">
     <thead align="center">
       <tr>
-        <th colspan="10" scope="col"><?php echo nl2br("DIE BONDING 1 \n PAGE 1")?></th>
+        <th colspan="10" scope="col"><?php echo nl2br("DIE BONDING 1 FOREGOING CHECK SHEET\nPAGE 1")?></th>
       </tr>
       <tr>
-        <th class="input-form" rowspan="2" >Pos</th>
-        <th class="input-form" colspan="2" scope="col">Foregoing Check Sample 1</th>
-        <th class="input-form" scope="col">Judge1</th>
+        <th class="input-form" rowspan="3" scope="col">Pos</th>
+        <th class="input-form" colspan="2" rowspan="2" scope="col">Foregoing Check Sample 1</th>
+        <th class="input-form" rowspan="2" scope="col">Judge 1</th>
         <th class="input-form" colspan="6" scope="col">Change Bonding Offset Parameter #1</th>
+      </tr>
+      <tr>
+        <th class="input-form" colspan="2" scope="col">X</th>
+        <th class="input-form" colspan="2" scope="col">Z</th>
+        <th class="input-form" colspan="2" scope="col">&theta;</th>
       </tr>
       <tr>
         <th class="input-form" scope="col">1</th>
         <th class="input-form" scope="col">2</th>
         <th class="input-form" scope="col">OK/NG</th>
         <th class="input-form" scope="col">From</th>
-        <th class="input-form" scope="col">to</th>
+        <th class="input-form" scope="col">To</th>
         <th class="input-form" scope="col">From</th>
-        <th class="input-form" scope="col">to</th>
+        <th class="input-form" scope="col">To</th>
         <th class="input-form" scope="col">From</th>
-        <th class="input-form" scope="col">to</th>
+        <th class="input-form" scope="col">To</th>
       </tr>
     </thead>
 
@@ -216,24 +221,29 @@
   <table class="table table-striped-columns">
     <thead align="center">
       <tr>
-        <th colspan="10" scope="col"><?php echo nl2br("DIE BONDING 1 \n PAGE 2")?></th>
+        <th colspan="10" scope="col"><?php echo nl2br("DIE BONDING 1 FOREGOING CHECK SHEET\nPAGE 2")?></th>
       </tr>
       <tr>
-        <th class="input-form" rowspan="2" >Pos</th>
-        <th class="input-form" colspan="2" scope="col">Foregoing Check Sample 2</th>
-        <th class="input-form" scope="col">Judge2</th>
+        <th class="input-form" rowspan="3" scope="col">Pos</th>
+        <th class="input-form" colspan="2" rowspan="2" scope="col">Foregoing Check Sample 2</th>
+        <th class="input-form" rowspan="2" scope="col">Judge 2</th>
         <th class="input-form" colspan="6" scope="col">Change Bonding Offset Parameter #2</th>
+      </tr>
+      <tr>
+        <th class="input-form" colspan="2" scope="col">X</th>
+        <th class="input-form" colspan="2" scope="col">Z</th>
+        <th class="input-form" colspan="2" scope="col">&theta;</th>
       </tr>
       <tr>
         <th class="input-form" scope="col">1</th>
         <th class="input-form" scope="col">2</th>
         <th class="input-form" scope="col">OK/NG</th>
         <th class="input-form" scope="col">From</th>
-        <th class="input-form" scope="col">to</th>
+        <th class="input-form" scope="col">To</th>
         <th class="input-form" scope="col">From</th>
-        <th class="input-form" scope="col">to</th>
+        <th class="input-form" scope="col">To</th>
         <th class="input-form" scope="col">From</th>
-        <th class="input-form" scope="col">to</th>
+        <th class="input-form" scope="col">To</th>
       </tr>
     </thead>
     <tbody>

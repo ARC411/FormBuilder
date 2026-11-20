@@ -71,12 +71,12 @@ function updateTable()
 function updateDocNo()
 {
     var docNoValue={
-    "fldb1":"FF-D1-004-17",
-    "fldb2":"FF-D2-003-11",
+    "fldb1":"FF-D1-004-21",
+    "fldb2":"FF-D2-003-15",
     "flwb":"FF-WB-001",
-    "flcsa":"FF-CS-004-01",
-    "fltbc":"FF-TC-001-06",
-    "fllc":"FF-LC-001-06",
+    "flcsa":"FF-CS-004-20",
+    "fltbc":"FF-TC-001-09",
+    "fllc":"FF-LC-001-08",
     "sldbm":"SL-P1-001",
     "sldb1":"SL-D1-001",
     "sldb2":"SL-D2-001",
@@ -136,12 +136,12 @@ function changeDevice()
 {
     var fl={
     "cp":"Choose Process",
-    "fldb1":"FF-D1-004-17 (Die Bonding 1)",
-    "fldb2":"FF-D2-003-11 (Die Bonding 2)",
+    "fldb1":"FF-D1-004-21 (Die Bonding 1)",
+    "fldb2":"FF-D2-003-15 (Die Bonding 2)",
     "flwb":"FF-WB-001 (Wire Bonding)",
-    "flcsa":"FF-CS-004-01 (Cap Set Auto)",
-    "fltbc":"FF-TC-001-06 (Tie Bar Cutting)",
-    "fllc":"FF-LC-001-06 (Lead Cutting)"
+    "flcsa":"FF-CS-004-20 (Cap Set Auto)",
+    "fltbc":"FF-TC-001-09 (Tie Bar Cutting)",
+    "fllc":"FF-LC-001-08 (Lead Cutting)"
 }; 
 
 // 15 process in single laser
@@ -167,12 +167,12 @@ var sl={
     "slvi":"SL-VI-001-03 (Visual Inspection)"
 };
     var docNo={
-    "fldb1":"FF-D1-004-17",
-    "fldb2":"FF-D2-003-11",
+    "fldb1":"FF-D1-004-21",
+    "fldb2":"FF-D2-003-15",
     "flwb":"FF-WB-001",
-    "flcsa":"FF-CS-004-01",
-    "fltbc":"FF-TC-001-06",
-    "fllc":"FF-LC-001-06",
+    "flcsa":"FF-CS-004-20",
+    "fltbc":"FF-TC-001-09",
+    "fllc":"FF-LC-001-08",
     "sldbm":"SL-P1-001",
     "sldb1":"SL-D1-001",
     "sldb2":"SL-D2-001",

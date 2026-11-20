@@ -4,7 +4,7 @@
   <table class="table table-bordered table-hover" id="table1">
     <thead align="center">
         <tr>
-            <th colspan="22" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL SHEET AG PASTE HARDENING")?></th>
+            <th colspan="21" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL SHEET MARKING\n(FRAME LASER 1.8t AND 1.3t)")?></th>
         </tr>
         <tr>
             <th rowspan="3" >No.</th>
@@ -15,22 +15,21 @@
             <th rowspan="3" >Mch. No.</th>         
             <th rowspan="3" >Model</th>
             <th rowspan="3" >Lot No.</th> 
-            <th colspan="4" scope="col" >Quantity</th>
+            <th colspan="3" scope="col" >Quantity</th>
             <th colspan="2" scope="col" >Time</th>
             <th colspan="2" scope="col" >Marking Item</th>
-            <th colspan="6" scope="col" >Foregoing Insepction (OK,NG)</th>
+            <th colspan="6" scope="col" >Foregoing Inspection (OK, NG)</th>
         </tr>
         <tr>
             <th class="input-form" rowspan="2">Input</th>
             <th class="input-form" rowspan="2">Output</th>
             <th class="input-form" rowspan="2">Reject</th>
-            <th class="input-form" rowspan="2">Yield (%)</th>
             <th class="input-form" rowspan="2">In</th>
             <th class="input-form" rowspan="2">Out</th>
             <th class="input-form" rowspan="2">Model Code</th>
-            <th class="input-form" rowspan="2">Factory (SSI)</th>
+            <th class="input-form" rowspan="2">Factory (FTI)</th>
             <th class="input-form" colspan="3">Visual check 1 frame/lot</th>
-            <th class="input-form" colspan="3">Vic Inspection sampling 1frame/lot</th>
+            <th class="input-form" colspan="3">Vic Inspection sampling 1 frame/lot</th>
         </tr>
         <tr>
             <th class="input-form" >Pecah</th>
@@ -42,9 +41,9 @@
         </tr>
     </thead>
     <tbody>
-        <?php for($i = 0; $i < count($alldata); $i=$i+1) { ?>
+        <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+1) { ?>
             <tr>
-                <td ><?= $i/2+1; ?></td>
+                <td ><?= $i+1; ?></td>
                 <td ><?= (string)$alldata[$i]['name'];?></td>
                 <td ><?= (string)$alldata[$i]['shift'] .' / '. (string)$alldata[$i]['group'];?></td>
                 <td >
@@ -73,7 +72,6 @@
                 <td ><?= (string)$alldata[$i]['par013']; ?></td>
                 <td ><?= (string)$alldata[$i]['par014']; ?></td>
                 <td ><?= (string)$alldata[$i]['par015']; ?></td>
-                <td ><?= (string)$alldata[$i]['par016']; ?></td>
                 <td rowspan="1" ><?= date('H:i', strtotime((string)$alldata[$i]['par008'])); ?></td>
                 <td >
                   <?php
@@ -96,5 +94,5 @@
             </tr>
         <?php } ?>
     </tbody>
-    </table>
+  </table>
 </div>

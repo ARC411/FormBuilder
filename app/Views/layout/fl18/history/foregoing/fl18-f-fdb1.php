@@ -5,7 +5,7 @@
     <table class="table table-bordered table-hover" id="table1" data-cols-width="10,15,15,15,10,10,20,21,10,10,10,10,10,10,10,10,10,10,10,10">
         <thead align="center">
         <tr>
-            <th colspan="26" scope="col"><?php echo nl2br("DIE BONDING 1")?></th>
+            <th colspan="24" scope="col"><?php echo nl2br("DIE BONDING 1 FOREGOING CHECK SHEET\n(FRAME LASER 1.8t AND 1.3t)")?></th>
         </tr>
         </thead>
         <thead align="center">
@@ -20,19 +20,19 @@
                 <th rowspan="3" >Measure Die Bond Pos</th>
                 <th colspan="2" rowspan="2" scope="col" >Foregoing Check Sample No (2pcs/lot)</th>
                 <th rowspan="3" >Judge</th>
-                <th colspan="6" >Change Bonding Offsett Parameter</th>
+                <th colspan="6" >Change Bonding Offset Parameter</th>
                 <th colspan="2" rowspan="2" scope="col" >Foregoing Check Sample No (2pcs/lot)</th>
                 <th rowspan="3" >Judge</th>
-                <th colspan="6" >Change Bonding Offsett Parameter</th>
+                <th colspan="6" >Change Bonding Offset Parameter</th>
             </tr>
         
             <tr>
                 <th scope="col" colspan="2">X</th>
                 <th scope="col" colspan="2">Z</th>
-                <th scope="col" colspan="2">Tetha</th>
+                <th scope="col" colspan="2">&theta;</th>
                 <th scope="col" colspan="2">X</th>
                 <th scope="col" colspan="2">Z</th>
-                <th scope="col" colspan="2">Tetha</th>
+                <th scope="col" colspan="2">&theta;</th>
             </tr>
 
             <tr>
@@ -40,24 +40,24 @@
                 <th >2</th>
                 <th >From</th>
                 <th >To</th>
-                <th >Z</th>
                 <th >From</th>
                 <th >To</th>
-                <th >Z</th>
+                <th >From</th>
+                <th >To</th>
                 <th >1</th>
                 <th >2</th>
                 <th >From</th>
                 <th >To</th>
-                <th >Z</th>
                 <th >From</th>
                 <th >To</th>
-                <th >Z</th>
+                <th >From</th>
+                <th >To</th>
             </tr>
         
         
         </thead>
         <tbody>
-            <?php for($i = 0; $i < count($alldata); $i=$i+3) { ?>
+            <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+3) { ?>
             <tr>
                 <td rowspan="3" ><?= $i/3+1; ?></td>
                 <td rowspan="3" ><?= (string)$alldata[$i]['machno']; ?></td>
