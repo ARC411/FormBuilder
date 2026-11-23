@@ -9,14 +9,15 @@ class ForegoingModel extends Model
     protected $table = 'foregoing';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'number', 'idcsheet', 'device', 'process', 'lotno', 'model', 'machno', 'empid', 'group', 'shift', 'name',
+        'number', 'idcsheet', 'device', 'process', 'lotno', 'model', 'machno', 'empid', 'group', 'shift', 'work_date', 'name',
         'par000', 'par001', 'par002', 'par003', 'par004', 'par005', 'par006', 'par007', 'par008',
         'par009', 'par010', 'par011', 'par012', 'par013', 'par014', 'par015', 'par016', 'par017', 'par018',
         'par019', 'par020', 'par021', 'par022', 'par023', 'par024', 'par025', 'par026', 'par027', 'par028',
         'par029', 'par030', 'par031', 'par032', 'par033', 'par034', 'par035', 'par036', 'par037', 'par038',
         'par039', 'par040', 'par041', 'par042', 'docno', 'revisi',
         'status', 'role', 'foreman', 'leader', 'supervisor', 'edit_status', 'unlocked_by',
-        'reject_reason', 'reject_by', 'reject_date'
+        'reject_reason', 'reject_by', 'reject_date',
+        'created_at'
     ];
 
     public function __construct()
@@ -30,6 +31,7 @@ class ForegoingModel extends Model
         try {
             $db = \Config\Database::connect();
             $colsToCheck = [
+                'work_date'     => "ALTER TABLE `foregoing` ADD COLUMN `work_date` DATE NULL AFTER `shift`, ADD INDEX `idx_foregoing_work_date` (`work_date`)",
                 'name'          => "ALTER TABLE `foregoing` ADD COLUMN `name` VARCHAR(100) NULL DEFAULT NULL AFTER `shift`",
                 'status'        => "ALTER TABLE `foregoing` ADD COLUMN `status` VARCHAR(50) NULL DEFAULT 'Pending' AFTER `revisi`",
                 'role'          => "ALTER TABLE `foregoing` ADD COLUMN `role` VARCHAR(50) NULL DEFAULT NULL AFTER `status`",
@@ -192,8 +194,17 @@ class ForegoingModel extends Model
         $activeRevisi = $data['revisi'] ?? ($latestRevRow['revisi'] ?? ($prosesMaster['revisi'] ?? '0'));
 
         if ($prosesMaster) {
+<<<<<<< HEAD
             $data['par041'] = (string)$activeRevisi;
             $data['par042'] = $prosesMaster['berlaku'];
+=======
+            if (!isset($data['par041']) || $data['par041'] === null || $data['par041'] === '') {
+                $data['par041'] = $prosesMaster['revisi'];
+            }
+            if (!isset($data['par042']) || $data['par042'] === null || $data['par042'] === '') {
+                $data['par042'] = $prosesMaster['berlaku'];
+            }
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             $data['docno']  = $prosesMaster['docno'];
         }
         $data['revisi'] = (string)$activeRevisi;
@@ -223,6 +234,7 @@ class ForegoingModel extends Model
                 $data['reject_date']   = null;
             }
             $data['edit_status'] = 0;
+            unset($data['created_at']);
             $this->update($result->id, $data);
             return "Update foregoing";
         }
@@ -248,8 +260,8 @@ class ForegoingModel extends Model
         $machno = '',
         $revisi = ''
     ) {
-        $startStr = empty($dateStart) ? '1970-01-01 00:00:00' : date('Y-m-d', strtotime($dateStart)) . ' 00:00:00';
-        $endStr   = empty($dateEnd)   ? '2070-01-01 23:59:59' : date('Y-m-d', strtotime($dateEnd))   . ' 23:59:59';
+        $startDateOnly = empty($dateStart) ? '1970-01-01' : date('Y-m-d', strtotime($dateStart));
+        $endDateOnly   = empty($dateEnd)   ? '2070-01-01' : date('Y-m-d', strtotime($dateEnd));
 
         $machnoCondition = "";
         if ($machno !== "" && $machno !== "ALL" && $machno !== "null" && $machno !== "-" && $machno !== "undefined") {
@@ -287,15 +299,19 @@ class ForegoingModel extends Model
                   FROM `foregoing` as s 
                   INNER JOIN `proses` as p ON s.process = p.process_code 
                   INNER JOIN `device` as d ON p.device = d.code 
-                  WHERE s.created_at >= '" . $startStr . "' 
-                  AND s.created_at <= '" . $endStr . "' 
+                  WHERE COALESCE(s.work_date, DATE(s.created_at)) >= '" . $startDateOnly . "' 
+                  AND COALESCE(s.work_date, DATE(s.created_at)) <= '" . $endDateOnly . "' 
                   AND s.device LIKE '%" . $device . "%' 
                   AND s.process LIKE '%" . $process . "%'"
                   . $modelCondition
                   . $lotnoCondition
                   . $machnoCondition
+<<<<<<< HEAD
                   . $revisiCondition
                   . " ORDER BY s.created_at ASC, s.number ASC, s.par000 ASC";
+=======
+                  . " ORDER BY COALESCE(s.work_date, DATE(s.created_at)) ASC, s.created_at ASC, s.number ASC, s.par000 ASC";
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
         $rows = $this->query($query)->getResultArray();
         return $this->attachOperatorNames($rows);

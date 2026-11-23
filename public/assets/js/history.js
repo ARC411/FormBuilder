@@ -137,7 +137,7 @@ function changeDevice()
     
     $.ajax(
         {
-            url: "/process/list?device="+device+"&type="+docType,
+            url: (window.BASE_URL || '/') + "process/list?device="+device+"&type="+docType,
             dataType:'JSON',
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             success: function(data)

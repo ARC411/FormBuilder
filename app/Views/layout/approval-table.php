@@ -22,7 +22,11 @@
             ?>
             <tr class="<?= $isReject ? 'table-danger' : '' ?>">
                 <td class="text-center font-weight-bold"><?= $i+1; ?></td>
-                <td class="text-center"><?= !empty($alldata[$i]['created_at']) ? date('d/m/Y H:i', strtotime($alldata[$i]['created_at'])) : '-'; ?></td>
+                <?php 
+                    $shiftVal = strtoupper(trim((string)($alldata[$i]['shift'] ?? '')));
+                    $isShiftC = ($shiftVal === 'C' || $shiftVal === '3');
+                ?>
+                <td class="text-center"><?= !empty($alldata[$i]['created_at']) ? date('d/m/Y H:i', strtotime($alldata[$i]['created_at'])) : '-'; ?><?= ($isShiftC && !empty($alldata[$i]['created_at'])) ? ' <span class="text-danger font-weight-bold" title="Shift C (Malam) - Tanggal Operasional: ' . esc(getRecordWorkDate($alldata[$i], 'd/m/Y')) . '">*</span>' : ''; ?></td>
                 <td><span class="badge bg-secondary"><?= esc($alldata[$i]['device_name'] ?? ''); ?></span></td>
                 <td>
                     <a class="lotno-link font-weight-bold" data-bs-toggle="modal" data-bs-target="#exampleModal" data-number="<?= $alldata[$i]['number']; ?>" data-process="<?= esc($alldata[$i]['process_name'] ?? '') ?>" data-machno="<?= !empty($alldata[$i]['machno']) ? esc($alldata[$i]['machno']) : '-'; ?>">

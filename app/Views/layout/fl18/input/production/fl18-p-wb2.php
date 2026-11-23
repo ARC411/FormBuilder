@@ -106,10 +106,10 @@
                 <input type="number"  oninput="" step="0.00000001" class="form-control" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
             </td>
             <td>
-                <input type="number"  oninput="" step="0.00000001" class="form-control" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input type="number"  oninput="" step="0.00000001" class="form-control" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
             </td>
             <td>
-                <input type="number"  oninput="" step="0.00000001" class="form-control" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input type="number"  oninput="" step="0.00000001" class="form-control" id="par019" name="par019" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
             </td>
             <td>
                 <input type="number"  oninput="" step="0.00000001" class="form-control" id="par020" name="par020" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par020'];} ?>>
@@ -166,7 +166,7 @@
                 <input type="number"  oninput="" step="0.00000001" class="form-control" id="par037" name="par037" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par037'];} ?>>
             </td>
             <td>
-                <input type="text" class="form-control" id="par013" name="par038">
+                <input type="text" class="form-control" id="par038" name="par038" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par038'];} ?>>
             </td>
             </tbody>
         </table>

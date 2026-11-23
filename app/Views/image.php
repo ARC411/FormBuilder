@@ -1,3 +1,3 @@
 <?php
 ?>
-<img src="/public/assets/img/ico.png">
+<img src="<?= base_url('assets/img/ico.png') ?>">

@@ -123,7 +123,7 @@
           <td >*Check of Contact pin<br>(Memeriksa Kontak Pin)</td>
           <td colspan="3">Check kondisi probe pin holder apakah terjadi pembengkokan, patah</td>
           <td colspan="2">
-            <input class="form-control" type="text" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+            <input class="form-control" type="text" placeholder="" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
           </td>
         </tr>
 
@@ -132,7 +132,7 @@
           <td rowspan="3">*Check of Classification<br>*(Memeriksa Klasifikasi)</td>
           <td colspan="3">Good Product</td>
           <td colspan="2">
-            <input class="form-control" type="text" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+            <input class="form-control" type="text" placeholder="" id="par019" name="par019" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
           </td>
         </tr>
 
@@ -156,7 +156,7 @@
           <td colspan="1">FFP-V</td>
           <td colspan="2">5000-28000</td>
           <td colspan="2">
-            <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par022',5000,28000)" id="par001" placeholder="" id="par022" name="par022" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par022'];} ?>>
+            <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par022',5000,28000)" placeholder="" id="par022" name="par022" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par022'];} ?>>
           </td>
         </tr>
 
@@ -164,7 +164,7 @@
             <td colspan="1">FFP-H</td>
             <td colspan="2">5000-28000</td>
             <td colspan="2">
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par023',5000,28000)" id="par001" placeholder="" id="par023" name="par023" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par023'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par023',5000,28000)" placeholder="" id="par023" name="par023" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par023'];} ?>>
             </td>
         </tr>
 
@@ -172,7 +172,7 @@
             <td colspan="1">FFP-V</td>
             <td colspan="2">5000-28000</td>
             <td colspan="2">
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par024',5000,28000)" id="par001" placeholder="" id="par024" name="par024" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par024'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par024',5000,28000)" placeholder="" id="par024" name="par024" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par024'];} ?>>
             </td>
         </tr>
 
@@ -180,7 +180,7 @@
             <td colspan="1">FFP-H</td>
             <td colspan="2">5000-28000</td>
             <td colspan="2">
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par025',5000,28000)" id="par001" placeholder="" id="par025" name="par025" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par025'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par025',5000,28000)" placeholder="" id="par025" name="par025" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par025'];} ?>>
             </td>
         </tr>
 
@@ -188,7 +188,7 @@
             <td colspan="1">POL</td>
             <td colspan="2">5000-28000</td>
             <td colspan="2">
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par026',5000,28000)" id="par001" placeholder="" id="par026" name="par026" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par026'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par026',5000,28000)" placeholder="" id="par026" name="par026" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par026'];} ?>>
             </td>
         </tr>
 

@@ -151,7 +151,7 @@
           <td rowspan="2" colspan="2">* Check & Wear safety goggles <br> (Memeriksa & memakai kacamata pengaman)</td>
           <td rowspan="2" colspan="3">Check kondisi kacamata pengaman <br> Ketika mengukur model High Power, harus menggunakan kacamata</td>
           <td rowspan="2">
-            <input class="form-control" type="text" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+            <input class="form-control" type="text" placeholder="" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
           </td>
         </tr>
 
@@ -165,7 +165,7 @@
         <tr>
           <td >1</td>
           <td >
-            <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par017',81.5,85.5)" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+            <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par019',81.5,85.5)" placeholder="" id="par019" name="par019" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
           </td>
         </tr>
         <tr>

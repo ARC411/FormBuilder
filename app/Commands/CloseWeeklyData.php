@@ -46,12 +46,22 @@ class CloseWeeklyData extends BaseCommand
                 ->where('weekly_id', null)
                 ->get()->getResultArray();
 
-            $weeks = [];
-            foreach ($pendingRows as $row) {
-                $time = strtotime($row['created_at']);
-                $monday = date('Y-m-d', strtotime('monday this week', $time));
-                $sunday = date('Y-m-d', strtotime('sunday this week', $time));
-                $weekKey = $monday . '_' . $sunday;
+                $weeks = [];
+                foreach ($pendingRows as $row) {
+                    $time = strtotime($row['created_at']);
+                    $adjustedTime = $time - (7 * 3600);
+                    
+                    $baseMonday = date('Y-m-d', strtotime('monday this week', $adjustedTime));
+                    $nextMonday = date('Y-m-d', strtotime($baseMonday . ' +7 days'));
+                    $weekKey = $baseMonday . '_' . $nextMonday;
+    
+                    if (!isset($weeks[$weekKey])) {
+                        $weeks[$weekKey] = [
+                            'start' => $baseMonday,
+                            'end'   => $nextMonday, // Sebelumnya sunday, sekarang periodenya sampai Next Monday
+                            'ids'   => []
+                        ];
+                    }
 
                 if (!isset($weeks[$weekKey])) {
                     $weeks[$weekKey] = [
@@ -103,15 +113,18 @@ class CloseWeeklyData extends BaseCommand
         }
 
         if ($isLastWeek) {
-            $startOfWeek = date('Y-m-d 00:00:00', strtotime('monday last week'));
-            $endOfWeek   = date('Y-m-d 23:59:59', strtotime('sunday last week'));
+            $baseTime = strtotime('last week') - (7 * 3600);
+            $baseMonday = date('Y-m-d', strtotime('monday this week', $baseTime));
         } else {
-            $startOfWeek = date('Y-m-d 00:00:00', strtotime('monday this week'));
-            $endOfWeek   = date('Y-m-d 23:59:59', strtotime('sunday this week'));
+            $baseTime = time() - (7 * 3600);
+            $baseMonday = date('Y-m-d', strtotime('monday this week', $baseTime));
         }
 
-        $periodStart = date('Y-m-d', strtotime($startOfWeek));
-        $periodEnd   = date('Y-m-d', strtotime($endOfWeek));
+        $startOfWeek = $baseMonday . ' 07:00:00';
+        $endOfWeek   = date('Y-m-d', strtotime($baseMonday . ' +7 days')) . ' 06:59:59';
+        
+        $periodStart = $baseMonday;
+        $periodEnd   = date('Y-m-d', strtotime($baseMonday . ' +7 days'));
 
         $builder = $db->table('startup');
         $builder->where('created_at >=', $startOfWeek);

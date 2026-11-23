@@ -216,6 +216,7 @@ class History extends BaseController
         string $model = '',
         string $lotno = '',
         string $machno = '',
+<<<<<<< HEAD
         $weeklyIdParam = null,
         string $selectedRevisi = ''
     ): array {
@@ -223,6 +224,15 @@ class History extends BaseController
         if ($typeProcess === 'production') {
             if (!empty($weeklyIdParam)) {
                 $alldata = $this->ProductionModel->getByWeeklyId($weeklyIdParam);
+=======
+        int $weeklyId = 0
+    ): array {
+        $alldata = [];
+        if ($typeProcess === 'production') {
+            if ($weeklyId > 0) {
+                // Export 1 lembar (batch weekly_id) -> sama persis dengan halaman detail_production
+                $alldata = $this->ProductionModel->getByWeeklyId($weeklyId);
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             } else {
                 $alldata = $this->ProductionModel->getAll(
                     $dateStart,
@@ -230,8 +240,12 @@ class History extends BaseController
                     $process,
                     $model,
                     $lotno,
+<<<<<<< HEAD
                     $machno,
                     $selectedRevisi
+=======
+                    $machno
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 );
             }
         } elseif ($typeProcess === 'foregoing') {
@@ -386,6 +400,7 @@ class History extends BaseController
         }
 
         $weeklyInfo = null;
+<<<<<<< HEAD
         try {
             if ($typeProcess === 'startup') {
                 $weeklyModel = new \App\Models\WeeklyApprovalModel();
@@ -400,6 +415,33 @@ class History extends BaseController
                 }
                 if ($weeklyId) {
                     $weeklyInfo = $weeklyModel->find($weeklyId);
+=======
+        if ($typeProcess === 'startup') {
+            $weeklyModel = new \App\Models\WeeklyApprovalModel();
+            
+            $weeklyId = (int) ($this->request->getGet('weekly_id') ?? 0);
+            if ($weeklyId <= 0 && !empty($alldata)) {
+                foreach ($alldata as $r) {
+                    if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
+                        $weeklyId = (int) $r['weekly_id'];
+                        break;
+                    }
+                }
+            }
+            if ($weeklyId > 0) {
+                $weeklyInfo = $weeklyModel->find($weeklyId);
+            }
+
+            if (!$weeklyInfo) {
+                $refDate = '';
+                $firstCreated = $alldata[0]['created_at'] ?? '';
+                if (!empty($firstCreated) && $firstCreated !== '-') {
+                    $refDate = $firstCreated;
+                } elseif (!empty($dateStart)) {
+                    $refDate = $dateStart;
+                } elseif (!empty($dateEnd)) {
+                    $refDate = $dateEnd;
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 }
 
                 if (!$weeklyInfo) {
@@ -431,6 +473,7 @@ class History extends BaseController
                         }
                     }
                 }
+<<<<<<< HEAD
             } elseif ($typeProcess === 'production') {
                 $weeklyModel    = new \App\Models\WeeklyApprovalModel();
                 $targetWeeklyId = !empty($weeklyIdParam) ? $weeklyIdParam : null;
@@ -441,6 +484,61 @@ class History extends BaseController
                             break;
                         }
                     }
+=======
+            }
+
+            if ($weeklyInfo && $weeklyId <= 0) {
+                $weeklyId = (int) ($weeklyInfo['id'] ?? 0);
+            }
+
+            // Integrasi Status Approval Khusus Dokumen (weekly_document_approvals)
+            $actualDevice  = !empty($device) ? $device : ($alldata[0]['device'] ?? '');
+            $actualProcess = !empty($process) ? $process : ($alldata[0]['process'] ?? '');
+            $actualMach    = ($machno !== '' && $machno !== 'ALL' && $machno !== 'null' && $machno !== '-') ? $machno : ($alldata[0]['machno'] ?? '');
+
+            if ($weeklyId > 0 && !empty($actualDevice) && !empty($actualProcess)) {
+                $docModel = new \App\Models\WeeklyDocumentApprovalModel();
+                $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, $actualMach);
+                if (!$docApproval && ($actualMach === '-' || $actualMach === '' || $actualMach === 'null')) {
+                    $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, '');
+                    if (!$docApproval) {
+                        $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, '-');
+                    }
+                }
+                if (!$docApproval && $actualMach !== '') {
+                    $docApproval = $docModel->getDocApproval($weeklyId, $actualDevice, $actualProcess, '');
+                }
+
+                if ($docApproval) {
+                    if (!$weeklyInfo) {
+                        $weeklyInfo = [
+                            'id'                  => $weeklyId,
+                            'status_qc'           => $docApproval['status_qc'] ?? 'Pending',
+                            'approver_qc'         => $docApproval['approver_qc'] ?? null,
+                            'date_qc'             => $docApproval['date_qc'] ?? null,
+                            'status_production'   => $docApproval['status_production'] ?? 'Pending',
+                            'approver_production' => $docApproval['approver_production'] ?? null,
+                            'date_production'     => $docApproval['date_production'] ?? null,
+                        ];
+                    } else {
+                        if (in_array(strtolower((string)($docApproval['status_qc'] ?? '')), ['approve', 'approved'])) {
+                            $weeklyInfo['status_qc']   = $docApproval['status_qc'];
+                            $weeklyInfo['approver_qc'] = $docApproval['approver_qc'];
+                            $weeklyInfo['date_qc']     = $docApproval['date_qc'];
+                        }
+                        if (in_array(strtolower((string)($docApproval['status_production'] ?? '')), ['approve', 'approved'])) {
+                            $weeklyInfo['status_production']   = $docApproval['status_production'];
+                            $weeklyInfo['approver_production'] = $docApproval['approver_production'];
+                            $weeklyInfo['date_production']     = $docApproval['date_production'];
+                        }
+                    }
+                }
+            }
+
+            if ($weeklyInfo) {
+                if (!empty($weeklyInfo['approver_qc'])) {
+                    $weeklyInfo['approver_qc'] = $this->resolveNameToEmpId((string) $weeklyInfo['approver_qc']);
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 }
                 if ($targetWeeklyId) {
                     $weeklyInfo = $weeklyModel->find($targetWeeklyId);
@@ -571,8 +669,12 @@ class History extends BaseController
                 $model,
                 $lotno,
                 $machno,
+<<<<<<< HEAD
                 $weeklyId,
                 $revisi
+=======
+                (int) ($req->getGet('weekly_id') ?? 0)
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             );
 
             $_SERVER['REQUEST_URI'] = 'exportExcel';
@@ -629,8 +731,12 @@ class History extends BaseController
                 $model,
                 $lotno,
                 $machno,
+<<<<<<< HEAD
                 $weeklyId,
                 $revisi
+=======
+                (int) ($req->getGet('weekly_id') ?? 0)
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             );
 
             $_SERVER['REQUEST_URI'] = 'exportPDF';

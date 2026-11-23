@@ -1,5 +1,5 @@
 <section class="container-fluid">
-<form name="checksheet" action="/process" method="POST">
+<form name="checksheet" action="<?= base_url('process') ?>" method="POST">
     <?= csrf_field(); ?>
     <input type="hidden" name="type-input" value="manual">
 
@@ -82,4 +82,4 @@
     <button type="submit" class="btn btn-primary" id="submit" onclick="return confirm('Apakah kamu yakin?');">Submit</button>
 </form>
 </section>
-<script src="/assets/js/add-process.js"></script>
+<script src="<?= base_url('assets/js/add-process.js') ?>"></script>

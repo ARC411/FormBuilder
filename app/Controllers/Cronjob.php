@@ -22,8 +22,11 @@ class Cronjob extends BaseController
 
         // Mengambil rentang tanggal minggu ini (Senin - Minggu)
         // Karena Cron berjalan di hari Minggu 23:59, maka "this week" akurat.
-        $startOfWeek = date('Y-m-d 00:00:00', strtotime('monday this week'));
-        $endOfWeek   = date('Y-m-d 23:59:59', strtotime('sunday this week'));
+        $nowAdjusted = time() - (7 * 3600);
+        $baseMonday = date('Y-m-d', strtotime('monday this week', $nowAdjusted));
+        
+        $startOfWeek = $baseMonday . ' 07:00:00';
+        $endOfWeek   = date('Y-m-d', strtotime($baseMonday . ' +7 days')) . ' 06:59:59';
 
         // 1. Cek apakah ada data startup di minggu ini yang sudah di-check harian tapi belum masuk mingguan
         // Asumsi data sudah di-approve harian memiliki status yang tidak 'Pending' (Bisa disesuaikan logika querynya)

@@ -255,7 +255,7 @@
         
         $.ajax(
             {
-                url: "/process-list?device="+device+"&type=startup",
+                url: "<?= base_url('process/list') ?>?device="+device+"&type=startup",
                 dataType:'JSON',
                 headers: {'X-Requested-With': 'XMLHttpRequest'},
                 success: function(data)

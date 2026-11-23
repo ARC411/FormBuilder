@@ -63,12 +63,21 @@
     </thead>
 
     <tbody>
-    <?php for($i = 0; $i < count($alldata); $i++) { 
+    <?php 
+    if (!function_exists('renderOkNg')) {
+        function renderOkNg($val) {
+            $valStr = strtoupper(trim((string)$val));
+            if ($valStr === 'OK') return '<strong>&#10004;</strong>';
+            if ($valStr === 'NG') return '<strong>&#10008;</strong>';
+            return $val !== '' ? $val : '-';
+        }
+    }
+
+    for($i = 0; $i < count($alldata); $i++) { 
         $row = $alldata[$i];
         $emp1Val   = trim((string)($row['empid'] ?? ''));
         $name2Val  = trim((string)($row['name2'] ?? ''));
         $emp2Val   = trim((string)($row['empid2'] ?? ''));
-        // Logic pengecekan Operator Finish tetap dipertahankan untuk validasi Time OUT
         $hasOpFinish = (($name2Val !== '' && $name2Val !== '-') || ($emp2Val !== '' && $emp2Val !== '-'));
 
         $timeInRaw  = trim((string)($row['par008'] ?? ''));
@@ -91,29 +100,29 @@
           <td rowspan="1"><?= (string)($row['model'] ?? '-'); ?></td>
           <td rowspan="1"><?= (string)($row['lotno'] ?? '-'); ?></td>
           <td rowspan="1"><?= $dateStr; ?></td>
-          <td rowspan="1"><?= (string)($row['par013'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par014'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par015'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par013'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par014'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par015'] ?? '-'); ?></td>
           <td rowspan="1"><?= $timeInStr; ?></td>
           <td rowspan="1"><?= $timeOutStr; ?></td>
-          <td rowspan="1"><?= (string)($row['par035'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par036'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par037'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par038'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par039'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par040'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par035'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par036'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par037'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par038'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par039'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par040'] ?? '-'); ?></td>
           <td rowspan="1"><?= (!empty($row['std_die_bond']) && $row['std_die_bond'] !== '-') ? $row['std_die_bond'] . ' N' : '-'; ?></td>
-          <td rowspan="1"><?= (string)($row['par017'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par018'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par041'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par042'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par043'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par002'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par003'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par004'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par005'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par006'] ?? '-'); ?></td>
-          <td rowspan="1"><?= (string)($row['par007'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par017'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par018'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par041'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par042'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par043'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par002'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par003'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par004'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par005'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par006'] ?? '-'); ?></td>
+          <td rowspan="1"><?= renderOkNg($row['par007'] ?? '-'); ?></td>
         </tr>
     <?php } ?>
     </tbody>

@@ -42,11 +42,10 @@ class Test extends BaseController
 
     public function testEmp()
     {
-        $data=[
-            'title' => 'testing',
-            'alldata' => $this->EmpModel->testing()
+        $data = [
+            'alldata' => $this->EmpModel->getAll()
         ];
-        return view("data",$data);
+        return view("data", $data);
     }
 
     public function testStartup($id,$name)

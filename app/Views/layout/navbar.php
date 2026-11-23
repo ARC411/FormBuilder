@@ -1,3 +1,6 @@
+<script>
+  var BASE_URL = "<?= rtrim(base_url(), '/') . '/'; ?>";
+</script>
 <style>
   @media all and (min-width: 992px) {
     .hover-dropdown .dropdown-menu {
@@ -15,7 +18,7 @@
 </style>
 <nav class="navbar navbar-expand-lg bg-light bg-gradient sticky-top shadow-sm mb-3">
   <div class="container-fluid">
-    <a class="navbar-brand item-center" href="/">
+    <a class="navbar-brand item-center" href="<?= base_url(); ?>">
       Checksheet Management <br> System
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">

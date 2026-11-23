@@ -6,13 +6,12 @@
     >
     <thead align="center">
       <tr>
-        <th colspan="19" scope="col"><?php echo nl2br("LD DIE BONDING 1 MACHINE")?></th>
+        <th colspan="15" scope="col"><?php echo nl2br("LD DIE BONDING 1 MACHINE")?></th>
       </tr>
     </thead>
     <thead align="center">
       <tr>
         <th class="input-form" colspan="3" scope="col">Quantity</th>
-        <th class="input-form" rowspan="3" >Yield (%)</th>
         <th class="input-form" colspan="11" scope="col">Foregoing Result (Chip = 20pcs/lot & *AuSn = 1 ring(1st sheet)/lot, AuSn Ball = 5pcs/lot)</th>
         <th class="input-form" rowspan="3" >Remark</th>
       </tr>
@@ -29,7 +28,7 @@
       <tr>      
         <th class="input-form"  >Crack</th>
         <th class="input-form"  >Chipping</th>
-        <th class="input-form"  >Pos</th>
+        <th class="input-form"  >LD Pos</th>
         <th class="input-form"  >Miss</th>
         <th class="input-form"  >Crack</th>
         <th class="input-form"  >Chipping</th>
@@ -50,9 +49,7 @@
         </td>
           <td rowspan="2" >
           <input type="number" step="1" class="form-control" id="par015" name="par015" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par015'];} ?> readonly>
-        </td>
-        <td rowspan="2" >
-          <input type="number" step="0.01" class="form-control" id="par016" name="par016" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par016'];} ?> readonly>
+          <input type="hidden" id="par016" name="par016" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars((string)$alldata[0]['par016']).'"';} ?>>
         </td>
         <td rowspan="2" >
             <select id="par035" name="par035" class="form-select">

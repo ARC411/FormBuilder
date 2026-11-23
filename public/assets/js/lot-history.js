@@ -7,7 +7,7 @@ $(document).ready(function()
 function updateTable()
 {
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", "/history/form", true);
+  xhr.open("GET", (window.BASE_URL || '/') + "history/form", true);
   xhr.onload = (e) => {
     if (xhr.readyState === 4) {
       if (xhr.status === 200) {

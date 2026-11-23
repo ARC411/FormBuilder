@@ -166,7 +166,7 @@
         <tr>
             <td >@ Suction force : -0.4 ~ 0 kPa</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par018',-4,0)" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par018',-4,0)" placeholder="" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
             </td>
         </tr>
 
@@ -174,7 +174,7 @@
             <td rowspan="3">Analog</td>
             <td >@ Air Pressure : 0.01 ~ 0.10 MPa (10 ~ 100 kPa)</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange2('par019',0.01,0.1,10,100)" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange2('par019',0.01,0.1,10,100)" placeholder="" id="par019" name="par019" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
             </td>
         </tr>
 

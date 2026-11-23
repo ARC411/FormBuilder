@@ -60,6 +60,15 @@
 
         <tbody>
             <?php
+            if (!function_exists('renderOkNg')) {
+                function renderOkNg($val) {
+                    $valStr = strtoupper(trim((string)$val));
+                    if ($valStr === 'OK') return '<strong>&#10004;</strong>';
+                    if ($valStr === 'NG') return '<strong>&#10008;</strong>';
+                    return $val !== '' ? $val : '-';
+                }
+            }
+
             $groupedLots = [];
             if (!empty($alldata)) {
                 foreach ($alldata as $row) {
@@ -80,7 +89,6 @@
             foreach ($groupedLots as $numKey => $lotRows):
                 $firstRow = $lotRows[1] ?? reset($lotRows);
 
-                // Tampilkan EmpID pada kolom Operator
                 $opEmpId = trim((string) ($firstRow['empid'] ?? '-'));
 
                 $shiftVal = trim((string) ($firstRow['shift'] ?? ''));
@@ -107,30 +115,30 @@
                     <td rowspan="4"><?= $dateStr; ?></td>
                 <?php endif; ?>
                 <td><?= $posLabels[$p]; ?></td>
-                <td><?= (string) ($r['par013'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par014'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par015'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par016'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par017'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par035'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par018'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par019'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par020'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par021'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par022'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par023'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par024'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par025'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par026'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par027'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par028'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par036'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par029'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par030'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par031'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par032'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par033'] ?? '-'); ?></td>
-                <td><?= (string) ($r['par034'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par013'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par014'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par015'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par016'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par017'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par035'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par018'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par019'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par020'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par021'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par022'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par023'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par024'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par025'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par026'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par027'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par028'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par036'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par029'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par030'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par031'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par032'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par033'] ?? '-'); ?></td>
+                <td><?= renderOkNg($r['par034'] ?? '-'); ?></td>
             </tr>
             <?php
                 endfor;

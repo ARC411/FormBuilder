@@ -29,7 +29,7 @@ function empAuto()
     {
     $.ajax(
     {
-        url: "/checkseet/home/ajaxAutofill",
+        url: (window.BASE_URL || '/') + "home/ajaxAutofill",
         dataType:'JSON',
         headers: {'X-Requested-With': 'XMLHttpRequest'},
         data:"empid-txt=" + empid,
@@ -87,8 +87,7 @@ function injectForm()
     }
 
     const xhr = new XMLHttpRequest();
-    // Perbaikan: Tambahkan base folder /checkseet
-    var urlTarget = "/checkseet/startup/edit/form?number=" + numberVal;
+    var urlTarget = (window.BASE_URL || '/') + "startup/edit/form?number=" + numberVal;
     
     xhr.open("GET", urlTarget, true);
     xhr.onload = (e) => {

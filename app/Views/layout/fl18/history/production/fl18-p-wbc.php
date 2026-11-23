@@ -2,8 +2,7 @@
 <?= csrf_field(); ?>
 <input type="hidden" id="cnt-table" value="1">
 <input type="hidden" name="cnt-proses" value="1">
-  <table class="table table-bordered table-hover" id="table1"
-    >
+  <table class="table table-bordered table-hover" id="table1">
         <thead align="center">
           <tr>
             <th colspan="29" scope="col"><?php echo nl2br("CAPILLARY CHANGE RECORD SHEET")?></th>
@@ -54,55 +53,37 @@
           </tr>
         </thead>
         <tbody>
-            <?php for($i = 0; $i < count($alldata); $i=$i+1) { ?>
+            <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+1) { ?>
                 <tr>
-                    <td><?= $i/1+1; ?></td>
-                    <td ><?= $alldata[$i]['name'];?></td>
-                    <td ><?= $alldata[$i]['shift'] .' / '. $alldata[$i]['group'];?></td>
-                    <td >
-                    <?php
-                        if($alldata[$i]['name2']){
-                        echo  $alldata[$i]['name2'];
-                        }
-                        else{
-                        echo "";
-                        }
-                    ?>
-                    </td>
-                    <td >
-                    <?php
-                        if($alldata[$i]['shift2']){
-                        echo $alldata[$i]['shift2'] . ' / ' . $alldata[$i]['group2'];
-                        }
-                        else{
-                        echo "";
-                        }
-                    ?>
-                    </td>
-                    <td><?= $alldata[$i]['machno']; ?></td>
-                    <td><?= $alldata[$i]['model']; ?></td>
-                    <td><?= $alldata[$i]['lotno']; ?></td>
-                    <td><?= date('d/m/Y', strtotime($alldata[$i]['created_at'])); ?></td>
-                    <td><?= $alldata[$i]['par002']; ?></td>
-                    <td><?= $alldata[$i]['par003']; ?></td>
-                    <td><?= $alldata[$i]['par004']; ?></td>
-                    <td><?= $alldata[$i]['par017']; ?></td>
-                    <td><?= $alldata[$i]['par035']; ?></td>
-                    <td><?= $alldata[$i]['par036']; ?></td>
-                    <td><?= $alldata[$i]['par018']; ?></td>
-                    <td><?= $alldata[$i]['par037']; ?></td>
-                    <td><?= $alldata[$i]['par019']; ?></td>
-                    <td><?= $alldata[$i]['par020']; ?></td>
-                    <td><?= $alldata[$i]['par021']; ?></td>
-                    <td><?= $alldata[$i]['par022']; ?></td>
-                    <td><?= $alldata[$i]['par023']; ?></td>
-                    <td><?= $alldata[$i]['par024']; ?></td>
-                    <td><?= $alldata[$i]['par025']; ?></td>
-                    <td><?= $alldata[$i]['par026']; ?></td>
-                    <td><?= $alldata[$i]['par038']; ?></td>
-                    <td><?= $alldata[$i]['par039']; ?></td>
-                    <td><?= $alldata[$i]['par005']; ?></td>
-                    <td><?= $alldata[$i]['par006']; ?></td>
+                    <td><?= $i+1; ?></td>
+                    <td><?= (string)$alldata[$i]['name'];?></td>
+                    <td><?= (string)$alldata[$i]['shift'] .' / '. (string)$alldata[$i]['group'];?></td>
+                    <td><?= !empty($alldata[$i]['name2']) ? (string)$alldata[$i]['name2'] : ''; ?></td>
+                    <td><?= !empty($alldata[$i]['shift2']) ? (string)$alldata[$i]['shift2'] . ' / ' . (string)$alldata[$i]['group2'] : ''; ?></td>
+                    <td><?= (string)$alldata[$i]['machno']; ?></td>
+                    <td><?= (string)$alldata[$i]['model']; ?></td>
+                    <td><?= (string)$alldata[$i]['lotno']; ?></td>
+                    <td><?= date('d/m/Y', strtotime((string)$alldata[$i]['created_at'])); ?></td>
+                    <td><?= (string)$alldata[$i]['par002']; ?></td>
+                    <td><?= (string)$alldata[$i]['par003']; ?></td>
+                    <td><?= (string)$alldata[$i]['par004']; ?></td>
+                    <td><?= (string)$alldata[$i]['par017']; ?></td>
+                    <td><?= (string)$alldata[$i]['par035']; ?></td>
+                    <td><?= (string)$alldata[$i]['par036']; ?></td>
+                    <td><?= (string)$alldata[$i]['par018']; ?></td>
+                    <td><?= (string)$alldata[$i]['par037']; ?></td>
+                    <td><?= (string)$alldata[$i]['par019']; ?></td>
+                    <td><?= (string)$alldata[$i]['par020']; ?></td>
+                    <td><?= (string)$alldata[$i]['par021']; ?></td>
+                    <td><?= (string)$alldata[$i]['par022']; ?></td>
+                    <td><?= (string)$alldata[$i]['par023']; ?></td>
+                    <td><?= (string)$alldata[$i]['par024']; ?></td>
+                    <td><?= (string)$alldata[$i]['par025']; ?></td>
+                    <td><?= (string)$alldata[$i]['par026']; ?></td>
+                    <td><?= (string)$alldata[$i]['par038']; ?></td>
+                    <td><?= (string)$alldata[$i]['par039']; ?></td>
+                    <td><?= (string)$alldata[$i]['par005']; ?></td>
+                    <td><?= (string)$alldata[$i]['par006']; ?></td>
                 </tr>
             <?php } ?>
         </tbody>

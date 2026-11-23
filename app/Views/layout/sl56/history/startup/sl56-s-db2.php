@@ -1,4 +1,13 @@
 <?php
+if (!function_exists('renderOkNg')) {
+    function renderOkNg($val) {
+        $valStr = strtoupper(trim((string)$val));
+        if ($valStr === 'OK' || $val === '✔' || $valStr === '✔' || $valStr === 'V') return '<strong>&#10004;</strong>';
+        if ($valStr === 'NG' || $val === '✖' || $valStr === '✖' || $valStr === 'X') return '<strong>&#10008;</strong>';
+        return $val !== '' ? $val : '-';
+    }
+}
+
 if (!function_exists('resolveStartupEmpId')) {
     function resolveStartupEmpId($val) {
         static $empMap = null;
@@ -75,7 +84,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
         <!-- BARIS TANGGAL -->
         <tr>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td><?= !empty($alldata[$i]['created_at']) ? date('d/m/Y', strtotime((string)$alldata[$i]['created_at'])) : '-'; ?></td>
+                <td><?= getRecordWorkDate($alldata[$i], 'd/m/Y'); ?></td>
             <?php } ?>
         </tr>
     </thead>
@@ -86,14 +95,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2" colspan="2">@ Transfer Air Pressure</td>
             <td rowspan="1">A: 340-490 MPa</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par001'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par001'] ?? ''); ?></td>
             <?php } ?>
         </tr>
         
         <tr>
             <td rowspan="1">B: 0.34-0.49 MPa</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par002'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par002'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -103,14 +112,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2">Chip</td>
             <td>A: 60 - 150 MPa</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par003'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par003'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>B: 0.06 - 0.150 MPa</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par004'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par004'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -118,14 +127,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2">Stem</td>
             <td>A: 340 - 490 MPa</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par005'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par005'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>B: 0.340 - 0.490 MPa</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par006'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par006'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -135,14 +144,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2">Chip</td>
             <td>A: -80 kPa atau kurang</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par007'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par007'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>B: -80 kPa atau kurang</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par008'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par008'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -150,14 +159,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2">Stem</td>
             <td>A: -70 kPa atau kurang</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par009'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par009'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>B: -70 kPa atau kurang</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par010'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par010'] ?? ''); ?></td>
             <?php } ?>
         </tr>
         
@@ -166,21 +175,21 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="3" colspan="2">* Collet Cleaning <br> (Bersihkan dengan Cotton Bud yang dibasahi dengan alkohol)</td>
             <td>Collet A</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par011'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par011'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>Collet B</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par012'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par012'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>Middle Collet</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par013'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par013'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -188,7 +197,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td>5</td>
             <td colspan="3">* Pengecekan kondisi collet guide (Check apakah collet guide goyang)</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par014'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par014'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -197,14 +206,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2" colspan="2">@Colled Load</td>
             <td>Collet A : 0.60 - 1.00 N (60-100 gr)</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par015'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par015'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>Collet B : 0.60 - 1.40 N (60-140 gr)</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par016'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par016'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -212,7 +221,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td>7</td>
             <td colspan="3">* Pengecekan die bonding monitor <br>(Check posisi cursor pada LD chip dengan melihat monitor)</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par017'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par017'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -222,14 +231,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2">Air Pressure</td>
             <td>Analog : 0.01-0.10 MPa (10-100 kPa) / 0.10 - 1 kgf/cm^2</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par018'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par018'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
         <tr>
             <td>Digital : 0.005-0.10 MPa (5-100 kPa) / 0.05 - 1 kgf/cm^2</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par019'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par019'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -237,14 +246,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2">Dispense Time</td>
             <td>Analog : 0.01-0.15 sec / 10-150 ms</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par020'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par020'] ?? ''); ?></td>
             <?php } ?>
         </tr>
         
         <tr>
             <td>Digital : 0.005-0.15 sec / 5-150 ms</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par021'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par021'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -252,14 +261,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2">Suction Pressure Force</td>
             <td>Analog : kurang dari 1/6 dari posisi Off</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par022'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par022'] ?? ''); ?></td>
             <?php } ?>
         </tr>
         
         <tr>
             <td>Digital : -0.3 ~ -0.1 kPa / -0.03 ~ -0.01 kgf/cm^2 / -3 ~ -1 mmHg</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par023'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par023'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -268,14 +277,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2" colspan="2">* Check kondisi Ag Paste</td>
             <td>Posisi</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par024'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par024'] ?? ''); ?></td>
             <?php } ?>
         </tr> 
 
         <tr>
             <td>Quantity</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par025'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par025'] ?? ''); ?></td>
             <?php } ?>
         </tr> 
 
@@ -284,14 +293,14 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="2" colspan="2">* Check arah Ion Blower Fan</td>
             <td>Posisi blower</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par026'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par026'] ?? ''); ?></td>
             <?php } ?>
         </tr> 
 
         <tr>
             <td>Putaran blower</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par027'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par027'] ?? ''); ?></td>
             <?php } ?>
         </tr> 
 
@@ -300,7 +309,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="1" colspan="2">Cleaning Machine</td>
             <td>Bersihkan mesin dan lingkungan sekitarnya dari debu dan kotoran</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par028'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par028'] ?? ''); ?></td>
             <?php } ?>
         </tr> 
 
@@ -309,9 +318,27 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td rowspan="1" colspan="2">@ Needle Push Up Level</td>
             <td>0.2 ~ 0.6 mm</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par029'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par029'] ?? ''); ?></td>
             <?php } ?>
         </tr> 
+
+        <tr>
+            <td colspan="4">Judgment Start Up *</td>
+            <?php for($i = 0; $i < $lenData; $i++) { 
+                $judg = $alldata[$i]['par031'] ?? '';
+                if ($judg === '') {
+                    $chkPars = ['par011','par012','par013','par014','par017','par024','par025','par026','par027','par028'];
+                    $hasNg = false;
+                    foreach ($chkPars as $cp) {
+                        $v = strtoupper(trim((string)($alldata[$i][$cp] ?? '')));
+                        if ($v === 'NG' || $v === '✖' || $v === 'X') { $hasNg = true; break; }
+                    }
+                    $judg = $hasNg ? '✖' : '✔';
+                }
+            ?>
+                <td colspan="col"><?= renderOkNg($judg); ?></td>
+            <?php } ?>
+        </tr>
 
         <tr>
             <td colspan="4">Operator</td>
@@ -330,9 +357,9 @@ if (!function_exists('formatStartupCheckedEmpId')) {
         </tr>
 
         <tr>
-            <td colspan="4">Note</td>
+            <td colspan="4">Note #</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)($alldata[$i]['par030'] ?? ''); ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par030'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 

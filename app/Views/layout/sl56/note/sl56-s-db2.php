@@ -16,7 +16,7 @@
             <td>AP-31,33</td>
         </tr>
         <tr>
-            <td>B/td>
+            <td>B</td>
             <td>AP-21A,23A</td>
         </tr>
     </thead>

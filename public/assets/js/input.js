@@ -25,7 +25,7 @@ function empAuto(empIdTag,shiftTag,groupTag,nameTag,empIdlTag)
     {
     $.ajax(
     {
-        url: "/Home/ajaxAutofill",
+        url: (window.BASE_URL || '/') + "home/ajaxAutofill",
         // type:'POST',
         dataType:'JSON',
         headers: {'X-Requested-With': 'XMLHttpRequest'},
@@ -93,7 +93,7 @@ function updateInput()
     cnt_error.value=0
     
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", "/input/note-form/"+process, true);
+    xhr.open("GET", (window.BASE_URL || '/') + "input/note-form/"+process, true);
     xhr.onload = (e) => {
         if (xhr.readyState === 4) {
             if (xhr.status === 200) {
@@ -135,7 +135,7 @@ function changeDevice()
     
     $.ajax(
         {
-            url: "/process/list?device="+device+"&type="+docType,
+            url: (window.BASE_URL || '/') + "process/list?device="+device+"&type="+docType,
             dataType:'JSON',
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             success: function(data)

@@ -7,13 +7,12 @@
             >
             <thead align="center">
               <tr>
-                <th colspan="19" scope="col"><?php echo nl2br("LDSM MACHINE\n(Single Laser 5.6)")?></th>
+                <th colspan="2" scope="col"><?php echo nl2br("LDSM MACHINE\n(Single Laser 5.6)")?></th>
               </tr>
             </thead>
             <thead align="center">
               <tr>
                 <th class="input-form" colspan="2" scope="col">Quantity</th>
-                <th class="input-form"  rowspan="2">Yield (%)</th>
               </tr>
 
               <tr>
@@ -29,9 +28,7 @@
                 </td>
                 <td rowspan="2" >
                   <input type="number"  oninput="" step="1" class="form-control" id="par014" name="par014" onkeyup=quantityChange2() onchange=quantityChange2() <?php if(isset($alldata)){echo 'value='.$alldata[0]['par014'];} ?>>
-                </td>
-                <td rowspan="1" >
-                  <input type="number" step="0.01" class="form-control" id="par016" name="par016" readonly <?php if(isset($alldata)){echo 'value='.$alldata[0]['par016'];} ?>>
+                  <input type="hidden" id="par016" name="par016" <?php if(isset($alldata)){echo 'value="'.htmlspecialchars((string)$alldata[0]['par016']).'"';} ?>>
                 </td>
               </tr>
             </tbody>
@@ -50,7 +47,7 @@
                 <th class="input-form"  rowspan="2">Sample</th>
                 <th class="input-form"  colspan="3" scope="col">LD Chip & SM</th>
 
-                <th class="input-form"  colspan="3" scope="col">LD Chip (COS) & Stem</th>
+                <th class="input-form"  colspan="4" scope="col">LD Chip (COS) & Stem</th>
                </tr>
                 <tr>
                     <th class="input-form" scope="col">Point 1 <br> (Θc)</th>
@@ -259,7 +256,7 @@
                     <input type="number" step="0.00000001" class="form-control" id="par018c" name="par018c" <?php if(isset($alldata)){echo 'value='.$alldata[2]['par018'];} ?>>
                 </td>
                 <td>
-                    <input type="number" step="0.00000001" class="form-control" id="par01c9" name="par019c" <?php if(isset($alldata)){echo 'value='.$alldata[2]['par019'];} ?>>
+                    <input type="number" step="0.00000001" class="form-control" id="par019c" name="par019c" <?php if(isset($alldata)){echo 'value='.$alldata[2]['par019'];} ?>>
                 </td>
                 <td>
                     <input type="number" step="0.00000001" class="form-control" id="par020c" name="par020c" <?php if(isset($alldata)){echo 'value='.$alldata[2]['par020'];} ?>>

@@ -281,7 +281,7 @@
         <tr>
           <td colspan="5">Note</td>
           <td colspan="3">
-            <input class="form-control" type="text" placeholder="" id="par002" name="par002" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par002'];} ?>>
+            <input class="form-control" type="text" placeholder="" id="par021" name="par021" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par021'];} ?>>
           </td>
         </tr>
 

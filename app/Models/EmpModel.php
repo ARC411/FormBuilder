@@ -154,7 +154,35 @@ class EmpModel extends Model
             }
         }
 
+<<<<<<< HEAD
         return $this->getLocalEmpFallback((string)$empid);
+=======
+        $sql = "
+            SELECT TOP 1
+                c.empid,
+                c.cardid,
+                LTRIM(RTRIM(
+                    ISNULL(i.firstname, '') + ' ' + ISNULL(i.midname, '') + ' ' + ISNULL(i.lastname, '')
+                )) AS name,
+                i.positionid,
+                s.groupid,
+                (
+                    SELECT TOP 1 RIGHT(a.acc, 1)
+                    FROM tbarawdata a
+                    WHERE a.empid = c.empid
+                      AND a.datet >= DATEADD(day, -1, CAST(GETDATE() AS date))
+                    ORDER BY a.datet DESC
+                ) AS acc
+            FROM tbtcardemp c
+            INNER JOIN tbempinfa i ON c.empid = i.empid
+            LEFT JOIN tbtschemp s ON c.empid = s.empid AND s.datetl = '1900-01-01'
+            WHERE (c.empid = ? OR c.cardid = ?)
+              AND i.empstsid <> '3,Not Active'
+              AND c.datetl = '1900-01-01'
+        ";
+
+        return $db->query($sql, [$empid, $empid])->getRow();
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
     }
 
     public function getDataEmp($empid)
@@ -177,6 +205,40 @@ class EmpModel extends Model
         return $this->getLocalEmpFallback((string)$empid);
     }
 
+    public static function determineDepartmentCategory(?string $deptid): string
+    {
+        if (empty($deptid)) {
+            return 'OTHER';
+        }
+        $d = strtoupper(trim($deptid));
+
+        // QC / QA keywords
+        if (
+            strpos($d, 'QUALITY') !== false ||
+            strpos($d, 'QC') !== false ||
+            strpos($d, 'QA') !== false
+        ) {
+            return 'QC';
+        }
+
+        // Production keywords (FL, SL, Opto, Compound, Production, dll)
+        if (
+            strpos($d, 'PRODUCTION') !== false ||
+            strpos($d, 'PRODUKSI') !== false ||
+            strpos($d, 'FRAME LASER') !== false ||
+            strpos($d, 'SINGLE LASER') !== false ||
+            strpos($d, 'CHIP MAKING') !== false ||
+            strpos($d, 'HOLOGRAM') !== false ||
+            strpos($d, 'LED') !== false ||
+            strpos($d, 'REGULATOR') !== false ||
+            strpos($d, 'OPTO') !== false
+        ) {
+            return 'PRODUCTION';
+        }
+
+        return 'OTHER';
+    }
+
     public function login($empid, $password)
     {
         $empid    = trim((string)$empid);
@@ -189,7 +251,13 @@ class EmpModel extends Model
                 'name'       => 'admin',
                 'positionid' => 'admin',
                 'role'       => 'all',
+<<<<<<< HEAD
                 'level'      => 1,
+=======
+                'deptid'     => 'ADMIN',
+                'department' => 'ADMIN',
+                'level'      => 99,
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 'isadmin'    => true
             ];
         }
@@ -266,12 +334,23 @@ class EmpModel extends Model
             $posParts = preg_split('/,/', (string)($q->positionid ?? ''), -1, PREG_SPLIT_NO_EMPTY);
             $level    = isset($posParts[0]) && is_numeric($posParts[0]) ? (int)$posParts[0] : 15;
 
+<<<<<<< HEAD
             $role = 'all';
             $dept = strtoupper(trim((string)($q->deptid ?? '')));
             if (strpos($dept, 'FRAME') !== false || strpos($dept, 'FL') !== false || strpos($dept, '017') !== false) {
                 $role = 'fl';
             } elseif (strpos($dept, 'SINGLE') !== false || strpos($dept, 'SL') !== false || strpos($dept, '044') !== false) {
+=======
+            $department = self::determineDepartmentCategory($q->deptid);
+
+            $role = 'bebas';
+            if (strpos(strtoupper((string)$q->deptid), 'FRAME LASER') !== false) {
+                $role = 'fl';
+            } elseif (strpos(strtoupper((string)$q->deptid), 'SINGLE LASER') !== false) {
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 $role = 'sl';
+            } elseif ($department === 'QC') {
+                $role = 'qc';
             }
 
             if ($level > 0 && $level <= 7) {
@@ -280,10 +359,17 @@ class EmpModel extends Model
 
             return [
                 'empid'      => $empid,
+<<<<<<< HEAD
                 'name'       => !empty($q->name) ? $q->name : strtoupper($empid),
                 'positionid' => $q->positionid ?? 'Operator',
                 'shift'      => $q->acc ?? '',
                 'groupid'    => $q->groupid ?? '',
+=======
+                'name'       => $q->name,
+                'positionid' => $q->positionid,
+                'deptid'     => $q->deptid,
+                'department' => $department,
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 'role'       => $role,
                 'level'      => $level,
                 'isadmin'    => false

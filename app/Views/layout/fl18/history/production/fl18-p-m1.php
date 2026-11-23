@@ -5,7 +5,7 @@
     <table class="table table-bordered table-hover" id="table1">
         <thead align="center">
             <tr>
-                <th colspan="17" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL HARDENING OF INK")?></th>
+                <th colspan="17" scope="col"><?php echo nl2br("PRODUCTION PROCESS CONTROL SHEET HARDENING OF INK\n(FRAME LASER 1.8t)")?></th>
             </tr>
             <tr>
                 <th rowspan="2" >No.</th>
@@ -35,9 +35,9 @@
             </tr>
         </thead>
         <tbody>
-            <?php for($i = 0; $i < count($alldata); $i=$i+1) { ?>
+            <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+1) { ?>
                 <tr>
-                    <td ><?= $i/2+1; ?></td>
+                    <td ><?= $i+1; ?></td>
                     <td ><?= (string)$alldata[$i]['name'];?></td>
                     <td ><?= (string)$alldata[$i]['shift'] .' / '. (string)$alldata[$i]['group'];?></td>
                     <td >

@@ -869,7 +869,7 @@
                 </select>
             </td>
             <td>
-                <select class="form-select" id="par011b" name="par011b">
+                <select class="form-select" id="par011c" name="par011c">
                     <?php if(isset($alldata)){
                         if($alldata[2]["par011"]=="-"){
                             echo '

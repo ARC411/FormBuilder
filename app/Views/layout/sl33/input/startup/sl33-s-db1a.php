@@ -171,7 +171,7 @@
         <tr>
             <td > Step 2 : 0 s (HT)</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par018',-1,1)" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par018',-1,1)" placeholder="" id="par018" name="par018" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par018'];} ?>>
             </td>
         </tr>
 
@@ -180,7 +180,7 @@
             <td colspan="2">@ Solid Point Heater</td>
             <td >Sama dengan idle temperature + 10 °C</td>
             <td >
-                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par019',110,230)" placeholder="" id="par017" name="par017" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par017'];} ?>>
+                <input class="form-control" type="number" step="0.000000001" onchange="changeRange('par019',110,230)" placeholder="" id="par019" name="par019" <?php if(isset($alldata)){echo 'value='.$alldata[0]['par019'];} ?>>
             </td>
         </tr>
 

@@ -48,7 +48,7 @@ class ExcelGenerator
         $sheet = $spreadsheet->getActiveSheet();
         
         $tableStartRow = 6; 
-        $PER_PAGE = ($typeProcess === 'startup') ? 14 : 20; 
+        $PER_PAGE = ($typeProcess === 'startup') ? 7 : 20; 
         $dataColsCount = count($alldata ?? []);
         $targetDataRowCount = 0;
 
@@ -101,7 +101,9 @@ class ExcelGenerator
                 
                 $tableRange = "B" . $tableStartRowChunk . ":" . $lastColLetter . $validEndRow;
                 $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $sheet->getStyle($tableRange)->getFont()->setSize(11);
+                
+                // UPDATE: Font size tabel parameter/data diubah menjadi 14
+                $sheet->getStyle($tableRange)->getFont()->setSize(14);
                 
                 if ($validEndRow < $lastRowOfChunk) {
                     foreach ($sheet->getMergeCells() as $mergeRange) {
@@ -329,9 +331,8 @@ class ExcelGenerator
                     ->setShrinkToFit(true);
             }
 
-            // Kalibrasi tinggi baris Foregoing dengan tinggi Kop Surat seragam (144 pt)
             $maxPageHeightPt = $totalForegoingWidth * 5.05;
-            $kopHeightPt     = (4 * 22) + 56; // 144 pt
+            $kopHeightPt     = (4 * 22) + 56;
             $headerRowPt     = 28;
             $headerTotalPt   = $headerRowCount * $headerRowPt;
             $idealFgRowPt    = max(38, min(62, (int) floor(($maxPageHeightPt - $kopHeightPt - $headerTotalPt) / $PER_PAGE)));
@@ -361,15 +362,15 @@ class ExcelGenerator
                 if ($gridCol === 1 && ($headerLabel === 'no' || $headerLabel === 'no.')) {
                     $colWidth = 4.5;
                 } elseif (strpos($headerLabel, 'operator') !== false) {
-                    $colWidth = 22.15;
+                    $colWidth = 10;
                 } elseif (strpos($headerLabel, 'shift') !== false || strpos($headerLabel, 'group') !== false) {
-                    $colWidth = 12.55;
+                    $colWidth = 14;
                 } elseif (strpos($headerLabel, 'mch') !== false || strpos($headerLabel, 'mach') !== false) {
-                    $colWidth = 10.10;
+                    $colWidth = 12;
                 } elseif (strpos($headerLabel, 'model') !== false) {
-                    $colWidth = 15.5;
+                    $colWidth = 22;
                 } elseif (strpos($headerLabel, 'lot') !== false) {
-                    $colWidth = 14.10;
+                    $colWidth = 19;
                 } elseif (strpos($headerLabel, 'date') !== false) {
                     $colWidth = 14.55;
                 } elseif (
@@ -406,9 +407,8 @@ class ExcelGenerator
                     ->setShrinkToFit(true);
             }
 
-            // Kalibrasi tinggi baris Production dengan tinggi Kop Surat seragam (144 pt)
             $maxPageHeightPt = $totalProdWidth * 5.05;
-            $kopHeightPt     = (4 * 22) + 56; // 144 pt
+            $kopHeightPt     = (4 * 22) + 56;
             $headerRowPt     = 28;
             $headerTotalPt   = $headerRowCount * $headerRowPt;
             $idealDataRowPt  = max(38, min(68, (int) floor(($maxPageHeightPt - $kopHeightPt - $headerTotalPt) / $PER_PAGE)));
@@ -454,13 +454,14 @@ class ExcelGenerator
 
         $lastColIndex = $identityCols + 1 + $PER_PAGE;
         for ($c = $identityCols + 2; $c <= $lastColIndex; $c++) {
-            $widths[$c] = 14.5;
+            $widths[$c] = 29.0;
         }
 
         return $widths;
     }
 
-    private function countWrappedLines(string $text, float $colWidth, float $charsPerUnit = 0.88): int
+    // UPDATE: Penyesuaian rasio pemotongan string seiring dengan font-size yang diubah ke 14
+    private function countWrappedLines(string $text, float $colWidth, float $charsPerUnit = 0.70): int
     {
         $text = trim($text);
         if ($text === '' || $text === '-') {
@@ -527,9 +528,11 @@ class ExcelGenerator
         }
 
         $dataColStartOffset = $pageIndex * $PER_PAGE;
-        $lineHeightPt = 15.5;
-        $paddingPt = 8.0;
-        $baseMinRowHeight = 22.0;
+        
+        // UPDATE: Line height dinaikkan dari 15.5 jadi 18 agar pas dengan font size 14
+        $lineHeightPt = 18.0;
+        $paddingPt = 10.0;
+        $baseMinRowHeight = 26.0;
 
         $minHeights = [];
         for ($r = 1; $r <= $numChunkRows; $r++) {
@@ -547,7 +550,7 @@ class ExcelGenerator
                 if ($rs === 1) {
                     $wSum = 0.0;
                     for ($cc = $c + 1; $cc <= $c + $cs; $cc++) {
-                        $wSum += ($colWidths[$cc] ?? 14.5);
+                        $wSum += ($colWidths[$cc] ?? 29.0);
                     }
                     $valStr = html_entity_decode(strip_tags($cell['value'] ?? ''));
                     $lines = $this->countWrappedLines($valStr, $wSum);
@@ -570,7 +573,7 @@ class ExcelGenerator
                     $targetCol = $identityCols + 1 + $dIdx;
                     $wSum = 0.0;
                     for ($cc = $targetCol; $cc < $targetCol + $cs; $cc++) {
-                        $wSum += ($colWidths[$cc] ?? 14.5);
+                        $wSum += ($colWidths[$cc] ?? 29.0);
                     }
                     $valStr = html_entity_decode(strip_tags($cell['value'] ?? ''));
                     $lines = $this->countWrappedLines($valStr, $wSum);
@@ -595,7 +598,7 @@ class ExcelGenerator
                     $actualRs = max(1, $endR - $r + 1);
                     $wSum = 0.0;
                     for ($cc = $c + 1; $cc <= $c + $cs; $cc++) {
-                        $wSum += ($colWidths[$cc] ?? 14.5);
+                        $wSum += ($colWidths[$cc] ?? 29.0);
                     }
                     $valStr = html_entity_decode(strip_tags($cell['value'] ?? ''));
                     $lines = $this->countWrappedLines($valStr, $wSum);
@@ -615,7 +618,6 @@ class ExcelGenerator
             }
         }
 
-        // Anggaran tinggi tabel Startup disesuaikan dengan tinggi Kop Surat seragam (144 pt)
         $targetTableBudget = 1035.0;
         $rawSum = array_sum($minHeights);
 
@@ -729,7 +731,7 @@ class ExcelGenerator
                     return '-';
                 };
 
-                $PER_PAGE = 14;
+                $PER_PAGE = 7;
                 $totalPages = max(1, (int) ceil($dataColsCount / $PER_PAGE));
                 $targetCols = $totalPages * $PER_PAGE;
 
@@ -794,7 +796,6 @@ class ExcelGenerator
                 $noteTr->parentNode->insertBefore($appTr, $noteTr);
             }
         } else {
-            // Seragamkan Production & Foregoing: Kop Surat kiri merge 4 kolom (Kolom B s/d E)
             $identityCols = 4;
         }
         
@@ -930,7 +931,6 @@ class ExcelGenerator
         $r4 = $startRow + 3;
         $r5 = $startRow + 4;
 
-        // Pastikan Kop Surat kiri selalu di-merge sampai Kolom E (indeks 5)
         $kopEndColIndex = max(5, $identityCols + 1);
         $lastIdentityLetter = Coordinate::stringFromColumnIndex($kopEndColIndex);
         $kopFontSize = 13.5;
@@ -973,7 +973,6 @@ class ExcelGenerator
             );
         }
 
-        // Tinggi baris Kop Surat seragam (4x22pt + 56pt = 144pt)
         for ($r = $r1; $r <= $r4; $r++) {
             $sheet->getRowDimension($r)->setRowHeight(22);
         }
@@ -1028,14 +1027,14 @@ class ExcelGenerator
                 ->setBold(true);
 
             $qcBox = "";
-            if (!empty($weeklyInfo['status_qc']) && strtolower($weeklyInfo['status_qc']) === 'approve') {
+            if (!empty($weeklyInfo['status_qc']) && in_array(strtolower((string) $weeklyInfo['status_qc']), ['approve', 'approved'])) {
                 $approverQc = !empty($weeklyInfo['approver_qc']) ? $weeklyInfo['approver_qc'] : 'Approved';
                 $dateQc = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime($weeklyInfo['date_qc'])) : '';
                 $qcBox = "Approved by:\n" . $approverQc . "\n(QC)\n" . $dateQc;
             }
 
             $prodBox = "";
-            if (!empty($weeklyInfo['status_production']) && strtolower($weeklyInfo['status_production']) === 'approve') {
+            if (!empty($weeklyInfo['status_production']) && in_array(strtolower((string) $weeklyInfo['status_production']), ['approve', 'approved'])) {
                 $approverProd = !empty($weeklyInfo['approver_production']) ? $weeklyInfo['approver_production'] : 'Approved';
                 $dateProd = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime($weeklyInfo['date_production'])) : '';
                 $prodBox = "Approved by:\n" . $approverProd . "\n(Prod)\n" . $dateProd;
@@ -1069,12 +1068,10 @@ class ExcelGenerator
                 ->setWrapText(true)
                 ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                 ->setVertical(Alignment::VERTICAL_CENTER);
-            // Ukuran judul tengah Kop Surat diseragamkan menjadi 18 pt Bold Underline
             $sheet->getStyle($centerStartLetter . $r1)->getFont()->setBold(true)->setSize(18)->setUnderline(true);
             $sheet->mergeCells($centerStartLetter . $lastKopRow . ":" . $midEndLetter . $lastKopRow);
 
             $sheet->getStyle($centerStartLetter . $r1 . ":" . $docEndLetter . $lastKopRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            // Ukuran teks info dokumen kanan diseragamkan menjadi 12 pt Bold
             $sheet->getStyle($docStartLetter . $r1 . ":" . $docEndLetter . $r4)->getFont()->setBold(true)->setSize(12);
         } else {
             $spanCols = $chunkEndCol - $docStartCol + 1;
@@ -1141,59 +1138,50 @@ class ExcelGenerator
                 ->setWrapText(true)
                 ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                 ->setVertical(Alignment::VERTICAL_CENTER);
-            // Ukuran judul tengah Kop Surat diseragamkan menjadi 18 pt Bold Underline
             $sheet->getStyle($centerStartLetter . $r1)->getFont()->setBold(true)->setSize(18)->setUnderline(true);
             $sheet->mergeCells($centerStartLetter . $lastKopRow . ":" . $midEndLetter . $lastKopRow);
 
             $sheet->getStyle($centerStartLetter . $r1 . ":" . $docEndLetter . $lastKopRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            // Ukuran teks info dokumen kanan diseragamkan menjadi 12 pt Bold
             $sheet->getStyle($docStartLetter . $r1 . ":" . $docEndLetter . $r4)->getFont()->setBold(true)->setSize(12);
         }
     }
 
     private function writeBlockFromGrid(
-        array $grid,
-        $sheet,
-        int $startRow,
-        int $maxGridCols,
-        int $targetDataCols,
-        int $identityCols,
-        int $dataColsCount,
-        int $PER_PAGE,
-        int $totalPages
+        array $grid, $sheet, int $startRow, int $maxGridCols, int $targetDataCols,
+        int $identityCols, int $dataColsCount, int $PER_PAGE, int $totalPages
     ) {
         $occupied = $grid['occupied'] ?? [];
         $origins = $grid['origins'] ?? [];
         $maxRow = $grid['totalRows'];
-        
         $targetGridCols = $identityCols + $targetDataCols;
 
         for ($r = 1; $r <= $maxRow; $r++) {
             $targetRow = $startRow + $r - 1;
-
             if (isset($origins[$r])) {
                 foreach ($origins[$r] as $c => $cell) {
-                    if ($c > $maxGridCols) {
-                        continue;
-                    }
+                    if ($c > $maxGridCols) continue;
 
                     $targetCol = $c + 1; 
                     $cellLetter = Coordinate::stringFromColumnIndex($targetCol);
                     $coord = $cellLetter . $targetRow;
                     
                     $cleanVal = html_entity_decode(strip_tags($cell['value'] ?? ''));
+                    $lowerVal = strtolower(trim($cleanVal));
+                    if ($lowerVal === 'ok') {
+                        $cleanVal = '✓';
+                    } elseif ($lowerVal === 'ng') {
+                        $cleanVal = '✗';
+                    }
                     $sheet->setCellValue($coord, $cleanVal);
                     
                     $colspan = $cell['colspan'] ?? 1; 
                     $rowspan = $cell['rowspan'] ?? 1;
-
                     $isHeaderCell = !empty($cell['isHeader']);
 
                     if ($colspan > 1 && $dataColsCount > 0 && ($c + $colspan - 1) === ($identityCols + $dataColsCount)) {
                         for ($p = 0; $p < $totalPages; $p++) {
                             $chunkStartCol = ($identityCols + 2) + ($p * $PER_PAGE);
                             $chunkEndCol = $chunkStartCol + $PER_PAGE - 1; 
-                            
                             $chunkStartLetter = Coordinate::stringFromColumnIndex($chunkStartCol);
                             $chunkEndLetter = Coordinate::stringFromColumnIndex($chunkEndCol);
                             $chunkCoord = $chunkStartLetter . $targetRow;
@@ -1218,7 +1206,6 @@ class ExcelGenerator
                     }
 
                     $actualColspan = min($colspan, $targetGridCols - $c + 1);
-
                     if ($actualColspan > 1 || $rowspan > 1) {
                         $endColLetter = Coordinate::stringFromColumnIndex($targetCol + $actualColspan - 1);
                         $endRow = $targetRow + $rowspan - 1;
@@ -1226,11 +1213,7 @@ class ExcelGenerator
                     }
                     
                     $style = $sheet->getStyle($coord);
-                    $style->getAlignment()
-                        ->setVertical(Alignment::VERTICAL_CENTER)
-                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                        ->setWrapText(true);
-                    
+                    $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
                     if ($isHeaderCell) {
                         $style->getFont()->setBold(true);
                         $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
@@ -1278,7 +1261,6 @@ class ExcelGenerator
         $r4 = $startRow + 3;
         $r5 = $startRow + 4;
 
-        // Pastikan Kop Surat kiri selalu di-merge sampai Kolom E (indeks 5) dan memakai ukuran font 13.5 pt yang sama
         $kopEndColIndex = max(5, $identityCols + 1);
         $lastIdentityLetter = Coordinate::stringFromColumnIndex($kopEndColIndex);
         $kopFontSize = 13.5;
@@ -1297,7 +1279,8 @@ class ExcelGenerator
         
         $chunkStartCol = $kopEndColIndex + 1;
         $chunkEndCol = ($identityCols + 1) + $PER_PAGE; 
-        $docStartCol = $chunkEndCol - 2; 
+        // UPDATE: Kop kanan sekarang hanya memakan 2 kolom terakhir (K dan L)
+        $docStartCol = $chunkEndCol - 1; 
 
         $this->drawCenterAndRightKopSurat(
             $sheet, $r1, $r2, $r3, $r4,
@@ -1306,7 +1289,6 @@ class ExcelGenerator
             $namaApprover, $revisi, $typeProcess, $weeklyInfo, $r5
         );
 
-        // Tinggi baris Kop Surat Startup diseragamkan dengan Production & Foregoing (4x22pt + 56pt = 144pt)
         for ($r = $r1; $r <= $r4; $r++) {
             $sheet->getRowDimension($r)->setRowHeight(22);
         }
@@ -1386,7 +1368,15 @@ class ExcelGenerator
                 
                 if (isset($origins[$r][$gridColIndex])) {
                     $cell = $origins[$r][$gridColIndex];
-                    $sheet->setCellValue($coord, html_entity_decode(strip_tags($cell['value'] ?? '')));
+                    
+                    $cleanVal = html_entity_decode(strip_tags($cell['value'] ?? ''));
+                    $lowerVal = strtolower(trim($cleanVal));
+                    if ($lowerVal === 'ok') {
+                        $cleanVal = '✓';
+                    } elseif ($lowerVal === 'ng') {
+                        $cleanVal = '✗';
+                    }
+                    $sheet->setCellValue($coord, $cleanVal);
                     
                     $colspan = $cell['colspan'] ?? 1;
                     $rowspan = $cell['rowspan'] ?? 1;
@@ -1399,9 +1389,12 @@ class ExcelGenerator
                     
                     $style = $sheet->getStyle($coord);
                     $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+                    
                     if (isset($cell['isHeader']) && $cell['isHeader']) {
                         $style->getFont()->setBold(true);
                         $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF2F2F2');
+                    } else if ($cleanVal === '✗') {
+                        $style->getFont()->getColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_RED);
                     }
                     
                     $dataIndex += $actualColspan;

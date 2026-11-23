@@ -62,6 +62,13 @@ class Startup extends BaseController
         ];
         return view('startup', $data);
     }
+
+    // PENAMBAHAN METHOD ALIAS PENTING: Mencegah 500 Method Not Found jika sistem auto-routing mencari "Startup::form()"
+    public function form()
+    {
+        return $this->formInputStartup();
+    }
+
     public function formInputStartup()
     {
         if (!$this->session->has('empid')) {
@@ -72,6 +79,7 @@ class Startup extends BaseController
             'title' => 'Input | Startup Management',
             'validation' => \Config\Services::validation()
         ];
+<<<<<<< HEAD
 
         if (empty($_GET['device']) || empty($_GET['process'])) {
             return "";
@@ -83,16 +91,50 @@ class Startup extends BaseController
             return view('/layout/' . $_GET['device'] . "/input/" . $folder . "/" . $_GET['process'], $data);
         } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
             return "<div class='alert alert-danger'>Maaf, form input belum tersedia.</div>";
+=======
+        
+        $device  = $this->request->getGet('device') ?? ($_GET['device'] ?? '');
+        $process = $this->request->getGet('process') ?? ($_GET['process'] ?? '');
+
+        if(empty($device) || empty($process)){
+            return "";
+        }
+
+        $folder = $this->getFolderType($process);
+        
+        try {
+            return view('/layout/'.$device."/input/".$folder."/".$process,$data);
+        } catch (\Throwable $e) {
+            // Kita keluarkan pesan exceptionnya agar tidak jadi Error 500 (blank) di frontend
+            return "<div class='alert alert-danger shadow-sm' style='border-left:5px solid #dc3545;'><b>Form Belum Tersedia / Error:</b><br> " . $e->getMessage() . "</div>";
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         }
     }
 
     public function formEdit()
     {
+<<<<<<< HEAD
         $number  = $this->request->getGet('number');
         $alldata = $this->StartupModel->getByNumber($number);
 
         if (empty($alldata)) {
             return "Data tidak ditemukan.";
+=======
+        $number = $this->request->getGet('number') ?? ($_GET['number'] ?? '');
+        $data = [
+            'title' => 'History | Startup Management',
+            'alldata' => $this->StartupModel->getByNumber($number),
+            'number' => $number
+        ];
+        
+        if(empty($data['alldata'])) return "Data tidak ditemukan.";
+        
+        $folder = $this->getFolderType($data['alldata'][0]['process']);
+        try {
+            return view("/layout/".$data['alldata'][0]['device']."/input/".$folder."/".$data['alldata'][0]['process'],$data);
+        } catch (\Throwable $e) {
+            return "<div class='alert alert-danger'>Maaf, form edit belum tersedia.</div>";
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         }
 
         $process   = $alldata[0]['process'];
@@ -153,9 +195,6 @@ class Startup extends BaseController
         return view('edit-startup', $data);
     }
 
-    /**
-     * MENYIMPAN ALASAN REJECT DAN MEMBERIKAN NOTIFIKASI KE FOREMAN (Tanpa Email)
-     */
     public function requestReject($number)
     {
         if (!$this->session->has('empid')) {
@@ -172,7 +211,6 @@ class Startup extends BaseController
             return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'Alasan / catatan pengajuan reject wajib diisi.']);
         }
 
-        // Kirim note ke Model untuk disimpan di database dan mengubah status
         $this->StartupModel->markRejectRequested($number, $note);
 
         return $this->response->setJSON([
@@ -210,6 +248,7 @@ class Startup extends BaseController
                 'lotno'       => $firstRow['lotno'] ?? '',
                 'number'      => $firstRow['number'] ?? $number,
                 'created_at'  => $firstRow['created_at'] ?? '',
+                'shift'       => $firstRow['shift'] ?? '',
                 'status'      => $firstRow['status'] ?? '-',
                 'tableHtml'   => $tableHtml,
                 'machnoHidden' => $machnoHidden,
@@ -278,10 +317,6 @@ class Startup extends BaseController
         if (!$this->session->has('empid')) {
             return redirect()->to(base_url() . "login");
         }
-        $data = [
-            'title' => 'Create Startup',
-            'validation' => \Config\Services::validation()
-        ];
 
         $isEdit = !empty($this->request->getVar('number-edit'));
         $number = $isEdit ? $this->request->getVar('number-edit') : ($this->StartupModel->getLatestId() + 1);
@@ -292,7 +327,20 @@ class Startup extends BaseController
             $operatorName = trim((string)($this->session->get('name') ?? $this->session->get('username') ?? $this->session->get('empid') ?? ''));
         }
 
+        $shiftVal = strtoupper(trim((string)$this->request->getVar('shift-txt')));
+        if ($shiftVal === '3') $shiftVal = 'C';
+        $inputDate = trim((string)$this->request->getVar('date'));
+
+        // === LOGIKA ROLLBACK REALTIME ===
+        // Selalu gunakan jam aktual (H:i:s) sesuai tanggal input untuk seluruh shift
+        $customCreatedAt = null;
+        if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+            $customCreatedAt = $inputDate . ' ' . date('H:i:s');
+        }
+
         $redirectUrl = $isEdit ? base_url('startup') : base_url('input');
+        $rowCreatedAt = (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s');
+        $workDate = calculateWorkDate($rowCreatedAt, $shiftVal);
 
         $suffixes = ['a', 'b', 'c', 'd', 'e'];
         foreach ($suffixes as $idx => $sfx) {
@@ -308,11 +356,13 @@ class Startup extends BaseController
                 'revisi'  => (string)($this->request->getVar('revisi-txt') ?: ''), // <-- Tambahkan baris ini
                 'empid'   => (string)$this->request->getVar('empid-txt'),
                 'group'   => (string)$this->request->getVar('group-txt'),
-                'shift'   => (string)$this->request->getVar('shift-txt'),
+                'shift'   => $shiftVal,
+                'work_date' => $workDate,
                 'name'    => $operatorName,
+                'created_at' => $rowCreatedAt,
             ];
 
-            for ($p = 1; $p <= 44; $p++) {
+            for ($p = 1; $p <= 46; $p++) {
                 $key = 'par' . str_pad((string)$p, 3, '0', STR_PAD_LEFT);
                 $valSfx = $this->request->getVar($key . $sfx);
                 if ($blockNo === 1) {
@@ -325,6 +375,10 @@ class Startup extends BaseController
                         }
                     }
                     $rowPayload[$key] = $finalVal;
+
+                    if (in_array($key . '_unit', ['par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 'par021_unit']) && $this->request->getVar($key . '_unit') !== null) {
+                        $rowPayload[$key . '_unit'] = trim((string)$this->request->getVar($key . '_unit'));
+                    }
                 } else {
                     $rowPayload[$key] = $valSfx;
                 }

@@ -4,7 +4,7 @@
     <table class="table table-bordered table-hover"  id="table1">
         <thead align="center">
             <tr>
-                <th colspan="25" scope="col"><?php echo nl2br("LDSM MACHINE")?></th>
+                <th colspan="24" scope="col"><?php echo nl2br("LDSM MACHINE")?></th>
             </tr>
         </thead>
         <thead align="center">
@@ -20,7 +20,6 @@
                 <th rowspan="3" >Date (dd/mm/yyyy)</th>
                 <th colspan="2" scope="col">Time</th>
                 <th colspan="2" scope="col">Quantity</th>
-                <th rowspan="3">Yield (%)</th>
                 <th  colspan="8" scope="col">Die Bonding Position*</th>
                 <th  rowspan="3">AuSn #</th>
                 <th  rowspan="3">STEM #</th>
@@ -85,7 +84,6 @@
                 </td>
                 <td rowspan="4" ><?= (string)$alldata[$i]['par013']; ?></td>
                 <td rowspan="4" ><?= (string)$alldata[$i]['par014']; ?></td>
-                <td rowspan="4" ><?= (string)$alldata[$i]['par016']; ?></td>
                 <td rowspan="1" ><b>Front 1</b></td>
                 <td rowspan="1" ><?= (string)$alldata[$i]['par017']; ?></td>
                 <td rowspan="1" ><?= (string)$alldata[$i]['par018']; ?></td>

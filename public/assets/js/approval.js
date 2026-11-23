@@ -43,7 +43,7 @@ $(document).ready(function() {
       loading.show();
 
       $.ajax({
-          url: "/startup/history/" + number,
+          url: (window.BASE_URL || '/') + "startup/history/" + number,
           dataType: 'html',
           success: function(data) {
               loading.hide();
@@ -70,7 +70,7 @@ function changeDevice()
     
     $.ajax(
         {
-            url: "/process/list?device="+device+"&type=startup",
+            url: (window.BASE_URL || '/') + "process/list?device="+device+"&type=startup",
             dataType:'JSON',
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             success: function(data)
@@ -143,7 +143,7 @@ function updateTable()
 
   console.log(dateStart,dateEnd,process,model,lotNo,machno);
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", "/approve-form?dateStart="+dateStart+"&dateEnd="+dateEnd, true);
+  xhr.open("GET", (window.BASE_URL || '/') + "approve-form?dateStart="+dateStart+"&dateEnd="+dateEnd, true);
   xhr.onload = (e) => {
     if (xhr.readyState === 4) {
       if (xhr.status === 200) {

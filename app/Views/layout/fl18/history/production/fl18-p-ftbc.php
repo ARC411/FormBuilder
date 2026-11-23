@@ -4,7 +4,7 @@
   <table class="table table-striped-columns" id="table1">
     <thead align="center">
       <tr>
-        <th colspan="20" scope="col"><?php echo nl2br("INSPECTION TIE BAR CUTTING")?></th>
+        <th colspan="19" scope="col"><?php echo nl2br("INSPECTION TIE BAR CUTTING CONTROL CHECK SHEET\n(FRAME LASER 1.8t AND 1.3t)")?></th>
       </tr>
       <tr>
         <th rowspan="2" >No.</th>    
@@ -16,27 +16,25 @@
         <th rowspan="2" >Date</th>
         <th rowspan="2" >Model</th>
         <th rowspan="2" >Lot No.</th> 
-        <th class="input-form" colspan="4" scope="col">Quantity</th>
-        <th class="input-form" colspan="7" scope="col">Reject Item</th>
+        <th class="input-form" colspan="3" scope="col">Quantity</th>
+        <th class="input-form" colspan="6" scope="col">Reject Item</th>
+        <th class="input-form" rowspan="2" scope="col">Note</th>
       </tr>
       <tr>            
         <th class="input-form">Input</th>
         <th class="input-form">Output</th>
         <th class="input-form">Reject</th>
-        <th class="input-form">Yield</th>
         <th class="input-form">WIRETOUCH</th>
         <th class="input-form">AG MUCH</th>
         <th class="input-form">DUST</th>
         <th class="input-form">FRAME</th>
         <th class="input-form">RESIN CAP PEEL</th>
         <th class="input-form">OTHERS</th>
-        <th class="input-form">Note</th>
       </tr>
     </thead>
 
     <tbody>
-      <tr>
-      <?php for($i = 0; $i < count($alldata); $i=$i+1) { ?>
+      <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+1) { ?>
             <tr>
                 <td ><?= $i/1+1; ?></td>
                 <td ><?= $alldata[$i]['name'];?></td>
@@ -68,7 +66,6 @@
                 <td ><?= (string)$alldata[$i]['par013']; ?></td>
                 <td ><?= (string)$alldata[$i]['par014']; ?></td>
                 <td ><?= (string)$alldata[$i]['par015']; ?></td>
-                <td ><?= (string)$alldata[$i]['par016']; ?></td>
                 <td ><?= (string)$alldata[$i]['par017']; ?></td>
                 <td ><?= (string)$alldata[$i]['par018']; ?></td>
                 <td ><?= (string)$alldata[$i]['par019']; ?></td>

@@ -88,7 +88,7 @@
             loading.show();
 
             $.ajax({
-                url: "/history/"+table_name+"/" + number,
+                url: "<?= base_url('history') ?>/"+table_name+"/" + number,
                 dataType: 'html',
                 success: function(data) {
                     loading.hide();

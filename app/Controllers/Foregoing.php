@@ -99,7 +99,7 @@ class Foregoing extends BaseController
     public function index(): string
     {
         if (!$this->session->has('empid')) {
-            return redirect()->to('/checkseet/login');
+            return redirect()->to(base_url('login'));
         }
 
         $empid = trim((string) $this->session->get('empid'));
@@ -358,7 +358,21 @@ class Foregoing extends BaseController
             $operatorName = trim((string)($this->session->get('name') ?? $this->session->get('username') ?? $this->session->get('empid') ?? ''));
         }
 
+        $nowHour = (int)date('H');
+        $shiftVal = strtoupper(trim((string)$this->request->getVar('shift-txt')));
+        if ($shiftVal === '3') $shiftVal = 'C';
+        $inputDate = trim((string)$this->request->getVar('date'));
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+
+        $customCreatedAt = null;
+        if (!empty($inputDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+            $customCreatedAt = $inputDate . ' ' . date('H:i:s');
+        }
+
         $redirectUrl = $isEdit ? base_url('foregoing') : base_url('input');
+        $rowCreatedAt = (!$isEdit && $customCreatedAt !== null) ? $customCreatedAt : date('Y-m-d H:i:s');
+        $workDate = calculateWorkDate($rowCreatedAt, $shiftVal);
 
         $suffixes = ['a', 'b', 'c', 'd', 'e'];
         foreach ($suffixes as $idx => $sfx) {
@@ -374,8 +388,10 @@ class Foregoing extends BaseController
                 'revisi'  => (string)($this->request->getVar('revisi-txt') ?: ''), // <-- Tambahkan baris ini
                 'empid'   => (string)$this->request->getVar('empid-txt'),
                 'group'   => (string)$this->request->getVar('group-txt'),
-                'shift'   => (string)$this->request->getVar('shift-txt'),
+                'shift'   => $shiftVal,
+                'work_date' => $workDate,
                 'name'    => $operatorName,
+                'created_at' => $rowCreatedAt,
             ];
 
             for ($p = 1; $p <= 44; $p++) {

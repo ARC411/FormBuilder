@@ -244,7 +244,7 @@
                     </select>
                 </td>
                 <td>
-                    <input type="number" step="0.00000001" class="form-control" id="par01c9" name="par019c" <?php if(isset($alldata)){echo 'value='.$alldata[2]['par019'];} ?>>
+                    <input type="number" step="0.00000001" class="form-control" id="par019c" name="par019c" <?php if(isset($alldata)){echo 'value='.$alldata[2]['par019'];} ?>>
                 </td>
                 <td>
                     <select id="par036c" name="par036c" class="form-select">

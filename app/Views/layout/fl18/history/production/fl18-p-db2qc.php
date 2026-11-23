@@ -4,7 +4,7 @@
   <table class="table table-striped-columns" id="table1">
     <thead align="center">
       <tr>
-        <th colspan="33" scope="col"><?php echo nl2br("INSPECTION LD D/B 2 CONTROL")?></th>
+        <th colspan="33" scope="col"><?php echo nl2br("INSPECTION LD D/B 2 CONTROL CHECK SHEET\n(FRAME LASER 1.8t, 1.3t & GREEN FRAME 1.8t)")?></th>
       </tr>
       <tr>
         <th rowspan="2" >No.</th>    
@@ -50,8 +50,7 @@
     </thead>
 
     <tbody>
-      <tr>
-      <?php for($i = 0; $i < count($alldata); $i=$i+1) { ?>
+      <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+1) { ?>
             <tr>
                 <td ><?= $i/1+1; ?></td>
                 <td ><?= $alldata[$i]['name'];?></td>

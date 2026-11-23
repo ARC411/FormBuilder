@@ -12,8 +12,15 @@
                     <i class="fas fa-clipboard-check me-2"></i>Detail Dokumen Checksheet #<?= esc($number) ?>
                 </h4>
                 <div class="text-muted small mt-1">
-                    <span><i class="far fa-calendar-alt me-1"></i> Tanggal Input: <strong><?= !empty($created_at) ? date('d-m-Y H:i', strtotime($created_at)) : '-' ?></strong></span>
+                    <?php 
+                        $shiftVal = strtoupper(trim((string)($shift ?? '')));
+                        $isShiftC = ($shiftVal === 'C' || $shiftVal === '3');
+                    ?>
+                    <span><i class="far fa-calendar-alt me-1"></i> Tanggal Input: <strong><?= !empty($created_at) ? date('d-m-Y H:i', strtotime($created_at)) : '-' ?><?= $isShiftC ? ' <span class="text-danger font-weight-bold" title="Shift C (Malam)">*</span>' : '' ?></strong></span>
                     <span class="ms-3"><i class="fas fa-tag me-1"></i> Status: <span class="badge bg-<?= (stripos($status, 'approved') !== false || stripos($status, 'check by') !== false) ? 'success' : 'warning text-dark' ?>"><?= esc($status) ?></span></span>
+                    <?php if ($isShiftC): ?>
+                        <span class="ms-3 badge bg-light text-dark border"><span class="text-danger font-weight-bold">*</span> Shift C (Malam)</span>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="d-flex gap-2">

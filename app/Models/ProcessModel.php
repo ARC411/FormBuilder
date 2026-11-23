@@ -10,18 +10,19 @@ class ProcessModel extends Model {
     protected $useTimestamps = true;
     protected $allowedFields = ['id','device','type','process_code','name','docno'];
 
-    public function getAll($device='',$type='')
+    public function getAll($device = '', $type = '')
     {
-
-        $query = "SELECT id, device, type, process_code, docno, CONCAT(docno,' (',name,')') as 'name' FROM proses WHERE 1 " ;
-        if($device){
-            $query.=" AND `device` = '$device' ";
+        // `name` tetap "docno (name)" supaya pemakai lama tidak rusak.
+        // `process_name` = nama asli, dipakai dropdown Process di form input.
+        $builder = $this->db->table('proses')
+            ->select("id, device, type, process_code, docno, name AS process_name, CONCAT(docno,' (',name,')') AS name", false);
+        if ($device) {
+            $builder->where('device', $device);
         }
-        if($type){
-            $query.=" AND `type` = '$type' ";
+        if ($type) {
+            $builder->where('type', $type);
         }
-        $data = $this->query($query);
-        return $data->getResultArray();
+        return $builder->orderBy('process_name', 'ASC')->orderBy('docno', 'ASC')->get()->getResultArray();
     }
 
     public function getAllData()

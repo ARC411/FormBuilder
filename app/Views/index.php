@@ -13,7 +13,7 @@
   </section>
 
   <section class="container-fluid">
-    <form name="checksheet" id="form-input" action="/input" method="POST">
+    <form name="checksheet" id="form-input" action="<?= base_url('input') ?>" method="POST">
       <?= csrf_field(); ?>
 
       <div class="row">

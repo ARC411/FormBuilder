@@ -1,9 +1,9 @@
 <div class="table-responsive w-auto mt-3" id="sl56-p-db1">
 <input type="hidden" id="cnt-table" value="1">
-    <table class="table table-bordered table-hover"  id="table1" data-cols-width="10,15,15,15,10,10,20,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,15">
+    <table class="table table-bordered table-hover"  id="table1" data-cols-width="10,15,15,15,10,10,20,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,15">
         <thead align="center">
             <tr>
-                <th colspan="27" scope="col"><?php echo nl2br("LD DIE BONDING 1 MACHINE")?></th>
+                <th colspan="26" scope="col"><?php echo nl2br("LD DIE BONDING 1 MACHINE")?></th>
             </tr>
             <tr>
                 <th rowspan="3" >No.</th>
@@ -17,7 +17,6 @@
                 <th rowspan="3" >Date (dd/mm/yyyy)</th>
                 <th colspan="2" scope="col">Time</th>
                 <th colspan="3" scope="col">Quantity</th>
-                <th  rowspan="3">Yield (%)</th>
                 <th colspan="11" scope="col">Foregoing Result*(Chip = 20 pcs/lot & *AuSn=1 ring(1st sheet)/lot, AuSn Ball=5pcs/lot)</th>
                 <th rowspan="3" >Remark</th>
             </tr>
@@ -86,7 +85,6 @@
             <td rowspan="1" ><?= (string)$alldata[$i]['par013']; ?></td>
             <td rowspan="1" ><?= (string)$alldata[$i]['par014']; ?></td>
             <td rowspan="1" ><?= (string)$alldata[$i]['par015']; ?></td>
-            <td rowspan="1" ><?= (string)$alldata[$i]['par016']; ?></td>
             <td rowspan="1" ><?= (string)$alldata[$i]['par035']; ?></td>
             <td rowspan="1" ><?= (string)$alldata[$i]['par036']; ?></td>
             <td rowspan="1" ><?= (string)$alldata[$i]['par037']; ?></td>

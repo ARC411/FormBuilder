@@ -112,8 +112,8 @@
                                 $isApproved = (!empty($prow['status']) && $prow['status'] === 'Approve');
                                 $isRejected = (!empty($prow['status']) && $prow['status'] === 'Reject');
                                 $roleKey = strtolower(trim((string)($user_role ?? '')));
-                                $canQc = ($roleKey === 'qc' || $roleKey === 'qa' || $roleKey === 'all' || !empty($is_admin));
-                                $canProd = ($roleKey === 'production' || in_array($roleKey, ['fl', 'sl', 'all']) || !empty($is_admin));
+                                $canQc = !empty($can_qc) || (!isset($can_qc) && ($roleKey === 'qc' || $roleKey === 'qa' || !empty($is_admin)));
+                                $canProd = !empty($can_prod) || (!isset($can_prod) && ($roleKey === 'production' || !empty($is_admin)));
                                 $canApproveProd = ($canQc || $canProd);
 
                                 // Timestamps for fast JS sorting
@@ -224,7 +224,13 @@
                                                 <input type="hidden" name="doc_type" value="production">
                                                 <input type="hidden" name="departemen" value="<?= $canQc ? 'qc' : 'production' ?>">
                                                 
-                                                <button type="submit" name="action" value="Approve" class="btn btn-sm btn-success flex-grow-1 shadow-sm" onclick="return confirm('Apakah Anda yakin menyetujui (Approve) lembar checksheet production ini?')">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-success flex-grow-1 shadow-sm btn-open-approve-weekly"
+                                                        data-weekly-id="<?= $prow['id'] ?>"
+                                                        data-departemen="<?= $canQc ? 'qc' : 'production' ?>"
+                                                        data-doc-type="production"
+                                                        data-period="<?= date('d/m/Y', strtotime($prow['period_start'])) ?> - <?= date('d/m/Y', strtotime($prow['period_end'])) ?>"
+                                                        title="Validasi & Approve 20 Data untuk <?= $canQc ? 'QC' : 'Prod' ?>">
                                                     <i class="fas fa-check me-1"></i> Approve (<?= $canQc ? 'QC' : 'Prod' ?>)
                                                 </button>
                                                 
@@ -264,6 +270,7 @@
         </div>
     </div>
 </div>
+<?= $this->include('layout/modal_confirm_weekly_approve'); ?>
 </main>
 
 <!-- Client-side Interactive Filter & Sorting Script -->

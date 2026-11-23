@@ -1,5 +1,5 @@
 <section class="container-fluid">
-    <form name="checksheet" action="/device" method="POST">
+    <form name="checksheet" action="<?= base_url('device') ?>" method="POST">
       <?= csrf_field(); ?>
       <input type="hidden" name="type-input" value="manual">
 
@@ -57,8 +57,8 @@
     </form>
   </section>
   
-  <link rel="stylesheet" href="/assets/css/jquery-ui.css">
-  <link rel="stylesheet" href="/assets/css/global.css">
-  <script src="/assets/js/jquery-3.7.1.js"></script>
-  <script src="/assets/js/jquery-3.7.1.min.js"></script>
-  <script src="/assets/js/jquery-ui.js"></script>
+  <link rel="stylesheet" href="<?= base_url('assets/css/jquery-ui.css') ?>">
+  <link rel="stylesheet" href="<?= base_url('assets/css/global.css') ?>">
+  <script src="<?= base_url('assets/js/jquery-3.7.1.js') ?>"></script>
+  <script src="<?= base_url('assets/js/jquery-3.7.1.min.js') ?>"></script>
+  <script src="<?= base_url('assets/js/jquery-ui.js') ?>"></script>

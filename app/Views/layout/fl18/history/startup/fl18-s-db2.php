@@ -1,5 +1,14 @@
 <?php require_once(dirname(__FILE__) . '/../../../fillHistory.php'); ?>
 <?php
+if (!function_exists('renderOkNg')) {
+    function renderOkNg($val) {
+        $valStr = strtoupper(trim((string)$val));
+        if ($valStr === 'OK' || $val === '✔' || $valStr === '✔' || $valStr === 'V') return '<strong>&#10004;</strong>';
+        if ($valStr === 'NG' || $val === '✖' || $valStr === '✖' || $valStr === 'X') return '<strong>&#10008;</strong>';
+        return $val !== '' ? $val : '-';
+    }
+}
+
 if (!function_exists('resolveStartupEmpId')) {
     function resolveStartupEmpId($val) {
         static $empMap = null;
@@ -127,8 +136,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>D/B Collet</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par005']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par005'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -140,8 +153,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Middle Collet</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par006']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par006'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -153,8 +170,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
                 <td colspan="col"><?= (string)($alldata[$i]['par007'] ?? '-'); ?></td>
 =======
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par007']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par007'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -163,7 +184,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
             <td colspan="2">@ Colled Load</td>
             <td>0.60 ~ 1.00N (60 ~ 100 gr)</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par008']; ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par008'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 
@@ -175,8 +196,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
                 <td colspan="col"><?= (string)($alldata[$i]['par009'] ?? '-'); ?></td>
 =======
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par009']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par009'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -238,8 +263,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
         <tr>
             <td colspan="2">Nilai Air pressure, Dispenser time , vacuum pressure disesuaikan agar mendapatkan nilai <br>/hasil ag paste yg standard</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)($alldata[$i]['par024'] ?? '-'); ?></td>
 >>>>>>> 16e0f8e3cc94470898f083d8e9c97e8e2f874487
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par024'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -253,8 +282,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Posisi</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par013']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par013'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -266,8 +299,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Quantity</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par014']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par014'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -281,8 +318,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Posisi blower</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par015']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par015'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -294,8 +335,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Putaran blower</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par016']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par016'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -309,8 +354,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Bersihkan mesin dan sekitarnya dari debu dan kotoran</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par017']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par017'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -323,8 +372,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
                 <td colspan="col"><?= (string)($alldata[$i]['par018'] ?? '-'); ?></td>
 =======
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par018']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par018'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -338,8 +391,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Jika terjadi kerusakan atau diluar standard, <br> lakukan pergantian dengan yang baru. <br> Jika OK lanjutkan proses </td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par019']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par019'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -353,8 +410,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Berdasarkan Sensor</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par020']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par020'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -368,8 +429,12 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Arah depan-belakang (fix tidak bergerak)</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par021']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par021'] ?? ''); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -381,8 +446,30 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 =======
             <td>Arah atas-bawah</td>
             <?php for($i = 0; $i < $lenData; $i++) { ?>
+<<<<<<< HEAD
                 <td colspan="col"><?= (string)$alldata[$i]['par022']; ?></td>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61
+=======
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par022'] ?? ''); ?></td>
+            <?php } ?>
+        </tr>
+
+        <tr>
+            <td colspan="4">Judgment Start Up *</td>
+            <?php for($i = 0; $i < $lenData; $i++) { 
+                $judg = $alldata[$i]['par025'] ?? '';
+                if ($judg === '') {
+                    $chkPars = ['par005','par006','par009','par013','par014','par015','par016','par017','par018','par019','par020','par021','par022','par024'];
+                    $hasNg = false;
+                    foreach ($chkPars as $cp) {
+                        $v = strtoupper(trim((string)($alldata[$i][$cp] ?? '')));
+                        if ($v === 'NG' || $v === '✖' || $v === 'X') { $hasNg = true; break; }
+                    }
+                    $judg = $hasNg ? '✖' : '✔';
+                }
+            ?>
+                <td colspan="col"><?= renderOkNg($judg); ?></td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php } ?>
         </tr>
 
@@ -403,6 +490,7 @@ if (!function_exists('formatStartupCheckedEmpId')) {
         </tr>
 
         <tr>
+<<<<<<< HEAD
             <td colspan="4">Note</td>
 <<<<<<< HEAD
             <?php for($i = 0; $i < $lenData; $i=$i+1) { ?>
@@ -458,8 +546,11 @@ if (!function_exists('formatStartupCheckedEmpId')) {
 
 >>>>>>> 16e0f8e3cc94470898f083d8e9c97e8e2f874487
 =======
+=======
+            <td colspan="4">Note #</td>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             <?php for($i = 0; $i < $lenData; $i++) { ?>
-                <td colspan="col"><?= (string)$alldata[$i]['par023']; ?></td>
+                <td colspan="col"><?= renderOkNg($alldata[$i]['par023'] ?? ''); ?></td>
             <?php } ?>
         </tr>
 >>>>>>> bb968fd6dde1440a711712a1783bc333af4a1f61

@@ -2,7 +2,7 @@ $(document).ready(function()
 {
     $.ajax(
         {
-            url: "/checkseet/device/list",
+            url: (window.BASE_URL || '/') + "device/list",
             dataType:'JSON',
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             success: function(data)

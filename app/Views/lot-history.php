@@ -42,7 +42,7 @@
                         <td rowspan="1" >
                             <?php 
                             if($alldata[$i]['par045']=="Process Start"){
-                                echo '<a href="/production/edit/' . $alldata[$i]['number'] . '">' . $alldata[$i]['par045'] . '</a>';
+                                echo '<a href="' . base_url('production/edit/' . $alldata[$i]['number']) . '">' . $alldata[$i]['par045'] . '</a>';
                             }
                             else{
                                 echo $alldata[$i]['par045'];

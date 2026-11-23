@@ -114,6 +114,7 @@ $routes->delete('/device/([0-9]+)', 'Device::deleteDevice/$1');
 // ==========================================================
 $routes->get('/process', 'Process::index');
 $routes->get('/process/list', 'Process::listProcess');
+$routes->get('/process/detail', 'Process::detail');
 $routes->get('/process/add', 'Process::addProcess');
 $routes->post('/process', 'Process::createProcess');
 $routes->get('/process/edit/(:num)', 'Process::updateProcessForm/$1');
@@ -138,6 +139,8 @@ $routes->get('/history/exportExcel', 'History::exportExcel');
 $routes->get('/history/exportPDF', 'History::exportPDF');
 $routes->get('/cleansing', 'Cleansing::index');
 $routes->post('/cleansing/execute', 'Cleansing::execute');
+$routes->get('/cleansing/shiftc', 'Cleansing::shiftc');
+$routes->match(['GET', 'POST'], '/cleansing/shiftc/execute', 'Cleansing::executeShiftc');
 
 // ==========================================================
 // 11. TESTING & UTILITIES

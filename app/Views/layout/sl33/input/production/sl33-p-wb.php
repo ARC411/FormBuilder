@@ -899,7 +899,7 @@
         <tr>
             <th scope="row">Sample 2</th>
             <td>
-                <input type="number" step="0.00000000001" class="form-control" id="par017v" name="par017b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par017'];} ?>>
+                <input type="number" step="0.00000000001" class="form-control" id="par017b" name="par017b"  <?php if(isset($alldata)){echo 'value='.$alldata[1]['par017'];} ?>>
             </td>
             <td>
                 <select id="par035b" name="par035b" class="form-select">

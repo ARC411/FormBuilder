@@ -4,7 +4,7 @@
   <table class="table table-striped-columns" id="table1">
     <thead align="center">
       <tr>
-        <th colspan="45" scope="col"><?php echo nl2br("INSPECTION TIE BAR CUTTING")?></th>
+        <th colspan="44" scope="col"><?php echo nl2br("INSPECTION WIRE BONDING CONTROL CHECK SHEET (FRAME LASER 1.8t, 1.3t & GREEN FRAME 1.8t)")?></th>
       </tr>
       <tr>
         <th rowspan="2" >No.</th>    
@@ -16,7 +16,7 @@
         <th rowspan="2" >Date</th>
         <th rowspan="2" >Model</th>
         <th rowspan="2" >Lot No.</th> 
-        <th class="input-form" colspan="4" scope="col">Quantity</th>
+        <th class="input-form" colspan="3" scope="col">Quantity</th>
         <th class="input-form" colspan="31" scope="col">Reject Item</th>
         <th rowspan="2" >Note</th>    
       </tr>
@@ -24,7 +24,6 @@
         <th class="input-form">Input</th>
         <th class="input-form">Output</th>
         <th class="input-form">Reject</th>
-        <th class="input-form">Yield</th>
         
         <th class="input-form">GD1t Diff</th>
         <th class="input-form">GD2d Diff</th>
@@ -61,15 +60,14 @@
     </thead>
 
     <tbody>
-      <tr>
-      <?php for($i = 0; $i < count($alldata); $i=$i+2) { ?>
+      <?php for($i = 0; $i < (!empty($alldata) ? count($alldata) : 0); $i=$i+2) { ?>
             <tr>
                 <td ><?= $i/2+1; ?></td>
                 <td ><?= (string)$alldata[$i]['name'];?></td>
                   <td ><?= (string)$alldata[$i]['shift'] .' / '. (string)$alldata[$i]['group'];?></td>
                   <td >
                   <?php
-                      if((string)$alldata[$i]['name2']){
+                      if(!empty($alldata[$i]['name2'])){
                       echo  (string)$alldata[$i]['name2'];
                       }
                       else{
@@ -79,7 +77,7 @@
                   </td>
                   <td >
                   <?php
-                      if((string)$alldata[$i]['shift2']){
+                      if(!empty($alldata[$i]['shift2'])){
                       echo (string)$alldata[$i]['shift2'] . ' / ' . (string)$alldata[$i]['group2'];
                       }
                       else{
@@ -94,7 +92,6 @@
                 <td ><?= (string)$alldata[$i]['par013']; ?></td>
                 <td ><?= (string)$alldata[$i]['par014']; ?></td>
                 <td ><?= (string)$alldata[$i]['par015']; ?></td>
-                <td ><?= (string)$alldata[$i]['par016']; ?></td>
 
                 <td ><?= (string)$alldata[$i]['par017']; ?></td>
                 <td ><?= (string)$alldata[$i]['par018']; ?></td>
@@ -112,22 +109,22 @@
                 <td ><?= (string)$alldata[$i]['par030']; ?></td>
                 <td ><?= (string)$alldata[$i]['par031']; ?></td>
 
-                <td ><?= (string)$alldata[$i+1]['par017']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par018']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par019']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par020']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par021']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par022']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par023']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par024']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par025']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par026']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par027']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par028']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par029']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par030']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par031']; ?></td>
-                <td ><?= (string)$alldata[$i+1]['par032']; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par017'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par018'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par019'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par020'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par021'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par022'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par023'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par024'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par025'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par026'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par027'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par028'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par029'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par030'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par031'] : ''; ?></td>
+                <td ><?= isset($alldata[$i+1]) ? (string)$alldata[$i+1]['par032'] : ''; ?></td>
 
                 <td ><?= (string)$alldata[$i]['par003']; ?></td>
             </tr>

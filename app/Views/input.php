@@ -8,22 +8,30 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <!-- jQuery hanya dimuat SATU kali -->
+<<<<<<< HEAD
 <script src="<?= base_url('assets/js/jquery-3.7.1.min.js') ?>"></script>
 <script src="<?= base_url('assets/js/jquery-ui.js') ?>"></script>
 <script src="<?= base_url('assets/js/form/test.js') ?>"></script>
+=======
+<script src="assets/js/jquery-3.7.1.min.js"></script>
+<script src="assets/js/jquery-ui.js"></script>
+<script src="<?= base_url('assets/js/form/test.js?v=' . (file_exists(FCPATH . 'assets/js/form/test.js') ? filemtime(FCPATH . 'assets/js/form/test.js') : '20261103')); ?>"></script>
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 <!-- JS Select2 -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <?= $this->include('layout/navbar'); ?>
 
-  <form name="checksheet" id="form-action" action="/input" method="POST">
+  <form name="checksheet" id="form-action" action="<?= base_url('input') ?>" method="POST" novalidate>
   <?= csrf_field(); ?>
   <?php
     $session = \Config\Services::session();
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $initialDate = $today;
   ?>
 
     <div class="container-fluid">
-
       <div class="card shadow mb-5">
         <div class="card-header py-3">
           <h3 class="m-0 font-weight-bold">Input Checksheet</h3>
@@ -31,18 +39,19 @@
         <input type="hidden" name="cnt-error-input" id="cnt-error-input" value="0">
 
         <div class="card-body">
-          <div class="row">
 
+          <div class="row">
             <div class="col-md-6">
-              <!-- Date input automatic -->
               <div class="mb-3 row">
                 <label for="date" class="col-sm-2 col-form-label">Date</label>
                 <div class="col-sm-6">
-                  <input type="date" class="form-control" id="date" name="date" value="<?php echo date('Y-m-d');?>">
+                  <input type="date" class="form-control font-weight-bold" id="date" name="date" 
+                         value="<?= $initialDate ?>" 
+                         min="<?= $yesterday ?>" 
+                         max="<?= $today ?>" required>
                 </div>
               </div>
 
-              <!-- Device input -->
               <div class="mb-3 row">
                 <label for="device-txt" class="col-sm-2 col-form-label">Device</label>
                 <div class="col-sm-6">
@@ -79,31 +88,33 @@
                 </div>
               </div>
 
-              <!-- DocType -->
+              <div class="mb-3 row">
+                <label for="process-name-txt" class="col-sm-2 col-form-label">Process</label>
+                <div class="col-sm-6">
+                  <select class="form-control" id="process-name-txt">
+                    <option value="-">choose process</option>
+                  </select>
+                </div>
+              </div>
+
               <div class="mb-3 row">
                 <label for="type-process-txt" class="col-sm-2 col-form-label">Doc. Type</label>
                 <div class="col-sm-6">
-                  <select class="form-control" id="type-process-txt" name="type-process-txt" onchange="updateDevice()" required>
-                    <option class="dropdown-item" value="-">choose type document</option>
-                    <option value="production">Production Control Sheet</option>
-                    <option value="startup">Startup Control Sheet</option>
-                    <option value="foregoing">Foregoing Control Sheet</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Process of Device -->
-              <div class="mb-3 row">
-                <label for="process-txt" class="col-sm-2 col-form-label">Process</label>
-                <div class="col-sm-6">
+                  <!-- name="process-txt" tetap berisi process_code, jadi backend tidak berubah -->
                   <select class="form-control" id="process-txt" name="process-txt" required>
+                    <option value="-">choose type document</option>
                   </select>
+                  <!-- name="type-process-txt" tetap dikirim (production/startup/foregoing), diisi otomatis -->
+                  <input type="hidden" id="type-process-txt" name="type-process-txt" value="-">
                 </div>
               </div>
 
+<<<<<<< HEAD
               <!-- Model name (Select2 Dropdown + Auto-Register jika ketik model baru) -->
+=======
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
               <div class="mb-3 row">
-                <label for="model-txt" class="col-sm-2 col-form-label">Model Name</label>
+                <label for="model-txt" class="col-sm-2 col-form-label">Model Name <span id="req-model" class="text-danger d-none">*</span></label>
                 <div class="col-sm-6">
                   <select class="form-control" id="model-txt" name="model-txt">
                     <option value="">-- Ketik atau Pilih Model Name --</option>
@@ -111,7 +122,6 @@
                 </div>
               </div>
 
-              <!-- Doc No -->
               <div class="mb-3 row">
                 <label for="docno" class="col-sm-2 col-form-label">Doc. No</label>
                 <div class="col-sm-6">
@@ -119,12 +129,10 @@
                 </div>
               </div>
 
-              <!-- Button to Open the Modal -->
               <button type="button" class="btn btn-lg btn-warning" data-bs-toggle="modal" data-bs-target="#myModal">
                 Catatan
               </button>
 
-              <!-- The Modal -->
               <div class="modal" id="myModal">
                 <div class="modal-dialog modal-xl">
                   <div class="modal-content">
@@ -144,15 +152,13 @@
             </div>
 
             <div class="col-md-6">
-              <!-- Lot Number -->
               <div class="mb-3 row">
-                <label for="lotno-txt" class="col-sm-2 col-form-label">Lot Number</label>
+                <label for="lotno-txt" class="col-sm-2 col-form-label">Lot Number <span id="req-lot" class="text-danger d-none">*</span></label>
                 <div class="col-sm-6">
                   <input type="text" class="form-control" id="lotno-txt" name="lotno-txt" onkeyup="this.value = this.value.toUpperCase()">
                 </div>
               </div>
 
-              <!-- Machine Number (Select2) -->
               <div class="mb-3 row">
                 <label for="machno-txt" class="col-sm-2 col-form-label">Machine Number <span style="color:red;">*</span></label>
                 <div class="col-sm-6">
@@ -162,7 +168,6 @@
                 </div>
               </div>
 
-              <!-- Parameter Revisi -->
               <div class="mb-3 row">
                 <label for="revisi-txt" class="col-sm-2 col-form-label">Revisi</label>
                 <div class="col-sm-6">
@@ -186,10 +191,17 @@
                     <span class="input-group-text" id="basic-addon-pos">Position:</span>
                     <input type="text" class="form-control" id="position-txt" name="position-txt" value="<?= esc($session->get('positionid')) ?>" readonly>
                   </div>
-                  <div class="input-group mb-1">
-                    <span class="input-group-text" id="basic-addon2">Shift----:</span>
-                    <input type="number" class="form-control" id="shift-txt" name="shift-txt" placeholder="1 atau 2 atau 3">
+                  
+                  <div class="input-group mb-1 border rounded" style="border-color: #dc3545 !important; border-width: 2px !important;">
+                    <span class="input-group-text text-danger font-weight-bold" id="basic-addon2" style="background-color: #fff5f5;">Shift----:</span>
+                    <select class="form-control font-weight-bold" id="shift-txt" name="shift-txt" required>
+                        <option value="">Pilih Shift (Wajib)</option>
+                        <option value="A">A (Pagi)</option>
+                        <option value="B">B (Sore)</option>
+                        <option value="C">C (Malam)</option>
+                    </select>
                   </div>
+
                   <div class="input-group mb-1">
                     <span class="input-group-text" id="basic-addon3">Group--:</span>
                     <input type="text" class="form-control" id="group-txt" name="group-txt" placeholder="Contoh: 1S2GW1" onkeyup="this.value = this.value.toUpperCase()">
@@ -212,7 +224,6 @@
               echo '<p id=msgsuccess class="invisible">Kosong</p>';
             }
           ?>
-                    <!-- Banner & Toggle Mesin Stand By (Tampil khusus untuk Doc. Type: Startup) -->
           <div id="standby-wrapper" class="card border-warning mb-3 shadow-sm" style="display: none; background: #fffdf5; border-radius: 6px;">
             <div class="card-body py-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
               <div class="d-flex align-items-center">
@@ -250,7 +261,6 @@
 <script>
 $(document).ready(function()
 {
-    // Aktifkan Select2
     $('#machno-txt').select2({
         placeholder: "-- Ketik atau Pilih Machine Number --",
         allowClear: true,
@@ -263,19 +273,25 @@ $(document).ready(function()
         alert($('#msgsuccess').html());
     }
 
+    $('#process-name-txt').change(fillDocType);
+
     $('#process-txt').change(function()
     {
+        $('#type-process-txt').val($(this).find('option:selected').data('type') || '-');
         updateInput();
         updateDocNo();
         updateMachine();
         updateModelList();
     });
 
+<<<<<<< HEAD
     $('#type-process-txt').change(function(){
         document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + document.getElementById("type-process-txt").value;
     });
 
     // Auto-fill shift & group saat halaman dimuat
+=======
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl');
 
     // Aktifkan Select2 pada Model Name (Bisa pilih dari daftar ATAU ketik model baru untuk Auto-Register)
@@ -319,7 +335,6 @@ $(document).ready(function()
     });
 });
 
-// FUNGSI PENJAGA FORM
 function checkSubmit() {
     var machno = $('#machno-txt').val();
     if (!machno || machno === "") {
@@ -327,7 +342,20 @@ function checkSubmit() {
         return false;
     }
 
-    // Pengecekan khusus Mode Mesin Stand By
+    var docType = $('#type-process-txt').val();
+    if(docType === 'production' || docType === 'foregoing') {
+        if(!$.trim($('#model-txt').val())) {
+            alert("GAGAL: Model Name WAJIB diisi untuk tipe dokumen " + (docType === 'production' ? 'Production' : 'Foregoing') + "!");
+            $('#model-txt').focus();
+            return false;
+        }
+        if(!$.trim($('#lotno-txt').val())) {
+            alert("GAGAL: Lot Number WAJIB diisi untuk tipe dokumen " + (docType === 'production' ? 'Production' : 'Foregoing') + "!");
+            $('#lotno-txt').focus();
+            return false;
+        }
+    }
+
     if ($('#is-standby').is(':checked')) {
         var $noteInput = findNoteInput();
         if ($noteInput && (!$.trim($noteInput.val()) || $.trim($noteInput.val()) === '-')) {
@@ -335,15 +363,24 @@ function checkSubmit() {
             $noteInput.focus();
             return false;
         }
-        // Pastikan seluruh parameter non-note terisi strip '-'
         applyStandbyMode(true);
     }
 
+    $('input[id$="_val"]').each(function() {
+        var baseId = this.id.replace(/_val$/, '');
+        if (typeof combineData === 'function') {
+            combineData(baseId);
+        }
+    });
+
     $('#form-input input[name="machno-txt"]').remove();
-    return confirm('Apakah kamu yakin ingin menyimpan data ini?');
+    return confirm('Apakah kamu yakin data Shift Karyawan & Tanggal Input sudah BENAR?');
 }
 
+<<<<<<< HEAD
 // FUNGSI AUTO-FILL SHIFT & GROUP
+=======
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
     var empid = $.trim($(empIdTag).val());
     if (!empid) return;
@@ -353,9 +390,16 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
     $.getJSON("<?= base_url('home/ajaxAutofill') ?>", { 'empid-txt': empid })
         .done(function (d) {
             if (d.found) {
-                if (d.acc && !$(shiftTag).val()) $(shiftTag).val(d.acc);
+                if (d.acc && !$(shiftTag).val()) {
+                    var shiftVal = d.acc.toString();
+                    if(shiftVal === '1') $(shiftTag).val('A');
+                    else if(shiftVal === '2') $(shiftTag).val('B');
+                    else if(shiftVal === '3') $(shiftTag).val('C');
+                    else $(shiftTag).val(shiftVal);
+                }
                 if (d.groupid && !$(groupTag).val()) $(groupTag).val(d.groupid);
                 if (d.name && (!$(nameTag).val() || $(nameTag).val() === '-')) $(nameTag).val(d.name);
+                
                 if (d.acc && d.groupid) {
                     warn.removeClass('visible').addClass('invisible');
                 } else {
@@ -366,59 +410,125 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
             }
         })
         .fail(function (xhr) {
-            console.error('autofill gagal', xhr.status, xhr.responseText);
             warn.removeClass('invisible').addClass('visible');
         });
 }
 
-// FUNGSI UPDATE DEVICE & PROCESS
+var processRows = [];
+var TYPE_ORDER = {production: 1, startup: 2, foregoing: 3};
+var TYPE_LABEL = {production: 'Production', startup: 'Startup', foregoing: 'Foregoing'};
+
+// "LD Die Bonding 1 Type GH16PSeries" -> base "LD Die Bonding 1", variant "Type GH16PSeries"
+function splitName(name) {
+    name = $.trim(name || '');
+    var i = name.indexOf(' Type ');
+    if (i === -1) return { base: name, variant: '' };
+    return { base: $.trim(name.substring(0, i)), variant: $.trim(name.substring(i + 1)) };
+}
+
+// "SL-D2-002-04" -> "SL-D2-002" (revisi dibuang); docno tanpa revisi dibiarkan
+function stripRevision(docno) {
+    var p = (docno || '').split('-');
+    return p.length >= 4 ? p.slice(0, -1).join('-') : (docno || '');
+}
+
 function updateDevice() {
-    var docType = $('#type-process-txt').val();
     var device = $('#device-txt').val();
 
+<<<<<<< HEAD
     if(device === '-' || docType === '-') {
         $('#process-txt').empty().append('<option value="-">choose process</option>');
         $('#form-input').empty();
         $('#submit').hide();
         $('#revisi-txt').val('');
         $('#docno').val('-');
+=======
+    processRows = [];
+    if (device === '-') {
+        populateProcessName();
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         return;
     }
 
     $.ajax({
+<<<<<<< HEAD
         url: "<?= base_url('process/list') ?>?device=" + device + "&type=" + docType,
+=======
+        url: "<?php echo base_url();?>process/list?device=" + encodeURIComponent(device),
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         dataType: 'JSON',
         success: function(data) {
-            populateProcess(data);
+            processRows = data || [];
+            populateProcessName();
         },
         error: function(xhr) {
             if (xhr.responseText) {
                 try {
                     var data = JSON.parse(xhr.responseText);
-                    if(data) { populateProcess(data); return; }
+                    if (data) { processRows = data; populateProcessName(); return; }
                 } catch(e) {}
             }
+            processRows = [];
+            populateProcessName();
         }
     });
 }
 
-function populateProcess(data) {
-    var processDropdown = $('#process-txt');
-    processDropdown.empty();
-    if(data && data.length > 0) {
-        $.each(data, function(index, item) {
-            processDropdown.append(new Option(item.name, item.process_code));
-        });
+// Dropdown Process: nama proses unik (tanpa variasi "Type ...") untuk device terpilih
+function populateProcessName() {
+    var $sel = $('#process-name-txt').empty();
+    var names = [];
+    $.each(processRows, function(i, r) {
+        var base = splitName(r.process_name || r.name).base;
+        if (base && names.indexOf(base) === -1) names.push(base);
+    });
+    names.sort();
+
+    if (names.length === 0) {
+        $sel.append(new Option($('#device-txt').val() === '-' ? 'choose process' : '-- Data Kosong --', '-'));
     } else {
-        processDropdown.append(new Option("-- Data Kosong --", "-"));
+        $sel.append(new Option('choose process', '-'));
+        $.each(names, function(i, n) { $sel.append(new Option(n, n)); });
     }
+<<<<<<< HEAD
     updateDocNo();
     updateInput();
     updateMachine();
     updateModelList();
+=======
+    fillDocType();
 }
 
-// FUNGSI UPDATE MACHINE
+// Dropdown Doc. Type: semua baris (production/startup/foregoing + variasi) dari proses terpilih
+function fillDocType() {
+    var chosen = $('#process-name-txt').val();
+    var $sel = $('#process-txt').empty();
+    $sel.append(new Option('choose type document', '-'));
+
+    if (chosen && chosen !== '-') {
+        var rows = $.grep(processRows, function(r) {
+            return splitName(r.process_name || r.name).base === chosen;
+        });
+        rows.sort(function(a, b) {
+            var ta = TYPE_ORDER[a.type] || 9, tb = TYPE_ORDER[b.type] || 9;
+            if (ta !== tb) return ta - tb;
+            return String(a.docno).localeCompare(String(b.docno));
+        });
+        $.each(rows, function(i, r) {
+            var variant = splitName(r.process_name || r.name).variant;
+            var label = stripRevision(r.docno) + ' (' + (TYPE_LABEL[r.type] || r.type) + ')' + (variant ? ' - ' + variant : '');
+            var opt = new Option(label, r.process_code);
+            $(opt).attr('data-type', r.type)
+                  .attr('data-docno', r.docno)
+                  .attr('data-name', r.process_name || r.name);
+            $sel.append(opt);
+        });
+    }
+    // memicu updateInput, updateDocNo, updateMachine; kalau masih "choose", form dikosongkan
+    $sel.trigger('change');
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+}
+
 function updateMachine() {
     var processCode = document.getElementById("process-txt").value;
     var machineSelect = $('#machno-txt');
@@ -461,6 +571,7 @@ function populateMachine(data, machineSelect) {
     machineSelect.trigger('change');
 }
 
+<<<<<<< HEAD
 // FUNGSI UPDATE MODEL LIST PER PROCESS (TERHUBUNG KE MASTER MODEL & AUTO-REGISTER)
 function updateModelList() {
     var processCode = document.getElementById("process-txt") ? document.getElementById("process-txt").value : '';
@@ -495,6 +606,8 @@ function updateModelList() {
 }
 
 // FUNGSI LOGIKA REVISI & FORM INPUT DINAMIS (TERHUBUNG KE FORM BUILDER)
+=======
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 function updateInput() {
     let typeProcess, device, process;
     process = document.getElementById("process-txt").value;
@@ -504,7 +617,11 @@ function updateInput() {
         $('#standby-wrapper').hide();
         $('#is-standby').prop('checked', false);
         form_input.innerHTML = "";
-        document.getElementById('revisi-txt').value = ""; // Kosongkan revisi
+        document.getElementById('revisi-txt').value = "";
+        
+        $('#req-model, #req-lot').addClass('d-none');
+        document.getElementById('model-txt').required = false;
+        document.getElementById('lotno-txt').required = false;
         return;
     }
 
@@ -514,32 +631,49 @@ function updateInput() {
 
     if (selectedDocType === 'production' || process.split("-")[1] == 'p') {
         document.getElementById('model-txt').disabled = false;
+        document.getElementById('model-txt').required = true;
         document.getElementById('lotno-txt').disabled = false;
+        document.getElementById('lotno-txt').required = true;
+        $('#req-model, #req-lot').removeClass('d-none');
+        
         typeProcess="production";
         $('#standby-wrapper').hide();
         $('#is-standby').prop('checked', false);
     }
     else if(process.split("-")[1] == 'f'){
         document.getElementById('model-txt').disabled = false;
+        document.getElementById('model-txt').required = true;
         document.getElementById('lotno-txt').disabled = false;
+        document.getElementById('lotno-txt').required = true;
+        $('#req-model, #req-lot').removeClass('d-none');
+        
         typeProcess="foregoing";
         $('#standby-wrapper').hide();
         $('#is-standby').prop('checked', false);
     }
     else{
         document.getElementById('model-txt').disabled = true;
+        document.getElementById('model-txt').required = false;
         document.getElementById('lotno-txt').disabled = true;
+        document.getElementById('lotno-txt').required = false;
+        $('#req-model, #req-lot').addClass('d-none');
+        
         typeProcess="startup";
         $('#standby-wrapper').slideDown();
     }
 
+<<<<<<< HEAD
     document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + typeProcess;
+=======
+    document.getElementById("form-action").action = "<?= base_url(); ?>" + typeProcess;
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
     let cnt_error = document.getElementById("cnt-error-input");
     let submit_button = document.getElementById("submit");
     submit_button.disabled = false;
     cnt_error.value = 0;
 
+<<<<<<< HEAD
     updateSetting(process);
 
     // 1. Panggil Endpoint Dynamic Form Builder terlebih dahulu!
@@ -552,6 +686,11 @@ function updateInput() {
             doc_type: typeProcess
         },
         dataType: "JSON",
+=======
+    $.ajax({
+        url: "<?php echo base_url();?>process/detail?process_code=" + process, 
+        dataType: 'JSON',
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         success: function(res) {
             if (res && res.status === 'success' && res.html) {
                 $('#submit').show();
@@ -583,6 +722,7 @@ function updateInput() {
                     applyForegoingModelStandards();
                 }
             } else {
+<<<<<<< HEAD
                 loadStaticFallbackForm(typeProcess, device, process);
             }
         },
@@ -591,6 +731,27 @@ function updateInput() {
         }
     });
 }
+=======
+                if (revField) revField.value = "-";
+            }
+        },
+        error: function() {
+            var processValue = document.getElementById("process-txt");
+            if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+                var docno = $(processValue.options[processValue.selectedIndex]).data('docno') || "";
+                var parts = docno.split("-");
+                if (parts.length > 1) {
+                    var lastPart = parts[parts.length - 1]; 
+                    if (revField) revField.value = lastPart;
+                } else {
+                    if (revField) revField.value = "-";
+                }
+            }
+        }
+    });
+
+    updateSetting(process);
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
 // Fallback ke form statis lama HANYA jika proses belum bisa dirender oleh Form Builder
 function loadStaticFallbackForm(typeProcess, device, process) {
@@ -603,11 +764,16 @@ function loadStaticFallbackForm(typeProcess, device, process) {
                 $('#form-input').html(response);
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
+<<<<<<< HEAD
                 if (processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
                     header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
+=======
+                if(processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
+                    var $o = $(processValue.options[processValue.selectedIndex]);
+                    header_modal.innerHTML = ($o.data('docno') || '') + ' (' + ($o.data('name') || $o.text()) + ')';
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 }
 
-                // Jika checkbox Stand By aktif saat form dimuat, langsung terapkan
                 if ($('#is-standby').is(':checked')) {
                     applyStandbyMode(true);
                 }
@@ -641,17 +807,21 @@ function updateSetting(processCode) {
 }
 
 function updateDocNo() {
+<<<<<<< HEAD
     var docNo = document.getElementById("docno");
     var processValue = document.getElementById("process-txt");
     if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
         var text = processValue.options[processValue.selectedIndex].text;
         docNo.value = text.split(" ")[0];
     }
+=======
+    // Doc. No tetap menampilkan docno lengkap (dengan revisi) dari baris yang dipilih
+    $('#docno').val($('#process-txt option:selected').data('docno') || '-');
+>>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 }
-// Helper untuk mencari input Note / Catatan di form startup apapun
+
 function findNoteInput() {
     var $trs = $('#form-input table tbody tr');
-    // 1. Cari baris yang kolom labelnya memiliki kata 'note' atau 'catatan'
     var $targetTr = $trs.filter(function() {
         var labelText = $(this).children('td:not(:last-child)').text().toLowerCase();
         return labelText.indexOf('note') !== -1 || labelText.indexOf('catatan') !== -1;
@@ -662,16 +832,13 @@ function findNoteInput() {
         if ($inp.length) return $inp;
     }
 
-    // 2. Baris terakhir di tbody tabel
     var $lastTr = $trs.last();
     var $lastInp = $lastTr.find('input[type="text"], textarea');
     if ($lastInp.length) return $lastInp;
 
-    // 3. Fallback: input tipe teks terakhir
     return $('#form-input input[type="text"]').last();
 }
 
-// Fungsi aktivasi / deaktivasi Mode Mesin Stand By
 function applyStandbyMode(isActive) {
     var $form = $('#form-input');
     if (!$form.length || !$form.children().length) return;
@@ -685,12 +852,10 @@ function applyStandbyMode(isActive) {
         $form.find('input, select, textarea').each(function() {
             var $el = $(this);
 
-            // Lewati token csrf & hidden non-parameter
             if ($el.attr('type') === 'hidden' && (!$el.attr('name') || $el.attr('name').indexOf('par') !== 0)) {
                 return;
             }
 
-            // Jika ini adalah input Note/Catatan
             if ($note && $el.is($note)) {
                 $el.prop('readonly', false);
                 $el.prop('required', true);
@@ -704,7 +869,6 @@ function applyStandbyMode(isActive) {
                 return;
             }
 
-            // Input number / text parameter
             if ($el.is('input[type="number"], input[type="text"], textarea')) {
                 if ($el.attr('type') === 'number') {
                     $el.data('orig-type', 'number');
@@ -738,7 +902,6 @@ function applyStandbyMode(isActive) {
             }
         });
 
-        // Hilangkan semua indikator error validasi form
         $('#cnt-error-input').val(0);
         if (typeof changeDisableSubmit === 'function') {
             changeDisableSubmit(false);
@@ -749,7 +912,6 @@ function applyStandbyMode(isActive) {
             $note.focus();
         }
     } else {
-        // Matikan Mode Stand By
         $('#standby-badge').fadeOut();
         $('#standby-wrapper').css('background', 'linear-gradient(135deg, #fffcf0 0%, #fff3cd 100%)');
 
@@ -800,7 +962,6 @@ function applyStandbyMode(isActive) {
     }
 }
 
-// Event listener toggle Mesin Stand By
 $(document).on('change', '#is-standby', function() {
     applyStandbyMode($(this).is(':checked'));
 });

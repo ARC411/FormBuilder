@@ -140,8 +140,8 @@
                                         <td class="text-center">
                                             <?php 
                                             $roleKey = strtolower(trim((string)($user_role ?? '')));
-                                            $canQc = ($roleKey === 'qc' || $roleKey === 'qa' || $roleKey === 'all' || !empty($is_admin));
-                                            $canProd = ($roleKey === 'production' || in_array($roleKey, ['fl', 'sl', 'all']) || !empty($is_admin));
+                                            $canQc = !empty($can_qc) || (!isset($can_qc) && ($roleKey === 'qc' || $roleKey === 'qa' || !empty($is_admin)));
+                                            $canProd = !empty($can_prod) || (!isset($can_prod) && ($roleKey === 'production' || !empty($is_admin)));
                                             $hasAction = false;
                                             $dailyNotComplete = ($row['pending_daily'] > 0);
                                             ?>
@@ -158,7 +158,13 @@
                                                             <input type="hidden" name="weekly_id" value="<?= $row['id'] ?>">
                                                             <input type="hidden" name="departemen" value="qc">
                                                             <input type="hidden" name="action" value="Approve">
-                                                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Apakah Anda yakin menyetujui periode mingguan ini untuk QC?');">
+                                                            <button type="button" 
+                                                                    class="btn btn-success btn-sm shadow-sm btn-open-approve-weekly"
+                                                                    data-weekly-id="<?= $row['id'] ?>"
+                                                                    data-departemen="qc"
+                                                                    data-doc-type="startup"
+                                                                    data-period="<?= date('d/m/Y', strtotime($row['period_start'])) ?> - <?= date('d/m/Y', strtotime($row['period_end'])) ?>"
+                                                                    title="Validasi & Approve Periode untuk QC">
                                                                 <i class="fas fa-check me-1"></i>Approve (QC)
                                                             </button>
                                                         </form>
@@ -170,7 +176,13 @@
                                                             <input type="hidden" name="weekly_id" value="<?= $row['id'] ?>">
                                                             <input type="hidden" name="departemen" value="production">
                                                             <input type="hidden" name="action" value="Approve">
-                                                            <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Apakah Anda yakin menyetujui periode mingguan ini untuk Production?');">
+                                                            <button type="button" 
+                                                                    class="btn btn-primary btn-sm shadow-sm btn-open-approve-weekly"
+                                                                    data-weekly-id="<?= $row['id'] ?>"
+                                                                    data-departemen="production"
+                                                                    data-doc-type="startup"
+                                                                    data-period="<?= date('d/m/Y', strtotime($row['period_start'])) ?> - <?= date('d/m/Y', strtotime($row['period_end'])) ?>"
+                                                                    title="Validasi & Approve Periode untuk Production">
                                                                 <i class="fas fa-check me-1"></i>Approve (Prod)
                                                             </button>
                                                         </form>
@@ -220,8 +232,8 @@
                                         $isApproved = (!empty($prow['status']) && $prow['status'] === 'Approve');
                                         $isRejected = (!empty($prow['status']) && $prow['status'] === 'Reject');
                                         $roleKey = strtolower(trim((string)($user_role ?? '')));
-                                        $canQc = ($roleKey === 'qc' || $roleKey === 'qa' || $roleKey === 'all' || !empty($is_admin));
-                                        $canProd = ($roleKey === 'production' || in_array($roleKey, ['fl', 'sl', 'all']) || !empty($is_admin));
+                                        $canQc = !empty($can_qc) || (!isset($can_qc) && ($roleKey === 'qc' || $roleKey === 'qa' || !empty($is_admin)));
+                                        $canProd = !empty($can_prod) || (!isset($can_prod) && ($roleKey === 'production' || !empty($is_admin)));
                                         $canApproveProd = ($canQc || $canProd);
                                     ?>
                                     <tr>
@@ -297,8 +309,15 @@
                                                                 <?= csrf_field() ?>
                                                                 <input type="hidden" name="weekly_id" value="<?= $prow['id'] ?>">
                                                                 <input type="hidden" name="departemen" value="qc">
+                                                                <input type="hidden" name="doc_type" value="production">
                                                                 <input type="hidden" name="action" value="Approve">
-                                                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Setujui 1 lembar (20 data) checksheet production ini sebagai QC?');">
+                                                                <button type="button" 
+                                                                        class="btn btn-success btn-sm shadow-sm btn-open-approve-weekly"
+                                                                        data-weekly-id="<?= $prow['id'] ?>"
+                                                                        data-departemen="qc"
+                                                                        data-doc-type="production"
+                                                                        data-period="<?= date('d/m/Y', strtotime($prow['period_start'])) ?> - <?= date('d/m/Y', strtotime($prow['period_end'])) ?>"
+                                                                        title="Validasi & Approve 20 Data untuk QC">
                                                                     <i class="fas fa-check me-1"></i>Approve (QC)
                                                                 </button>
                                                             </form>
@@ -308,8 +327,15 @@
                                                                 <?= csrf_field() ?>
                                                                 <input type="hidden" name="weekly_id" value="<?= $prow['id'] ?>">
                                                                 <input type="hidden" name="departemen" value="production">
+                                                                <input type="hidden" name="doc_type" value="production">
                                                                 <input type="hidden" name="action" value="Approve">
-                                                                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Setujui 1 lembar (20 data) checksheet production ini sebagai Production?');">
+                                                                <button type="button" 
+                                                                        class="btn btn-primary btn-sm shadow-sm btn-open-approve-weekly"
+                                                                        data-weekly-id="<?= $prow['id'] ?>"
+                                                                        data-departemen="production"
+                                                                        data-doc-type="production"
+                                                                        data-period="<?= date('d/m/Y', strtotime($prow['period_start'])) ?> - <?= date('d/m/Y', strtotime($prow['period_end'])) ?>"
+                                                                        title="Validasi & Approve 20 Data untuk Production">
                                                                     <i class="fas fa-check me-1"></i>Approve (Prod)
                                                                 </button>
                                                             </form>
@@ -340,5 +366,6 @@
         </div>
     </div>
 </div>
+<?= $this->include('layout/modal_confirm_weekly_approve'); ?>
 </main>
 <?= $this->endSection(); ?>

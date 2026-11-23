@@ -57,11 +57,11 @@ class PdfGenerator
             $weeklyInfo ?? null
         );
 
-        // 5. Bangun halaman per bagian (Startup = 14 kolom/halaman, Production & Foregoing = 20 baris/halaman)
+        // 5. Bangun halaman per bagian (Startup = 7 kolom/halaman, Production & Foregoing = 20 baris/halaman)
         $pagesHtml = '';
 
         if ($typeProcess === 'startup') {
-            $perPageCols   = 14;
+            $perPageCols   = 7;
             $dataColsCount = count($alldata ?? []);
             $totalPages    = max(1, (int) ceil($dataColsCount / $perPageCols));
 
@@ -138,14 +138,13 @@ class PdfGenerator
 
     /**
      * CSS terkalibrasi untuk A4 Landscape (841.89pt x 595.28pt)
-     * Font & padding Production/Foregoing diperbesar agar memenuhi tinggi kertas secara proporsional.
      */
     private function buildStylesheet(string $typeProcess): string
     {
         if ($typeProcess === 'startup') {
-            $hdrFontSize  = '6.2pt';
-            $dataFontSize = '6.0pt';
-            $cellPadding  = '1.1pt 1.8pt';
+            $hdrFontSize  = '7.5pt';
+            $dataFontSize = '7.0pt';
+            $cellPadding  = '1pt 1pt';
             $nowrapRule   = '';
         } elseif ($typeProcess === 'foregoing') {
             $hdrFontSize  = '6.5pt';
@@ -185,7 +184,7 @@ class PdfGenerator
             .page-break {
                 page-break-after: always;
             }
-            /* Kop Surat Ringkas & Proporsional (Kiri 23%, Tengah 60%, Kanan 17%) */
+            /* Kop Surat Ringkas & Proporsional */
             table.kop-table {
                 width: 100%;
                 border-collapse: collapse;
@@ -277,19 +276,20 @@ class PdfGenerator
                 background-color: #f2f2f2;
                 font-weight: bold;
                 font-size: ' . $hdrFontSize . ';
-                padding: 1.2pt 1pt;
-                line-height: 1.08;
+                padding: 1pt;
+                line-height: 1.05;
             }
             table.table-cs td {
                 font-size: ' . $dataFontSize . ';
                 padding: ' . $cellPadding . ';
-                line-height: 1.1;
+                line-height: 1.05;
                 ' . $nowrapRule . '
             }
             table.table-cs td.startup-id-cell {
-                font-size: 6.0pt;
+                font-size: 7pt;
                 padding: 1pt 2pt;
                 white-space: normal;
+                text-align: left;
             }
             tr {
                 page-break-inside: avoid;
@@ -298,28 +298,34 @@ class PdfGenerator
     }
 
     /**
-     * Format teks sel ke HTML dengan dukungan penuh simbol Unicode (θ, ✓, ✔, ✖) melalui font DejaVu Sans
+     * Format teks sel ke HTML dengan dukungan penuh simbol Unicode
      */
     private function formatPdfCellHtml(string $rawText): string
     {
         $escaped = htmlspecialchars($rawText, ENT_QUOTES, 'UTF-8');
+        
+        $lowerText = strtolower(trim($rawText));
+        if ($lowerText === 'ok') {
+            $escaped = '✓';
+        } elseif ($lowerText === 'ng') {
+            $escaped = '✗';
+        }
+        
         $escaped = str_replace(
-            ['θ', '&theta;', '✓', '✔', '✖'],
+            ['θ', '&theta;', '✓', '✔', '✖', '✗'],
             [
                 '<span class="sym">&#952;</span>',
                 '<span class="sym">&#952;</span>',
                 '<span class="sym">&#10003;</span>',
                 '<span class="sym">&#10004;</span>',
                 '<span class="sym">&#10006;</span>',
+                '<span class="sym">&#10007;</span>',
             ],
             $escaped
         );
         return nl2br($escaped);
     }
 
-    /**
-     * Ekstrak elemen tabel dari HTML view dengan menjaga encoding UTF-8
-     */
     private function extractTableElement(
         string $html,
         string $id,
@@ -388,9 +394,6 @@ class PdfGenerator
         ];
     }
 
-    /**
-     * Sisipkan baris Operator (by EmpID) dan Checked by (by EmpID + Role) sebelum baris Note pada Startup
-     */
     private function injectStartupMetaRows(
         \DOMDocument $doc,
         \DOMElement $table,
@@ -444,12 +447,12 @@ class PdfGenerator
             return '-';
         };
 
-        $perPage       = 14;
+        $perPage       = 7;
         $dataColsCount = count($alldata);
         $totalPages    = max(1, (int) ceil($dataColsCount / $perPage));
         $targetCols    = $totalPages * $perPage;
 
-        // 1. Baris Operator (Menggunakan EmpID)
+        // 1. Baris Operator
         $opTr    = $doc->createElement('tr');
         $tdOpLbl = $doc->createElement('td', 'Operator');
         $tdOpLbl->setAttribute('colspan', (string) $identityCols);
@@ -466,7 +469,7 @@ class PdfGenerator
         }
         $noteTr->parentNode->insertBefore($opTr, $noteTr);
 
-        // 2. Baris Checked by (Menggunakan EmpID Approver + Jabatan)
+        // 2. Baris Checked by
         $appTr    = $doc->createElement('tr');
         $tdAppLbl = $doc->createElement('td', 'Checked by');
         $tdAppLbl->setAttribute('colspan', (string) $identityCols);
@@ -628,9 +631,6 @@ class PdfGenerator
         return 1;
     }
 
-    /**
-     * Render tabel Startup per chunk (Kolom Identitas + 14 Kolom Data)
-     */
     private function buildStartupChunkTableHtml(
         array $grid,
         int $identityColCount,
@@ -642,21 +642,21 @@ class PdfGenerator
         $perPageCols = $endCol - $startCol + 1;
 
         $colPcts = [];
-        $colPcts[1] = 2.5;
+        $colPcts[1] = 2.5; // No
         if ($identityColCount === 4) {
-            $colPcts[2] = 13.5;
-            $colPcts[3] = 8.0;
-            $colPcts[4] = 18.0;
+            $colPcts[2] = 8.5; 
+            $colPcts[3] = 13.0;
+            $colPcts[4] = 13.5;
         } elseif ($identityColCount === 3) {
-            $colPcts[2] = 21.5;
+            $colPcts[2] = 16.5;
             $colPcts[3] = 18.0;
         } else {
-            $remId = 39.5 / max(1, $identityColCount - 1);
+            $remId = 34.5 / max(1, $identityColCount - 1);
             for ($c = 2; $c <= $identityColCount; $c++) {
                 $colPcts[$c] = $remId;
             }
         }
-        $dataColPct = round(58.0 / max(1, $perPageCols), 3);
+        $dataColPct = round(62.5 / max(1, $perPageCols), 3); // Distribusi ruang data
         for ($d = 1; $d <= $perPageCols; $d++) {
             $colPcts[$identityColCount + $d] = $dataColPct;
         }
@@ -669,6 +669,15 @@ class PdfGenerator
             return round($sum, 2);
         };
 
+        // KUNCI PERBAIKAN: Hitung max rowspan secara akurat untuk validEndRow
+        $maxActualRowspan = 1;
+        for ($c = 1; $c <= $identityColCount; $c++) {
+            if (isset($grid['origins'][$headerRowCount + 1][$c]['rowspan'])) {
+                $maxActualRowspan = max($maxActualRowspan, $grid['origins'][$headerRowCount + 1][$c]['rowspan']);
+            }
+        }
+
+        // Terapkan hard limit: tidak ada rowspan yang melewati validEndRow
         $html = '<table class="table-cs"><thead>';
 
         for ($r = 1; $r <= $validEndRow; $r++) {
@@ -677,19 +686,19 @@ class PdfGenerator
             }
             $html .= '<tr>';
 
-            // 1. Render Kolom Identitas (1 .. $identityColCount)
             for ($c = 1; $c <= $identityColCount; $c++) {
                 if (isset($grid['origins'][$r][$c])) {
                     $cell   = $grid['origins'][$r][$c];
                     $tag    = !empty($cell['isHeader']) ? 'th' : 'td';
                     $cls    = ($tag === 'td') ? ' class="startup-id-cell"' : '';
                     $cs     = min((int) ($cell['colspan'] ?? 1), $identityColCount - $c + 1);
+                    // Dibatasi ketat agar rowspan sel identitas tidak jebol ke baris meta
                     $rs     = min((int) ($cell['rowspan'] ?? 1), $validEndRow - $r + 1);
                     $csAttr = ($cs > 1) ? ' colspan="' . $cs . '"' : '';
                     $rsAttr = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
                     $wPct   = $sumSpanPct($c, $cs);
                     $valHtml = $this->formatPdfCellHtml((string) ($cell['value'] ?? ''));
-                    $html   .= "<{$tag}{$cls}{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</{$tag}>";
+                    $html   .= "<{$tag}{$cls}{$rsAttr}{$csAttr} style='width: {$wPct}%;'>{$valHtml}</{$tag}>";
                 }
             }
 
@@ -701,7 +710,6 @@ class PdfGenerator
                 }
             }
 
-            // 2. Render 14 Kolom Data
             $dIdx = 1;
             while ($dIdx <= $perPageCols) {
                 $gridCol   = $startCol + $dIdx - 1;
@@ -713,7 +721,7 @@ class PdfGenerator
                     $csAttr  = ($perPageCols > 1) ? ' colspan="' . $perPageCols . '"' : '';
                     $wPct    = $sumSpanPct($targetCol, $perPageCols);
                     $valHtml = $this->formatPdfCellHtml((string) ($massiveHeaderCell['value'] ?? ''));
-                    $html   .= "<th{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</th>";
+                    $html   .= "<th{$rsAttr}{$csAttr} style='width: {$wPct}%;'>{$valHtml}</th>";
                     $dIdx   += $perPageCols;
                     continue;
                 }
@@ -728,17 +736,16 @@ class PdfGenerator
                     $wPct    = $sumSpanPct($targetCol, $cs);
                     $rawVal  = (string) ($cell['value'] ?? '');
                     $valHtml = ($rawVal !== '') ? $this->formatPdfCellHtml($rawVal) : '-';
-                    $html   .= "<{$tag}{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</{$tag}>";
+                    $html   .= "<{$tag}{$rsAttr}{$csAttr} style='width: {$wPct}%;'>{$valHtml}</{$tag}>";
                     $dIdx   += $cs;
                 } else {
                     if (empty($grid['occupied'][$r][$gridCol])) {
                         $wPct  = $sumSpanPct($targetCol, 1);
-                        $html .= "<td style=\"width: {$wPct}%;\">-</td>";
+                        $html .= "<td style='width: {$wPct}%;'>-</td>";
                     }
                     $dIdx++;
                 }
             }
-
             $html .= '</tr>';
         }
 
@@ -746,10 +753,6 @@ class PdfGenerator
         return $html;
     }
 
-    /**
-     * Render tabel Production / Foregoing per 20 baris data + Dummy Rows
-     * Tinggi baris data dinaikkan (21.5pt s/d 22.2pt) agar tabel memanjang penuh ke bawah kertas (~95% tinggi A4).
-     */
     private function buildHorizontalRowChunkTableHtml(
         array $grid,
         int $headerRowCount,
@@ -795,7 +798,7 @@ class PdfGenerator
                     $w = 4.6;
                 }
             } else {
-                // Production: proporsi optimal agar seluruh sel data 1 baris
+                // Production
                 if ($col === 1 && ($headerLabel === 'no' || $headerLabel === 'no.')) {
                     $w = 4.5;
                 } elseif (strpos($headerLabel, 'operator') !== false) {
@@ -842,7 +845,6 @@ class PdfGenerator
             return round($sum, 2);
         };
 
-        // Tinggi baris optimal agar 20 baris data mengisi penuh halaman A4 Landscape (~95% tinggi kertas)
         $hdrRowHeightPt  = ($typeProcess === 'foregoing') ? 16.5 : 16.0;
         $dataRowHeightPt = ($typeProcess === 'foregoing') ? 22.2 : 21.5;
 
@@ -860,10 +862,10 @@ class PdfGenerator
                     $rsAttr  = ($rs > 1) ? ' rowspan="' . $rs . '"' : '';
                     $wPct    = $sumSpanPct($c, $cs);
                     $valHtml = $this->formatPdfCellHtml((string) ($cell['value'] ?? ''));
-                    $html   .= "<th{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</th>";
+                    $html   .= "<th{$rsAttr}{$csAttr} style='width: {$wPct}%;'>{$valHtml}</th>";
                 } elseif (empty($grid['occupied'][$r][$c])) {
                     $wPct  = $sumSpanPct($c, 1);
-                    $html .= "<th style=\"width: {$wPct}%;\"></th>";
+                    $html .= "<th style='width: {$wPct}%;'></th>";
                 }
             }
             $html .= '</tr>';
@@ -886,10 +888,10 @@ class PdfGenerator
                         $wPct    = $sumSpanPct($c, $cs);
                         $rawVal  = (string) ($cell['value'] ?? '');
                         $valHtml = ($rawVal !== '') ? $this->formatPdfCellHtml($rawVal) : '-';
-                        $html   .= "<td{$rsAttr}{$csAttr} style=\"width: {$wPct}%;\">{$valHtml}</td>";
+                        $html   .= "<td{$rsAttr}{$csAttr} style='width: {$wPct}%;'>{$valHtml}</td>";
                     } elseif (empty($grid['occupied'][$r][$c])) {
                         $wPct  = $sumSpanPct($c, 1);
-                        $html .= "<td style=\"width: {$wPct}%;\">-</td>";
+                        $html .= "<td style='width: {$wPct}%;'>-</td>";
                     }
                 }
                 $html .= '</tr>';
@@ -911,17 +913,17 @@ class PdfGenerator
                             $rsAttr = ($blockSize > 1) ? ' rowspan="' . $blockSize . '"' : '';
                             for ($c = 1; $c <= min(7, $totalCols); $c++) {
                                 $wPct  = $sumSpanPct($c, 1);
-                                $html .= "<td{$rsAttr} style=\"width: {$wPct}%;\">-</td>";
+                                $html .= "<td{$rsAttr} style='width: {$wPct}%;'>-</td>";
                             }
                         }
                         if ($totalCols >= 8) {
                             $wPct   = $sumSpanPct(8, 1);
                             $posLbl = $this->formatPdfCellHtml($posCycle[$s] ?? '-');
-                            $html  .= "<td style=\"width: {$wPct}%;\">{$posLbl}</td>";
+                            $html  .= "<td style='width: {$wPct}%;'>{$posLbl}</td>";
                         }
                         for ($c = 9; $c <= $totalCols; $c++) {
                             $wPct  = $sumSpanPct($c, 1);
-                            $html .= "<td style=\"width: {$wPct}%;\">-</td>";
+                            $html .= "<td style='width: {$wPct}%;'>-</td>";
                         }
                         $html .= '</tr>';
                     }
@@ -932,7 +934,7 @@ class PdfGenerator
                     $html .= '<tr style="height: ' . $dataRowHeightPt . 'pt;">';
                     for ($c = 1; $c <= $totalCols; $c++) {
                         $wPct  = $sumSpanPct($c, 1);
-                        $html .= "<td style=\"width: {$wPct}%;\">-</td>";
+                        $html .= "<td style='width: {$wPct}%;'>-</td>";
                     }
                     $html .= '</tr>';
                 }
@@ -943,9 +945,6 @@ class PdfGenerator
         return $html;
     }
 
-    /**
-     * Bangun Kop Surat 5 Baris yang Ringkas & Proporsional
-     */
     private function buildKopSuratHtml(
         string $namaProduk,
         string $judulProses,
@@ -976,14 +975,14 @@ class PdfGenerator
 
         if ($typeProcess === 'startup') {
             $qcBox = '';
-            if (!empty($weeklyInfo['status_qc']) && strtolower((string) $weeklyInfo['status_qc']) === 'approve') {
+            if (!empty($weeklyInfo['status_qc']) && in_array(strtolower((string) $weeklyInfo['status_qc']), ['approve', 'approved'])) {
                 $approverQc = htmlspecialchars(!empty($weeklyInfo['approver_qc']) ? (string) $weeklyInfo['approver_qc'] : 'Approved', ENT_QUOTES, 'UTF-8');
                 $dateQc     = !empty($weeklyInfo['date_qc']) ? date('d-m-Y', strtotime((string) $weeklyInfo['date_qc'])) : '';
                 $qcBox      = 'Approved by:<br>' . $approverQc . '<br>(QC)<br>' . $dateQc;
             }
 
             $prodBox = '';
-            if (!empty($weeklyInfo['status_production']) && strtolower((string) $weeklyInfo['status_production']) === 'approve') {
+            if (!empty($weeklyInfo['status_production']) && in_array(strtolower((string) $weeklyInfo['status_production']), ['approve', 'approved'])) {
                 $approverProd = htmlspecialchars(!empty($weeklyInfo['approver_production']) ? (string) $weeklyInfo['approver_production'] : 'Approved', ENT_QUOTES, 'UTF-8');
                 $dateProd     = !empty($weeklyInfo['date_production']) ? date('d-m-Y', strtotime((string) $weeklyInfo['date_production'])) : '';
                 $prodBox      = 'Approved by:<br>' . $approverProd . '<br>(Prod)<br>' . $dateProd;

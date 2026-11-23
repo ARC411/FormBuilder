@@ -1,5 +1,5 @@
 
-<form name="checksheet" action="/device/update" method="POST">
+<form name="checksheet" action="<?= base_url('device/update') ?>" method="POST">
     <?= csrf_field(); ?>
     <input type="hidden" name="type-input" value="manual">
     <input type="hidden" name="id" value=<?= $alldata[0]['id']?>>

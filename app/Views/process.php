@@ -64,7 +64,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="modal-body-content">
-                    <form name="checksheet" action="/process" method="POST">
+                    <form name="checksheet" action="<?= base_url('process') ?>" method="POST">
                         <?= csrf_field(); ?>
                         <input type="hidden" name="type-input" value="manual">
 
@@ -171,7 +171,7 @@
             var id = $(this).data('id');
             if (confirm('Apakah kamu yakin? you want to delete this device?')) {
                 $.ajax({
-                    url: '/process/' + id,
+                    url: '<?= base_url('process') ?>/' + id,
                     type: 'DELETE',
                     success: function(result) {
                         alert('Berhasil Menghapus');
