@@ -162,6 +162,11 @@ $routes->post('form-builder/up-revisi', 'FormBuilder::upRevisi');
 $routes->post('form-builder/row-save', 'FormBuilder::saveMatrixRow');
 $routes->post('form-builder/row-delete', 'FormBuilder::deleteMatrixRow');
 $routes->post('form-builder/row-move', 'FormBuilder::moveMatrixRow');
+$routes->post('form-builder/save-sop-note', 'FormBuilder::saveSopNote');
+$routes->post('form-builder/add-table', 'FormBuilder::addTable');
+$routes->post('form-builder/delete-table', 'FormBuilder::deleteTable');
+$routes->post('form-builder/import-csv', 'FormBuilder::importCsv');
+$routes->get('form-builder/export-csv', 'FormBuilder::exportCsv');
 $routes->match(['GET', 'POST'], 'form-builder/render-input', 'FormBuilder::renderOperatorForm');
 
 // ==========================================================

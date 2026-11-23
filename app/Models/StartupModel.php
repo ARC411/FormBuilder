@@ -289,11 +289,6 @@ class StartupModel extends Model
         $activeRevisi = $data['revisi'] ?? ($latestRevRow['revisi'] ?? ($prosesMaster['revisi'] ?? '0'));
 
         if ($prosesMaster) {
-<<<<<<< HEAD
-            $data['par041'] = (string)$activeRevisi;
-            $data['par042'] = $prosesMaster['berlaku'];
-            $data['docno']  = $prosesMaster['docno'];
-=======
             if (!isset($data['par041']) || $data['par041'] === null || $data['par041'] === '') {
                 $data['par041'] = $prosesMaster['revisi'];
             }
@@ -302,7 +297,6 @@ class StartupModel extends Model
             }
             $data['docno'] = $prosesMaster['docno'];
             $data['revisi'] = $prosesMaster['revisi'];
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         }
         $data['revisi'] = (string)$activeRevisi;
 
@@ -328,16 +322,12 @@ class StartupModel extends Model
                 $data['reject_date']   = null;
             }
             $data['edit_status'] = 0;
-<<<<<<< HEAD
-            $this->update($result->id, $data);
-=======
             $rowId = $result->id;
             unset($data['created_at']);
             $this->update(
                 $rowId,
                 $data
             );
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             return "Update Startup";
         }
     }
@@ -497,12 +487,6 @@ class StartupModel extends Model
                 FROM `startup` as s
                 INNER JOIN `proses` as p ON s.process = p.process_code 
                 INNER JOIN `device` as d ON p.device = d.code
-<<<<<<< HEAD
-                WHERE s.created_at >= '" . $startStr . "' 
-                AND s.created_at <= '" . $endStr . "' 
-                AND (s.device LIKE '%" . $device . "%' OR p.device LIKE '%" . $device . "%') 
-                AND s.process LIKE '%" . $process . "%'";
-=======
                 WHERE COALESCE(s.work_date, DATE(s.created_at)) >= '"
                 . $startDateOnly
                 . "' AND COALESCE(s.work_date, DATE(s.created_at)) <= '"
@@ -514,7 +498,6 @@ class StartupModel extends Model
                 . "%') AND s.process LIKE '%"
                 . $process
                 . "%'";
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
         if ($model !== '') {
             $sql .= " AND s.model LIKE '%" . $model . "%'";
@@ -528,26 +511,7 @@ class StartupModel extends Model
             $sql .= " AND s.machno = '" . $machno . "'";
         }
 
-<<<<<<< HEAD
-        // KUNCI REVISI KETAT (MENCEGAH REVISI LAMA BOCOR KE REVISI BARU)
-        if ($revisi !== '' && strtoupper($revisi) !== 'ALL') {
-            $revInt = is_numeric($revisi) ? (int)$revisi : -1;
-            $revPad = str_pad((string)$revisi, 2, '0', STR_PAD_LEFT);
-            $escRev = $this->db->escape((string)$revisi);
-            $escPad = $this->db->escape($revPad);
-
-            if ($revInt > 0) {
-                // Hanya ambil baris yang benar-benar bernilai revisi ini
-                $sql .= " AND (s.revisi = {$escRev} OR s.revisi = {$escPad} OR s.revisi = {$revInt})";
-            } else {
-                $sql .= " AND s.revisi = {$escRev}";
-            }
-        }
-
-        $sql .= " ORDER BY s.created_at ASC";
-=======
         $sql .= " ORDER BY COALESCE(s.work_date, DATE(s.created_at)) ASC, s.created_at ASC";
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
         return $this->query($sql)->getResultArray();
     }

@@ -77,56 +77,12 @@ class Home extends BaseController
 
     public function ajaxAutofill()
     {
-<<<<<<< HEAD
         $empid = trim((string)$this->request->getGet('empid-txt'));
-=======
-        $empid = trim((string) $this->request->getGet('empid-txt'));
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
         if ($empid === '') {
             return $this->response->setJSON(['found' => false]);
         }
 
-<<<<<<< HEAD
-        $q = null;
-        try {
-            $q = $this->EmpModel->getEmp($empid);
-        } catch (\Throwable $e) {
-            log_message('error', 'ajaxAutofill fallback: ' . $e->getMessage());
-        }
-
-        if ($q) {
-            return $this->response->setJSON([
-                'found'      => true,
-                'empid'      => $q->empid ?? $empid,
-                'name'       => $q->name ?? strtoupper($empid),
-                'positionid' => $q->positionid ?? ($this->session->get('positionid') ?? 'Operator'),
-                'groupid'    => $q->groupid ?? '',
-                'acc'        => $q->acc ?? '',
-            ]);
-        }
-
-        // Fallback ke session jika EmpID yang diketik sama dengan user yang sedang login
-        $sessEmp = trim((string)$this->session->get('empid'));
-        if ($sessEmp !== '' && strcasecmp($empid, $sessEmp) === 0) {
-            return $this->response->setJSON([
-                'found'      => true,
-                'empid'      => $sessEmp,
-                'name'       => (string)($this->session->get('name') ?: $sessEmp),
-                'positionid' => (string)($this->session->get('positionid') ?: 'Operator'),
-                'groupid'    => (string)($this->session->get('groupid') ?? ''),
-                'acc'        => (string)($this->session->get('shift') ?? ''),
-            ]);
-        }
-
-        // Kembalikan HTTP 200 (bukan 500) agar form tidak menghapus isian manual operator
-        return $this->response->setJSON([
-            'found'   => false,
-            'empid'   => $empid,
-            'name'    => strtoupper($empid),
-            'groupid' => '',
-            'acc'     => '',
-=======
         if (strtolower($empid) === 'admin') {
             return $this->response->setJSON([
                 'found'        => true,
@@ -140,39 +96,60 @@ class Home extends BaseController
             ]);
         }
 
+        $q = null;
         try {
             $q = $this->EmpModel->getEmp($empid);
         } catch (\Throwable $e) {
-            log_message('error', 'ajaxAutofill gagal: ' . $e->getMessage());
-            return $this->response->setStatusCode(500)->setJSON([
-                'found'   => false,
-                'message' => 'DB error',
-                'debug'   => $e->getMessage()
+            log_message('error', 'ajaxAutofill fallback: ' . $e->getMessage());
+        }
+
+        if ($q) {
+            $position = $q->positionid ?? '';
+            if (empty($position)) {
+                $empData = $this->EmpModel->getDataEmp($empid);
+                if ($empData && !empty($empData->positionid)) {
+                    $position = $empData->positionid;
+                }
+            }
+
+            return $this->response->setJSON([
+                'found'        => true,
+                'empid'        => $q->empid ?? $empid,
+                'name'         => $q->name ?? strtoupper($empid),
+                'position'     => $position ?: ($this->session->get('positionid') ?? 'Operator'),
+                'positionid'   => $position ?: ($this->session->get('positionid') ?? 'Operator'),
+                'positionname' => $position ?: ($this->session->get('positionid') ?? 'Operator'),
+                'groupid'      => $q->groupid ?? '',
+                'acc'          => $q->acc ?? '',
             ]);
         }
 
-        if (!$q) {
-            return $this->response->setJSON(['found' => false]);
+        // Fallback ke session jika EmpID yang diketik sama dengan user yang sedang login
+        $sessEmp = trim((string)$this->session->get('empid'));
+        if ($sessEmp !== '' && strcasecmp($empid, $sessEmp) === 0) {
+            $sessPos = (string)($this->session->get('positionid') ?: 'Operator');
+            return $this->response->setJSON([
+                'found'        => true,
+                'empid'        => $sessEmp,
+                'name'         => (string)($this->session->get('name') ?: $sessEmp),
+                'position'     => $sessPos,
+                'positionid'   => $sessPos,
+                'positionname' => $sessPos,
+                'groupid'      => (string)($this->session->get('groupid') ?? ''),
+                'acc'          => (string)($this->session->get('shift') ?? ''),
+            ]);
         }
 
-        $position = $q->positionid ?? '';
-        if (empty($position)) {
-            $empData = $this->EmpModel->getDataEmp($empid);
-            if ($empData && !empty($empData->positionid)) {
-                $position = $empData->positionid;
-            }
-        }
-
+        // Kembalikan HTTP 200 (bukan 500) agar form tidak menghapus isian manual operator
         return $this->response->setJSON([
-            'found'        => true,
-            'empid'        => $q->empid,
-            'name'         => $q->name,
-            'position'     => $position,
-            'positionid'   => $position,
-            'positionname' => $position,
-            'groupid'      => $q->groupid ?? '',
-            'acc'          => $q->acc ?? '',
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+            'found'        => false,
+            'empid'        => $empid,
+            'name'         => strtoupper($empid),
+            'position'     => 'Operator',
+            'positionid'   => 'Operator',
+            'positionname' => 'Operator',
+            'groupid'      => '',
+            'acc'          => '',
         ]);
     }
 

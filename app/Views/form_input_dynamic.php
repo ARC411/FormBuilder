@@ -71,7 +71,7 @@ if (!function_exists('opSplitValUnit')) {
 }
 
 if (!function_exists('opRenderActiveInput')) {
-    function opRenderActiveInput($leaf, $kategori_form, $alldata = null, $rowIdx = 0, $exclusiveMap = [], $dynamicStdTargetMap = []) {
+    function opRenderActiveInput($leaf, $kategori_form, $alldata = null, $rowIdx = 0, $exclusiveMap = [], $dynamicStdTargetMap = [], $colHeaderName = '') {
         $colDb = trim((string)($leaf['kolom_db'] ?? ''));
 
         // Jika ini adalah kolom teks statis pada tabel mendatar (Contoh: "Start up Checking Item" / "Standard" di Burn In)
@@ -127,12 +127,16 @@ if (!function_exists('opRenderActiveInput')) {
             if (is_array($decodedUnits)) $units = $decodedUnits;
         }
 
+        $stepVal = (!empty($leaf['step_value']) && $leaf['step_value'] !== 'any') ? $leaf['step_value'] : 'any';
+        $rgJson  = !empty($leaf['rentang_ganda']) ? (is_string($leaf['rentang_ganda']) ? $leaf['rentang_ganda'] : json_encode($leaf['rentang_ganda'], JSON_UNESCAPED_UNICODE)) : '';
+        $rgAttr  = $rgJson ? 'data-rentang-ganda="'.esc($rgJson).'"' : '';
+
         $roAttr  = $isReadonly ? 'readonly' : '';
         $roStyle = $isReadonly ? 'background-color: #e9ecef;' : '';
 
         $html = '';
 
-        // 1. TIPE DROPDOWN (OK / NG atau V / X)
+        // 1. TIPE DROPDOWN OK / NG (atau V / X)
         if ($leaf['tipe_input'] === 'dropdown_ok_ng') {
             if ($kategori_form === 'startup') {
                 $selOk = ($val === '✔' || $val === 'OK' || $val === 'V') ? 'selected' : '';
@@ -162,11 +166,52 @@ if (!function_exists('opRenderActiveInput')) {
                           </select>';
             }
         }
-        // 2. TIPE TEXTAREA
+        // 2. TIPE DROPDOWN CUSTOM (Pilihan Bebas)
+        elseif ($leaf['tipe_input'] === 'dropdown_custom') {
+            $customOpts = [];
+            if (!empty($leaf['opsi_dropdown'])) {
+                $decoded = is_string($leaf['opsi_dropdown']) ? json_decode($leaf['opsi_dropdown'], true) : $leaf['opsi_dropdown'];
+                if (is_array($decoded)) {
+                    $customOpts = $decoded;
+                } else {
+                    $customOpts = array_filter(array_map('trim', explode(',', (string)$leaf['opsi_dropdown'])));
+                }
+            }
+            $html .= '<select class="form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" style="min-width: 95px;" '.$exclAttr.'>';
+            $html .= '<option value="">-- Pilih --</option>';
+            foreach ($customOpts as $cOpt) {
+                $optVal = is_array($cOpt) ? ($cOpt['value'] ?? $cOpt['label'] ?? '') : $cOpt;
+                $optLbl = is_array($cOpt) ? ($cOpt['label'] ?? $cOpt['value'] ?? '') : $cOpt;
+                $sel = ((string)$val === (string)$optVal) ? 'selected' : '';
+                $html .= '<option value="'.esc($optVal).'" '.$sel.'>'.esc($optLbl).'</option>';
+            }
+            $html .= '</select>';
+        }
+        // 3. TIPE AUTO JUDGMENT (Ceklis ✔ / Silang ✖ Otomatis)
+        elseif ($leaf['tipe_input'] === 'auto_judgment') {
+            $targetEval = !empty($leaf['target_evaluasi']) ? $leaf['target_evaluasi'] : '*';
+            $dispVal = ($val === '✔' || $val === 'OK') ? '✔' : (($val === '✖' || $val === 'NG') ? '✖' : ($val ?: ''));
+            $bgCol = ($dispVal === '✔') ? '#d1e7dd' : (($dispVal === '✖') ? '#f8d7da' : '#f8f9fa');
+            $txtCol = ($dispVal === '✔') ? '#0f5132' : (($dispVal === '✖') ? '#842029' : '#6c757d');
+            $borderCol = ($dispVal === '✔') ? '#badbcc' : (($dispVal === '✖') ? '#f5c2c7' : '#ced4da');
+            $html .= '<input type="text" class="form-control text-center fw-bold dyn-input-el dyn-auto-judgment" '
+                   . 'id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($dispVal).'" '
+                   . 'data-target-eval="'.esc($targetEval).'" readonly '
+                   . 'style="min-width: 80px; font-size: 1.15rem; background-color: '.$bgCol.'; color: '.$txtCol.'; border-color: '.$borderCol.'; cursor: not-allowed;" '.$exclAttr.'>';
+        }
+        // 4. TIPE WAKTU (TIME)
+        elseif ($leaf['tipe_input'] === 'time') {
+            $html .= '<input type="time" class="form-control text-center dyn-input-el" style="min-width: 105px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$exclAttr.'>';
+        }
+        // 5. TIPE TANGGAL (DATE)
+        elseif ($leaf['tipe_input'] === 'date') {
+            $html .= '<input type="date" class="form-control text-center dyn-input-el" style="min-width: 130px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$exclAttr.'>';
+        }
+        // 6. TIPE TEXTAREA
         elseif ($leaf['tipe_input'] === 'textarea') {
             $html .= '<textarea class="form-control dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" rows="4" style="min-width: 160px; '.$roStyle.'" '.$roAttr.' '.$exclAttr.'>'.esc($val).'</textarea>';
         }
-        // 3. TIPE ANGKA
+        // 7. TIPE ANGKA (NUMBER)
         elseif ($leaf['tipe_input'] === 'number') {
             if (!empty($units)) {
                 $parsed = opSplitValUnit($val);
@@ -175,9 +220,9 @@ if (!function_exists('opRenderActiveInput')) {
 
                 $html .= '<div class="input-group" style="min-width: 165px;">';
                 $html .= '<input type="hidden" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'">';
-                $html .= '<input type="number" step="any" class="form-control text-center dyn-input-el dyn-unit-val" '
+                $html .= '<input type="number" step="'.esc($stepVal).'" class="form-control text-center dyn-input-el dyn-unit-val" '
                        . 'id="'.esc($colDb).'_val" data-target-col="'.esc($colDb).'" value="'.esc($numVal).'" '
-                       . 'style="'.$roStyle.'" '.$roAttr.' '.$exclAttr.' '.$dynStdAttr.'>';
+                       . 'style="'.$roStyle.'" '.$roAttr.' '.$exclAttr.' '.$dynStdAttr.' '.$rgAttr.'>';
                 $html .= '<select class="form-select dyn-unit-sel" id="'.esc($colDb).'_unit" data-target-col="'.esc($colDb).'" style="max-width: 88px; padding-left: 6px; padding-right: 20px;">';
                 foreach ($units as $u) {
                     $uName = $u['unit'] ?? '';
@@ -190,25 +235,42 @@ if (!function_exists('opRenderActiveInput')) {
             } else {
                 $dataMinAttr = ($min !== null) ? 'data-min="'.$min.'"' : '';
                 $dataMaxAttr = ($max !== null) ? 'data-max="'.$max.'"' : '';
+                $origMinAttr = ($min !== null) ? 'data-orig-min="'.$min.'"' : '';
+                $origMaxAttr = ($max !== null) ? 'data-orig-max="'.$max.'"' : '';
+                $dataColAttr = $colHeaderName ? 'data-col-name="'.esc($colHeaderName).'"' : '';
+                $dataPosAttr = !empty($leaf['posisi_grid']) ? 'data-grid-pos="'.esc($leaf['posisi_grid']).'"' : '';
+                $dataParamAttr = !empty($leaf['nama_parameter']) ? 'data-param-name="'.esc($leaf['nama_parameter']).'"' : '';
 
                 $legacyEvents = '';
                 if ($kategori_form === 'production' && ($colDb === 'par013' || $colDb === 'par014')) {
                     $legacyEvents = 'if(typeof quantityChange1===\'function\') quantityChange1();';
                 }
 
-                $html .= '<input type="number" step="any" class="form-control text-center dyn-input-el dyn-number-input" '
+                $html .= '<input type="number" step="'.esc($stepVal).'" class="form-control text-center dyn-input-el dyn-number-input" '
                        . 'style="min-width: 95px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '
-                       . $dataMinAttr . ' ' . $dataMaxAttr . ' ' . $exclAttr . ' ' . $dynStdAttr . ' ' . $formulaAttr . ' ' . $roAttr
+                       . $dataMinAttr . ' ' . $dataMaxAttr . ' ' . $origMinAttr . ' ' . $origMaxAttr . ' ' . $dataColAttr . ' ' . $dataPosAttr . ' ' . $dataParamAttr . ' '
+                       . $exclAttr . ' ' . $dynStdAttr . ' ' . $formulaAttr . ' ' . $rgAttr . ' ' . $roAttr
                        . ($legacyEvents ? ' oninput="'.$legacyEvents.'" onchange="'.$legacyEvents.'"' : '') . '>';
 
-                if ($min !== null || $max !== null) {
+                if (!empty($rgJson)) {
+                    $decodedRg = json_decode($rgJson, true);
+                    if (is_array($decodedRg)) {
+                        $rgParts = [];
+                        foreach ($decodedRg as $dr) {
+                            $rgParts[] = ($dr['min'] ?? '') . ' ~ ' . ($dr['max'] ?? '');
+                        }
+                        $html .= '<small class="dyn-std-label text-muted d-block mt-1" style="font-size:10px;">Std: ' . implode(' / ', $rgParts) . '</small>';
+                    }
+                } elseif ($min !== null || $max !== null) {
                     $minLbl = ($min !== null) ? $min : '-∞';
                     $maxLbl = ($max !== null) ? $max : '∞';
-                    $html .= '<small class="text-muted d-block mt-1" style="font-size:10px;">Std: '.$minLbl.' ~ '.$maxLbl.'</small>';
+                    $html .= '<small class="dyn-std-label text-muted d-block mt-1" style="font-size:10px;">Std: '.$minLbl.' ~ '.$maxLbl.'</small>';
+                } else {
+                    $html .= '<small class="dyn-std-label text-muted d-block mt-1" style="font-size:10px;"></small>';
                 }
             }
         }
-        // 4. TIPE TEKS BEBAS
+        // 8. TIPE TEKS BEBAS
         else {
             $html .= '<input type="text" class="form-control dyn-input-el" style="min-width: 110px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$exclAttr.'>';
         }
@@ -307,44 +369,36 @@ if (!empty($treeParams)) {
     opCollectTreeMeta($treeParams, $exclusiveMap, $dynamicStdList, $dynamicStdTargetMap);
 }
 
-// 2. Hitung cnt-proses otomatis untuk Foregoing & Startup Mendatar
+// 2. Hitung cnt-proses otomatis untuk Foregoing, Startup Mendatar, & Multi-Table Production
 $cntProses = 1;
-$gridRowNames = [];
-$firstGridLeafIdx = null;
-$headerMaxDepth = 1;
-$headerRows = [];
-$headerLeaves = [];
+$allGridRowNames = [];
 $hasSuffixCols = false;
-$gridHeaderLabel = 'Sample / Label';
 
 if ($kategori_form !== 'startup' && !empty($treeParams)) {
-    $headerMaxDepth = 0;
     foreach ($treeParams as $node) {
-        $d = opGetSubtreeDepth($node, true);
-        if ($d > $headerMaxDepth) $headerMaxDepth = $d;
-    }
-    $headerMaxDepth = max(1, $headerMaxDepth);
-    opBuildHorizontalHeaders($treeParams, 0, $headerRows, $headerLeaves, $headerMaxDepth);
-    ksort($headerRows);
-
-    foreach ($headerLeaves as $hIdx => $hLeaf) {
-        if (!empty($hLeaf['children']) && !empty($hLeaf['children'][0]['posisi_grid'])) {
-            if ($firstGridLeafIdx === null) $firstGridLeafIdx = $hIdx;
-            foreach ($hLeaf['children'] as $gridChild) {
-                if (!empty($gridChild['standar_nilai'])) {
-                    $gridHeaderLabel = $gridChild['standar_nilai'];
-                }
-                if (!empty($gridChild['posisi_grid']) && !in_array($gridChild['posisi_grid'], $gridRowNames)) {
-                    $gridRowNames[] = $gridChild['posisi_grid'];
-                }
-                if (!empty($gridChild['kolom_db']) && preg_match('/^par\d+[a-z]$/i', $gridChild['kolom_db'])) {
-                    $hasSuffixCols = true;
+        $checkQueue = [$node];
+        while (!empty($checkQueue)) {
+            $curr = array_shift($checkQueue);
+            if (!empty($curr['children'])) {
+                if (!empty($curr['children'][0]['posisi_grid'])) {
+                    foreach ($curr['children'] as $gridChild) {
+                        if (!empty($gridChild['posisi_grid']) && !in_array($gridChild['posisi_grid'], $allGridRowNames)) {
+                            $allGridRowNames[] = $gridChild['posisi_grid'];
+                        }
+                        if (!empty($gridChild['kolom_db']) && preg_match('/^par\d+[a-z]$/i', $gridChild['kolom_db'])) {
+                            $hasSuffixCols = true;
+                        }
+                    }
+                } else {
+                    foreach ($curr['children'] as $ch) {
+                        $checkQueue[] = $ch;
+                    }
                 }
             }
         }
     }
-    if (!empty($gridRowNames) && $hasSuffixCols) {
-        $cntProses = count($gridRowNames);
+    if (!empty($allGridRowNames) && $hasSuffixCols) {
+        $cntProses = count($allGridRowNames);
     }
 }
 ?>
@@ -442,84 +496,134 @@ if ($kategori_form !== 'startup' && !empty($treeParams)) {
         <!-- TABEL INPUT OPERATOR: STARTUP MENDATAR, PRODUCTION, & FOREGOING           -->
         <!-- ========================================================================= -->
         <?php
-        $totalTableCols = count($headerLeaves) + (!empty($gridRowNames) ? 1 : 0);
+        $tablesMap = [];
+        foreach ($treeParams as $node) {
+            $tIdx = !empty($node['table_index']) ? (int)$node['table_index'] : 1;
+            $tablesMap[$tIdx][] = $node;
+        }
+        ksort($tablesMap);
+        $isMultiTable = (count($tablesMap) > 1);
         ?>
-        <table class="table table-striped-columns table-bordered align-middle text-center" style="white-space: nowrap;">
-            <thead align="center">
-                <tr>
-                    <th colspan="<?= max(1, $totalTableCols) ?>" scope="col">
-                        <?= strtoupper(esc($process_name ?? $process_code)) ?>
-                    </th>
-                </tr>
-                <?php foreach ($headerRows as $level => $row): ?>
-                    <tr>
-                        <?php
-                        $runningCol = 0;
-                        $labelInserted = false;
-                        foreach ($row as $col):
-                            if (!empty($gridRowNames) && $level === 0 && !$labelInserted && $runningCol === $firstGridLeafIdx):
-                                $labelInserted = true;
-                        ?>
-                                <th class="input-form align-middle" rowspan="<?= $headerMaxDepth ?>"><?= esc($gridHeaderLabel) ?></th>
-                        <?php
-                            endif;
-                        ?>
-                            <th class="input-form align-middle" colspan="<?= $col['colspan'] ?>" rowspan="<?= $col['rowspan'] ?>">
-                                <?= opRenderHeaderTitle($col['node_data']) ?>
-                                <?php if (!empty($col['node_data']['standar_nilai']) && ($col['node_data']['tipe_input'] ?? '') !== 'header_only'): ?>
-                                    <br><small class="fw-normal"><?= esc($col['node_data']['standar_nilai']) ?></small>
-                                <?php endif; ?>
-                            </th>
-                        <?php
-                            $runningCol += $col['colspan'];
-                        endforeach;
-                        ?>
-                    </tr>
-                <?php endforeach; ?>
-            </thead>
-            <tbody>
-                <?php if (empty($gridRowNames)): ?>
-                    <tr>
-                        <?php foreach ($headerLeaves as $leaf): ?>
-                            <td>
-                                <?= opRenderActiveInput($leaf, $kategori_form, $alldata ?? null, 0, $exclusiveMap, $dynamicStdTargetMap) ?>
-                            </td>
-                        <?php endforeach; ?>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($gridRowNames as $rIdx => $rowName): ?>
-                        <tr data-grid-row="<?= esc($rowName) ?>">
-                            <?php foreach ($headerLeaves as $hIdx => $hLeaf): ?>
-                                <?php if ($hIdx === $firstGridLeafIdx): ?>
-                                    <th scope="row" class="align-middle"><?= esc($rowName) ?></th>
-                                <?php endif; ?>
 
-                                <?php if (empty($hLeaf['children'])): ?>
-                                    <?php if ($rIdx === 0): ?>
-                                        <td rowspan="<?= count($gridRowNames) ?>" class="align-middle">
-                                            <?= opRenderActiveInput($hLeaf, $kategori_form, $alldata ?? null, 0, $exclusiveMap, $dynamicStdTargetMap) ?>
-                                        </td>
+        <?php foreach ($tablesMap as $tIdx => $currentTree): ?>
+            <?php
+            $headerMaxDepth = 0;
+            foreach ($currentTree as $node) {
+                $d = opGetSubtreeDepth($node, true);
+                if ($d > $headerMaxDepth) $headerMaxDepth = $d;
+            }
+            $headerMaxDepth = max(1, $headerMaxDepth);
+
+            $headerRows = [];
+            $headerLeaves = [];
+            opBuildHorizontalHeaders($currentTree, 0, $headerRows, $headerLeaves, $headerMaxDepth);
+            ksort($headerRows);
+
+            $tableGridRowNames = [];
+            $firstGridLeafIdx = null;
+            $gridHeaderLabel = 'Sample / Label';
+            foreach ($headerLeaves as $hIdx => $hLeaf) {
+                if (!empty($hLeaf['children']) && !empty($hLeaf['children'][0]['posisi_grid'])) {
+                    if ($firstGridLeafIdx === null) $firstGridLeafIdx = $hIdx;
+                    foreach ($hLeaf['children'] as $gridChild) {
+                        if (!empty($gridChild['standar_nilai'])) {
+                            $gridHeaderLabel = $gridChild['standar_nilai'];
+                        }
+                        if (!empty($gridChild['posisi_grid']) && !in_array($gridChild['posisi_grid'], $tableGridRowNames)) {
+                            $tableGridRowNames[] = $gridChild['posisi_grid'];
+                        }
+                    }
+                }
+            }
+            $totalTableCols = count($headerLeaves) + (!empty($tableGridRowNames) ? 1 : 0);
+            ?>
+
+            <table class="table table-striped-columns table-bordered align-middle text-center mb-4" style="white-space: nowrap;">
+                <thead align="center">
+                    <?php if ($tIdx === 1): ?>
+                        <tr>
+                            <th colspan="<?= max(1, $totalTableCols) ?>" scope="col">
+                                <?= strtoupper(esc($process_name ?? $process_code)) ?>
+                            </th>
+                        </tr>
+                    <?php endif; ?>
+                    <?php foreach ($headerRows as $level => $row): ?>
+                        <tr>
+                            <?php
+                            $runningCol = 0;
+                            $labelInserted = false;
+                            foreach ($row as $col):
+                                if (!empty($tableGridRowNames) && $level === 0 && !$labelInserted && $runningCol === $firstGridLeafIdx):
+                                    $labelInserted = true;
+                            ?>
+                                    <th class="input-form align-middle" rowspan="<?= $headerMaxDepth ?>"><?= esc($gridHeaderLabel) ?></th>
+                            <?php
+                                endif;
+                            ?>
+                                <th class="input-form align-middle" colspan="<?= $col['colspan'] ?>" rowspan="<?= $col['rowspan'] ?>">
+                                    <?= opRenderHeaderTitle($col['node_data']) ?>
+                                    <?php if (!empty($col['node_data']['standar_nilai']) && ($col['node_data']['tipe_input'] ?? '') !== 'header_only'): ?>
+                                        <br><small class="fw-normal"><?= esc($col['node_data']['standar_nilai']) ?></small>
                                     <?php endif; ?>
-                                <?php else: ?>
-                                    <?php
-                                    $matchedCell = null;
-                                    foreach ($hLeaf['children'] as $gChild) {
-                                        if ($gChild['posisi_grid'] === $rowName) {
-                                            $matchedCell = $gChild;
-                                            break;
-                                        }
-                                    }
-                                    ?>
-                                    <td>
-                                        <?= $matchedCell ? opRenderActiveInput($matchedCell, $kategori_form, $alldata ?? null, $rIdx, $exclusiveMap, $dynamicStdTargetMap) : '-' ?>
-                                    </td>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
+                                </th>
+                            <?php
+                                $runningCol += $col['colspan'];
+                            endforeach;
+                            ?>
                         </tr>
                     <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php if (empty($tableGridRowNames)): ?>
+                        <tr>
+                            <?php foreach ($headerLeaves as $leaf): ?>
+                                <td>
+                                    <?= opRenderActiveInput($leaf, $kategori_form, $alldata ?? null, 0, $exclusiveMap, $dynamicStdTargetMap, $leaf['nama_parameter'] ?? '') ?>
+                                </td>
+                            <?php endforeach; ?>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($tableGridRowNames as $rIdx => $rowName): ?>
+                            <tr data-grid-row="<?= esc($rowName) ?>">
+                                <?php foreach ($headerLeaves as $hIdx => $hLeaf): ?>
+                                    <?php if ($hIdx === $firstGridLeafIdx): ?>
+                                        <th scope="row" class="align-middle"><?= esc($rowName) ?></th>
+                                    <?php endif; ?>
+
+                                    <?php if (empty($hLeaf['children'])): ?>
+                                        <?php if ($rIdx === 0): ?>
+                                            <td rowspan="<?= count($tableGridRowNames) ?>" class="align-middle">
+                                                <?= opRenderActiveInput($hLeaf, $kategori_form, $alldata ?? null, 0, $exclusiveMap, $dynamicStdTargetMap, $hLeaf['nama_parameter'] ?? '') ?>
+                                            </td>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <?php
+                                        $matchedCell = null;
+                                        foreach ($hLeaf['children'] as $gChild) {
+                                            if ($gChild['posisi_grid'] === $rowName) {
+                                                $matchedCell = $gChild;
+                                                break;
+                                            }
+                                        }
+                                        ?>
+                                        <td>
+                                            <?= $matchedCell ? opRenderActiveInput($matchedCell, $kategori_form, $alldata ?? null, $rIdx, $exclusiveMap, $dynamicStdTargetMap, $hLeaf['nama_parameter'] ?? '') : '-' ?>
+                                        </td>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
+    <?php if (!empty($revision['catatan_sop'])): ?>
+        <div class="note mt-3 p-3 bg-light border rounded">
+            <h6 class="fw-bold mb-2"><i class="fas fa-info-circle text-primary me-1"></i> Catatan SOP Pemeriksaan:</h6>
+            <div class="small text-secondary" style="white-space: pre-line; line-height: 1.6;"><?= esc($revision['catatan_sop']) ?></div>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -528,25 +632,69 @@ if ($kategori_form !== 'startup' && !empty($treeParams)) {
     let container = document.getElementById('<?= esc($process_code) ?>');
     if (!container) return;
 
-    // 1. FUNGSI VALIDASI RENTANG MIN / MAX (HANYA DIPANGGIL SAAT USER SELESAI INPUT / ONCHANGE)
+    // 1. FUNGSI VALIDASI RENTANG MIN / MAX & RENTANG GANDA (changeRange / changeRange2)
     function checkInputMinMax(el, triggerAlert = false) {
-        if (!el || el.value === '') {
+        if (!el || el.value === '' || el.value === '-' || el.disabled) {
+            el.dataset.hasError = "0";
             el.style.backgroundColor = el.hasAttribute('readonly') ? '#e9ecef' : '';
+            if (typeof syncErrorCount === 'function') syncErrorCount();
             return;
         }
         let val = parseFloat(el.value);
+        let rentangGandaAttr = el.getAttribute('data-rentang-ganda');
+
+        // Validasi Rentang Ganda (Dual Range)
+        if (rentangGandaAttr && rentangGandaAttr.trim() !== '') {
+            let parts = [];
+            try {
+                if (rentangGandaAttr.startsWith('[') || rentangGandaAttr.startsWith('{')) {
+                    let parsed = JSON.parse(rentangGandaAttr);
+                    if (Array.isArray(parsed) && parsed.length >= 2) {
+                        parts = [
+                            parseFloat(parsed[0].min), parseFloat(parsed[0].max),
+                            parseFloat(parsed[1].min), parseFloat(parsed[1].max)
+                        ];
+                    }
+                } else {
+                    parts = rentangGandaAttr.split(',').map(s => parseFloat(s.trim()));
+                }
+            } catch(e) {}
+
+            if (parts.length === 4 && !parts.some(isNaN)) {
+                let [min1, max1, min2, max2] = parts;
+                let isValid = (!isNaN(val) && ((val >= min1 && val <= max1) || (val >= min2 && val <= max2)));
+                if (!isValid) {
+                    el.dataset.hasError = "1";
+                    el.style.backgroundColor = '#ffcccc';
+                    if (triggerAlert && typeof changeRange2 === 'function' && el.id) {
+                        changeRange2(el.id, min1, max1, min2, max2);
+                    }
+                } else {
+                    el.dataset.hasError = "0";
+                    el.style.backgroundColor = el.hasAttribute('readonly') ? '#e9ecef' : '';
+                }
+                if (typeof syncErrorCount === 'function') syncErrorCount();
+                return;
+            }
+        }
+
+        // Validasi Rentang Tunggal Standar
         let minAttr = el.getAttribute('data-min');
         let maxAttr = el.getAttribute('data-max');
         let min = (minAttr !== null && minAttr !== '') ? parseFloat(minAttr) : -999999999;
         let max = (maxAttr !== null && maxAttr !== '') ? parseFloat(maxAttr) : 999999999;
 
         if (isNaN(val) || val < min || val > max) {
+            el.dataset.hasError = "1";
             el.style.backgroundColor = '#ffcccc';
         } else {
+            el.dataset.hasError = "0";
             el.style.backgroundColor = el.hasAttribute('readonly') ? '#e9ecef' : '';
         }
 
-        // Hanya panggil changeRange (yang memunculkan pop-up alert) jika user sudah selesai mengetik (onChange)
+        if (typeof syncErrorCount === 'function') syncErrorCount();
+
+        // Hanya panggil changeRange jika user selesai ketik (change)
         if (triggerAlert && typeof changeRange === 'function' && el.id && (min > -999999999 || max < 999999999)) {
             changeRange(el.id, min, max);
         }
@@ -667,11 +815,102 @@ if ($kategori_form !== 'startup' && !empty($treeParams)) {
                     checkInputMinMax(inp, false);
                 }
             });
+            evaluateAutoJudgments();
         }
 
         sel.addEventListener('change', updateStdGroup);
         if (sel.value !== '') updateStdGroup();
     });
+
+    // 6. FUNGSI EVALUASI JUDGMENT OTOMATIS (✔ OK / ✖ NG)
+    function evaluateAutoJudgments() {
+        let autoJudgInputs = container.querySelectorAll('.dyn-auto-judgment');
+        if (autoJudgInputs.length === 0) return;
+
+        let isStandby = (document.getElementById('is-standby') && document.getElementById('is-standby').checked);
+
+        autoJudgInputs.forEach(function(judgInput) {
+            if (isStandby) {
+                judgInput.value = '-';
+                judgInput.style.backgroundColor = '#e9ecef';
+                judgInput.style.color = '#495057';
+                judgInput.style.borderColor = '#ced4da';
+                return;
+            }
+
+            let targetFilter = (judgInput.getAttribute('data-target-eval') || '*').trim();
+            let targetCols = (targetFilter === '*' || targetFilter === '') ? null : targetFilter.split(',').map(s => s.trim().toLowerCase());
+
+            let hasNg = false;
+            let allFilled = true;
+
+            let inputsToEvaluate = [];
+            container.querySelectorAll('.dyn-input-el').forEach(function(inp) {
+                if (inp.classList.contains('dyn-auto-judgment')) return;
+                let colName = (inp.getAttribute('name') || inp.id || '').toLowerCase();
+                if (colName.endsWith('_unit')) return;
+                if (targetCols && !targetCols.includes(colName)) return;
+                inputsToEvaluate.push(inp);
+            });
+
+            let exclusiveGroups = {};
+            inputsToEvaluate.forEach(function(inp) {
+                let grp = inp.getAttribute('data-exclusive-group');
+                if (grp) {
+                    if (!exclusiveGroups[grp]) exclusiveGroups[grp] = [];
+                    exclusiveGroups[grp].push(inp);
+                }
+            });
+
+            inputsToEvaluate.forEach(function(inp) {
+                if (inp.disabled) return;
+                let val = (inp.value || '').trim();
+
+                // Cek flag error atau styling merah
+                if (inp.dataset.hasError === '1' || inp.style.backgroundColor === 'red' || inp.style.backgroundColor === 'rgb(255, 204, 204)' || inp.style.backgroundColor === '#ffcccc') {
+                    hasNg = true;
+                }
+
+                // Cek nilai teks/dropdown NG
+                if (val === '✖' || val === 'X' || val.toUpperCase().indexOf('NG') !== -1) {
+                    hasNg = true;
+                }
+
+                // Cek kelengkapan input umum (jika bukan anggota grup eksklusif)
+                if (!inp.getAttribute('data-exclusive-group')) {
+                    if (val === '' && !inp.hasAttribute('readonly')) {
+                        allFilled = false;
+                    }
+                }
+            });
+
+            // Cek kelengkapan grup eksklusif (minimal salah satu terisi)
+            Object.keys(exclusiveGroups).forEach(function(grp) {
+                let items = exclusiveGroups[grp];
+                let anyFilled = items.some(el => !el.disabled && el.value.trim() !== '' && el.value.trim() !== '-');
+                if (!anyFilled) {
+                    allFilled = false;
+                }
+            });
+
+            if (hasNg) {
+                judgInput.value = '✖';
+                judgInput.style.backgroundColor = '#f8d7da';
+                judgInput.style.color = '#721c24';
+                judgInput.style.borderColor = '#f5c6cb';
+            } else if (allFilled && inputsToEvaluate.length > 0) {
+                judgInput.value = '✔';
+                judgInput.style.backgroundColor = '#d1e7dd';
+                judgInput.style.color = '#0f5132';
+                judgInput.style.borderColor = '#badbcc';
+            } else {
+                judgInput.value = '';
+                judgInput.style.backgroundColor = '#f8f9fa';
+                judgInput.style.color = '#6c757d';
+                judgInput.style.borderColor = '#ced4da';
+            }
+        });
+    }
 
     // Pasang Event Listener:
     // - Saat mengetik ('input'): HANYA gabung teks / hitung rumus / kunci pasangan (TANPA alert validasi)
@@ -681,37 +920,52 @@ if ($kategori_form !== 'startup' && !empty($treeParams)) {
         el.addEventListener('input', function() {
             syncUnitInputGroup(colId, false);
             enforceExclusiveGroups();
+            evaluateAutoJudgments();
         });
         el.addEventListener('change', function() {
             syncUnitInputGroup(colId, true);
             enforceExclusiveGroups();
+            evaluateAutoJudgments();
         });
         syncUnitInputGroup(colId, false);
     });
 
     container.querySelectorAll('.dyn-number-input').forEach(function(el) {
         el.addEventListener('input', function() {
-            // Biarkan user menyelesaikan ketikannya dulu tanpa alert
             if (el.value === '' && !el.hasAttribute('readonly')) {
                 el.style.backgroundColor = '';
+                el.dataset.hasError = '0';
             }
             enforceExclusiveGroups();
             recalculateFormulas();
+            evaluateAutoJudgments();
         });
         el.addEventListener('change', function() {
-            // Setelah user selesai ketik (pindah kolom / Enter), baru validasi batas Min/Max
             checkInputMinMax(el, true);
             enforceExclusiveGroups();
             recalculateFormulas();
+            evaluateAutoJudgments();
         });
     });
 
     container.querySelectorAll('.dyn-input-el:not(.dyn-number-input):not(.dyn-unit-val)').forEach(function(el) {
-        el.addEventListener('change', enforceExclusiveGroups);
-        el.addEventListener('input', enforceExclusiveGroups);
+        el.addEventListener('change', function() {
+            enforceExclusiveGroups();
+            evaluateAutoJudgments();
+        });
+        el.addEventListener('input', function() {
+            enforceExclusiveGroups();
+            evaluateAutoJudgments();
+        });
     });
+
+    let standbyEl = document.getElementById('is-standby');
+    if (standbyEl) {
+        standbyEl.addEventListener('change', evaluateAutoJudgments);
+    }
 
     enforceExclusiveGroups();
     recalculateFormulas();
+    evaluateAutoJudgments();
 })();
 </script>

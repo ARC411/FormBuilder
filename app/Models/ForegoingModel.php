@@ -194,17 +194,12 @@ class ForegoingModel extends Model
         $activeRevisi = $data['revisi'] ?? ($latestRevRow['revisi'] ?? ($prosesMaster['revisi'] ?? '0'));
 
         if ($prosesMaster) {
-<<<<<<< HEAD
-            $data['par041'] = (string)$activeRevisi;
-            $data['par042'] = $prosesMaster['berlaku'];
-=======
             if (!isset($data['par041']) || $data['par041'] === null || $data['par041'] === '') {
                 $data['par041'] = $prosesMaster['revisi'];
             }
             if (!isset($data['par042']) || $data['par042'] === null || $data['par042'] === '') {
                 $data['par042'] = $prosesMaster['berlaku'];
             }
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             $data['docno']  = $prosesMaster['docno'];
         }
         $data['revisi'] = (string)$activeRevisi;
@@ -306,12 +301,7 @@ class ForegoingModel extends Model
                   . $modelCondition
                   . $lotnoCondition
                   . $machnoCondition
-<<<<<<< HEAD
-                  . $revisiCondition
-                  . " ORDER BY s.created_at ASC, s.number ASC, s.par000 ASC";
-=======
                   . " ORDER BY COALESCE(s.work_date, DATE(s.created_at)) ASC, s.created_at ASC, s.number ASC, s.par000 ASC";
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
         $rows = $this->query($query)->getResultArray();
         return $this->attachOperatorNames($rows);

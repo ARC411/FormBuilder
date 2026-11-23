@@ -79,62 +79,29 @@ class Startup extends BaseController
             'title' => 'Input | Startup Management',
             'validation' => \Config\Services::validation()
         ];
-<<<<<<< HEAD
-
-        if (empty($_GET['device']) || empty($_GET['process'])) {
-            return "";
-        }
-
-        $folder = $this->getFolderType($_GET['process']);
-
-        try {
-            return view('/layout/' . $_GET['device'] . "/input/" . $folder . "/" . $_GET['process'], $data);
-        } catch (\CodeIgniter\View\Exceptions\ViewException $e) {
-            return "<div class='alert alert-danger'>Maaf, form input belum tersedia.</div>";
-=======
-        
         $device  = $this->request->getGet('device') ?? ($_GET['device'] ?? '');
         $process = $this->request->getGet('process') ?? ($_GET['process'] ?? '');
 
-        if(empty($device) || empty($process)){
+        if (empty($device) || empty($process)) {
             return "";
         }
 
         $folder = $this->getFolderType($process);
-        
+
         try {
-            return view('/layout/'.$device."/input/".$folder."/".$process,$data);
+            return view('/layout/' . $device . "/input/" . $folder . "/" . $process, $data);
         } catch (\Throwable $e) {
-            // Kita keluarkan pesan exceptionnya agar tidak jadi Error 500 (blank) di frontend
             return "<div class='alert alert-danger shadow-sm' style='border-left:5px solid #dc3545;'><b>Form Belum Tersedia / Error:</b><br> " . $e->getMessage() . "</div>";
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         }
-    }
+        }
 
     public function formEdit()
     {
-<<<<<<< HEAD
-        $number  = $this->request->getGet('number');
+        $number  = $this->request->getGet('number') ?? ($_GET['number'] ?? '');
         $alldata = $this->StartupModel->getByNumber($number);
 
         if (empty($alldata)) {
             return "Data tidak ditemukan.";
-=======
-        $number = $this->request->getGet('number') ?? ($_GET['number'] ?? '');
-        $data = [
-            'title' => 'History | Startup Management',
-            'alldata' => $this->StartupModel->getByNumber($number),
-            'number' => $number
-        ];
-        
-        if(empty($data['alldata'])) return "Data tidak ditemukan.";
-        
-        $folder = $this->getFolderType($data['alldata'][0]['process']);
-        try {
-            return view("/layout/".$data['alldata'][0]['device']."/input/".$folder."/".$data['alldata'][0]['process'],$data);
-        } catch (\Throwable $e) {
-            return "<div class='alert alert-danger'>Maaf, form edit belum tersedia.</div>";
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         }
 
         $process   = $alldata[0]['process'];
@@ -151,11 +118,15 @@ class Startup extends BaseController
         }
 
         $folder = $this->getFolderType($process);
-        return view("/layout/" . $alldata[0]['device'] . "/input/" . $folder . "/" . $process, [
-            'title'   => 'History | Startup Management',
-            'alldata' => $alldata,
-            'number'  => $number
-        ]);
+        try {
+            return view("/layout/" . $alldata[0]['device'] . "/input/" . $folder . "/" . $process, [
+                'title'   => 'History | Startup Management',
+                'alldata' => $alldata,
+                'number'  => $number
+            ]);
+        } catch (\Throwable $e) {
+            return "<div class='alert alert-danger'>Maaf, form edit belum tersedia.</div>";
+        }
     }
 
     public function edit($number)

@@ -83,6 +83,16 @@ if (!function_exists('histFormatCellValue')) {
         $rawVal = isset($row[$colDb]) ? trim((string)$row[$colDb]) : '';
         if ($rawVal === '') return '-';
 
+        // Format Tampilan Auto Judgment di History
+        if (($leaf['tipe_input'] ?? '') === 'auto_judgment') {
+            if ($rawVal === '✔' || $rawVal === 'OK') {
+                return $isExport ? 'OK (✔)' : '<span class="badge bg-success text-white" style="font-size: 0.95rem;">✔</span>';
+            } elseif ($rawVal === '✖' || $rawVal === 'NG' || $rawVal === 'X') {
+                return $isExport ? 'NG (✖)' : '<span class="badge bg-danger text-white" style="font-size: 0.95rem;">✖</span>';
+            }
+            return esc($rawVal);
+        }
+
         if (!$isExport && ($leaf['tipe_input'] ?? '') === 'number' && $rawVal !== '-') {
             $min = ($leaf['batas_min'] !== null && $leaf['batas_min'] !== '') ? (float)$leaf['batas_min'] : null;
             $max = ($leaf['batas_max'] !== null && $leaf['batas_max'] !== '') ? (float)$leaf['batas_max'] : null;
@@ -106,7 +116,36 @@ if (!function_exists('histFormatCellValue')) {
 
             if (is_numeric($numPart)) {
                 $fVal = (float)$numPart;
-                if (($min !== null && $fVal < $min) || ($max !== null && $fVal > $max)) {
+                $isOutOfRange = false;
+
+                // Cek jika ada rentang ganda
+                if (!empty($leaf['rentang_ganda'])) {
+                    $rgParts = [];
+                    try {
+                        $rgRaw = $leaf['rentang_ganda'];
+                        if (is_string($rgRaw) && (str_starts_with($rgRaw, '[') || str_starts_with($rgRaw, '{'))) {
+                            $parsedRg = json_decode($rgRaw, true);
+                            if (is_array($parsedRg) && count($parsedRg) >= 2) {
+                                $rgParts = [
+                                    (float)$parsedRg[0]['min'], (float)$parsedRg[0]['max'],
+                                    (float)$parsedRg[1]['min'], (float)$parsedRg[1]['max']
+                                ];
+                            }
+                        } elseif (is_string($rgRaw)) {
+                            $rgParts = array_map('floatval', explode(',', $rgRaw));
+                        }
+                    } catch(\Throwable $e) {}
+
+                    if (count($rgParts) === 4) {
+                        if (!(($fVal >= $rgParts[0] && $fVal <= $rgParts[1]) || ($fVal >= $rgParts[2] && $fVal <= $rgParts[3]))) {
+                            $isOutOfRange = true;
+                        }
+                    }
+                } elseif (($min !== null && $fVal < $min) || ($max !== null && $fVal > $max)) {
+                    $isOutOfRange = true;
+                }
+
+                if ($isOutOfRange) {
                     return '<span style="color: #dc3545; font-weight: bold;">' . esc($rawVal) . '</span>';
                 }
             }
@@ -610,5 +649,12 @@ $lenData      = count($alldata ?? []);
                 <?php endif; ?>
             </tbody>
         </table>
+    <?php endif; ?>
+
+    <?php if (!empty($revision['catatan_sop'])): ?>
+        <div class="note mt-3 p-3 bg-light border rounded">
+            <h6 class="fw-bold mb-2"><i class="fas fa-info-circle text-primary me-1"></i> Catatan SOP Pemeriksaan:</h6>
+            <div class="small text-secondary" style="white-space: pre-line; line-height: 1.6;"><?= esc($revision['catatan_sop']) ?></div>
+        </div>
     <?php endif; ?>
 </div>

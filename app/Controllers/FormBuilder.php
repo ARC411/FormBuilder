@@ -297,6 +297,10 @@ class FormBuilder extends BaseController
         $isExclusive    = !empty($node['is_exclusive']) ? 1 : 0;
         $standarDinamis = (!empty($node['standar_dinamis']) && is_array($node['standar_dinamis']))
             ? json_encode($node['standar_dinamis'], JSON_UNESCAPED_UNICODE) : null;
+        $opsiDropdown   = null;
+        $stepValue      = 'any';
+        $rentangGanda   = null;
+        $targetEvaluasi = null;
 
         if (!$hasChildren && ($node['jenis_elemen'] ?? 'input') === 'input' && !$isForegoingLeafColumn) {
             $tipeInput  = $node['tipe_input'] ?: 'text';
@@ -306,6 +310,10 @@ class FormBuilder extends BaseController
             if ($tipeInput === 'number') {
                 $batasMin = (isset($node['batas_min']) && $node['batas_min'] !== '') ? (float)$node['batas_min'] : null;
                 $batasMax = (isset($node['batas_max']) && $node['batas_max'] !== '') ? (float)$node['batas_max'] : null;
+                $stepValue = !empty($node['step_value']) ? trim($node['step_value']) : 'any';
+                if (!empty($node['rentang_ganda'])) {
+                    $rentangGanda = is_array($node['rentang_ganda']) ? json_encode($node['rentang_ganda'], JSON_UNESCAPED_UNICODE) : trim($node['rentang_ganda']);
+                }
                 if (!empty($node['satuan_opsi']) && is_array($node['satuan_opsi'])) {
                     $satuanOpsi = json_encode($node['satuan_opsi'], JSON_UNESCAPED_UNICODE);
                 }
@@ -313,6 +321,13 @@ class FormBuilder extends BaseController
                     $rumusOtomatis = json_encode($node['rumus_otomatis'], JSON_UNESCAPED_UNICODE);
                     $isReadonly = 1; // Kolom rumus otomatis wajib Read-Only
                 }
+            } elseif ($tipeInput === 'dropdown_custom') {
+                if (!empty($node['opsi_dropdown'])) {
+                    $opsiDropdown = is_array($node['opsi_dropdown']) ? json_encode($node['opsi_dropdown'], JSON_UNESCAPED_UNICODE) : trim($node['opsi_dropdown']);
+                }
+            } elseif ($tipeInput === 'auto_judgment') {
+                $targetEvaluasi = !empty($node['target_evaluasi']) ? trim($node['target_evaluasi']) : '*';
+                $isReadonly = 1;
             }
         }
 
@@ -322,9 +337,18 @@ class FormBuilder extends BaseController
             $urutan = $last ? ((int)$last['urutan'] + 1) : 1;
         }
 
+        $tableIndex = !empty($node['table_index']) ? (int)$node['table_index'] : 1;
+        if ($parentId && empty($node['table_index'])) {
+            $parentRow = $this->formParamModel->find($parentId);
+            if ($parentRow && !empty($parentRow['table_index'])) {
+                $tableIndex = (int)$parentRow['table_index'];
+            }
+        }
+
         $rowData = [
             'revision_id'     => $revisionId,
             'parent_id'       => $parentId ?: null,
+            'table_index'     => $tableIndex,
             'nama_parameter'  => trim((string)($node['nama_parameter'] ?? 'Parameter')),
             'kolom_db'        => $kolomDb,
             'tipe_input'      => $tipeInput,
@@ -335,6 +359,10 @@ class FormBuilder extends BaseController
             'is_exclusive'    => $isExclusive,
             'rumus_otomatis'  => $rumusOtomatis,
             'standar_dinamis' => $standarDinamis,
+            'opsi_dropdown'   => $opsiDropdown,
+            'step_value'      => $stepValue,
+            'rentang_ganda'   => $rentangGanda,
+            'target_evaluasi' => $targetEvaluasi,
             'standar_nilai'   => !empty($node['standar_nilai']) ? trim($node['standar_nilai']) : null,
             'urutan'          => $urutan,
         ];
@@ -370,6 +398,9 @@ class FormBuilder extends BaseController
             ->where('parent_id', $headerLeafId)
             ->orderBy('urutan', 'ASC')
             ->findAll();
+
+        $parentHeaderRow = $this->formParamModel->find($headerLeafId);
+        $headerTableIdx  = $parentHeaderRow['table_index'] ?? 1;
 
         $cellMap = [];
         $baseParPrefix = null;
@@ -411,6 +442,7 @@ class FormBuilder extends BaseController
                 $this->formParamModel->protect(false)->insert([
                     'revision_id'    => $revisionId,
                     'parent_id'      => $headerLeafId,
+                    'table_index'    => $headerTableIdx,
                     'nama_parameter' => $rLabel,
                     'kolom_db'       => $newColDb,
                     'tipe_input'     => $tipeInput,
@@ -430,6 +462,620 @@ class FormBuilder extends BaseController
     public function saveParameter()
     {
         return $this->saveTreeParameter();
+    }
+
+    public function saveSopNote()
+    {
+        $revisionId = (int)$this->request->getPost('revision_id');
+        $catatanSop = $this->request->getPost('catatan_sop');
+        $layoutMode = $this->request->getPost('layout_mode') ?: 'standard';
+
+        if (!$revisionId) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Revision ID tidak valid!']);
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        if (!$revRow) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Dokumen revisi tidak ditemukan!']);
+        }
+
+        $this->formRevModel->protect(false)->update($revisionId, [
+            'catatan_sop' => $catatanSop,
+            'layout_mode' => $layoutMode,
+        ]);
+
+        $this->catatLog(
+            'UPDATE CATATAN SOP & LAYOUT',
+            "Memperbarui Catatan SOP & Mode Layout pada Revisi " . ($revRow['revisi'] ?? '-'),
+            $revRow['process_code'] ?? ''
+        );
+
+        return $this->response->setJSON(['status' => 'success', 'message' => 'Pengaturan Catatan SOP & Mode Layout berhasil disimpan!']);
+    }
+
+    // --- FITUR TAMBAH & HAPUS TABEL BARU ---
+
+    public function addTable()
+    {
+        $revisionId = (int)$this->request->getPost('revision_id');
+        $tableName  = trim((string)$this->request->getPost('table_name'));
+        $layoutType = trim((string)$this->request->getPost('layout_type')) ?: 'horizontal';
+        $matrixRowsRaw = $this->request->getPost('matrix_rows');
+        $firstColName  = trim((string)$this->request->getPost('first_col_name'));
+        $initialParam  = trim((string)$this->request->getPost('initial_param_name'));
+        $initialTipe   = trim((string)$this->request->getPost('initial_tipe_input')) ?: 'number';
+
+        if (!$revisionId || $tableName === '') {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Nama tabel dan ID revisi wajib diisi!']);
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        if (!$revRow) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Dokumen revisi tidak ditemukan!']);
+        }
+
+        // Cari table_index maksimum saat ini
+        $allParams = $this->formParamModel->where('revision_id', $revisionId)->findAll();
+        $maxTableIdx = 0;
+        $maxUrutan   = 0;
+        foreach ($allParams as $p) {
+            $t = !empty($p['table_index']) ? (int)$p['table_index'] : 1;
+            if ($t > $maxTableIdx) $maxTableIdx = $t;
+            $u = (int)$p['urutan'];
+            if ($u > $maxUrutan) $maxUrutan = $u;
+        }
+        $newTableIdx = $maxTableIdx + 1;
+        $nextUrutan  = $maxUrutan + 1;
+
+        if ($layoutType === 'matrix') {
+            $matrixRows = [];
+            if (is_array($matrixRowsRaw)) {
+                $matrixRows = $matrixRowsRaw;
+            } elseif (is_string($matrixRowsRaw)) {
+                $decoded = json_decode($matrixRowsRaw, true);
+                if (is_array($decoded)) {
+                    $matrixRows = $decoded;
+                } else {
+                    $parts = explode(',', $matrixRowsRaw);
+                    foreach ($parts as $pt) {
+                        $pt = trim($pt);
+                        if ($pt !== '') $matrixRows[] = $pt;
+                    }
+                }
+            }
+            if (empty($matrixRows)) {
+                $matrixRows = ['Front 1', 'Front 2', 'Back 1', 'Back 2'];
+            }
+
+            // 1. Root Header Tabel
+            $this->formParamModel->protect(false)->insert([
+                'revision_id'    => $revisionId,
+                'parent_id'      => null,
+                'table_index'    => $newTableIdx,
+                'nama_parameter' => $tableName,
+                'urutan'         => $nextUrutan++,
+            ]);
+            $rootId = (int)$this->formParamModel->getInsertID();
+
+            // 2. Kolom Daun Header Pertama
+            $colName = $firstColName !== '' ? $firstColName : 'Result';
+            $this->formParamModel->protect(false)->insert([
+                'revision_id'    => $revisionId,
+                'parent_id'      => $rootId,
+                'table_index'    => $newTableIdx,
+                'nama_parameter' => $colName,
+                'urutan'         => $nextUrutan++,
+            ]);
+            $colId = (int)$this->formParamModel->getInsertID();
+
+            // 3. Sel Baris Matriks untuk Kolom Pertama
+            $basePar = $this->generateNextParCode($revisionId);
+            $suffixes = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+            foreach ($matrixRows as $rIdx => $rowName) {
+                $suf = $suffixes[$rIdx % count($suffixes)];
+                $this->formParamModel->protect(false)->insert([
+                    'revision_id'    => $revisionId,
+                    'parent_id'      => $colId,
+                    'table_index'    => $newTableIdx,
+                    'nama_parameter' => $rowName,
+                    'posisi_grid'    => $rowName,
+                    'kolom_db'       => $basePar . $suf,
+                    'tipe_input'     => $initialTipe ?: 'number',
+                    'standar_nilai'  => 'Sample',
+                    'urutan'         => $nextUrutan++,
+                ]);
+            }
+        } elseif ($layoutType === 'vertical') {
+            // 1. Root Header Tabel Vertikal
+            $this->formParamModel->protect(false)->insert([
+                'revision_id'    => $revisionId,
+                'parent_id'      => null,
+                'table_index'    => $newTableIdx,
+                'nama_parameter' => $tableName,
+                'tipe_input'     => 'header_only',
+                'standar_nilai'  => 'Checklist',
+                'urutan'         => $nextUrutan++,
+            ]);
+            $rootId = (int)$this->formParamModel->getInsertID();
+
+            // 2. Item Pemeriksaan Pertama
+            $itemName = $initialParam !== '' ? $initialParam : 'Pemeriksaan 1';
+            $colDb = $this->generateNextParCode($revisionId);
+            $this->formParamModel->protect(false)->insert([
+                'revision_id'    => $revisionId,
+                'parent_id'      => $rootId,
+                'table_index'    => $newTableIdx,
+                'nama_parameter' => $itemName,
+                'kolom_db'       => $colDb,
+                'tipe_input'     => $initialTipe ?: 'dropdown_ok_ng',
+                'urutan'         => $nextUrutan++,
+            ]);
+        } else {
+            // Default: 'horizontal' (Single Row / Horizontal Card)
+            // 1. Root Header Tabel
+            $this->formParamModel->protect(false)->insert([
+                'revision_id'    => $revisionId,
+                'parent_id'      => null,
+                'table_index'    => $newTableIdx,
+                'nama_parameter' => $tableName,
+                'urutan'         => $nextUrutan++,
+            ]);
+            $rootId = (int)$this->formParamModel->getInsertID();
+
+            // 2. Kolom Input Pertama
+            $paramName = $initialParam !== '' ? $initialParam : 'Parameter 1';
+            $colDb = $this->generateNextParCode($revisionId);
+            $this->formParamModel->protect(false)->insert([
+                'revision_id'    => $revisionId,
+                'parent_id'      => $rootId,
+                'table_index'    => $newTableIdx,
+                'nama_parameter' => $paramName,
+                'kolom_db'       => $colDb,
+                'tipe_input'     => $initialTipe ?: 'number',
+                'urutan'         => $nextUrutan++,
+            ]);
+        }
+
+        $this->catatLog(
+            'TAMBAH TABEL BARU',
+            "Menambahkan Tabel {$newTableIdx} ('{$tableName}') dengan bentuk " . strtoupper($layoutType) . " pada Revisi " . ($revRow['revisi'] ?? '-'),
+            $revRow['process_code'] ?? ''
+        );
+
+        return $this->response->setJSON([
+            'status'      => 'success',
+            'table_index' => $newTableIdx,
+            'message'     => "Tabel {$newTableIdx} ('{$tableName}') berhasil ditambahkan!"
+        ]);
+    }
+
+    public function deleteTable()
+    {
+        $revisionId = (int)$this->request->getPost('revision_id');
+        $tableIndex = (int)$this->request->getPost('table_index');
+
+        if (!$revisionId || !$tableIndex) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Parameter tidak lengkap!']);
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        if (!$revRow) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Dokumen revisi tidak ditemukan!']);
+        }
+
+        $count = $this->formParamModel
+            ->where('revision_id', $revisionId)
+            ->where('table_index', $tableIndex)
+            ->countAllResults();
+
+        if ($count === 0) {
+            return $this->response->setJSON(['status' => 'error', 'message' => "Tabel {$tableIndex} tidak ditemukan!"]);
+        }
+
+        $this->formParamModel
+            ->where('revision_id', $revisionId)
+            ->where('table_index', $tableIndex)
+            ->delete();
+
+        $this->catatLog(
+            'HAPUS TABEL',
+            "Menghapus seluruh Tabel {$tableIndex} ({$count} parameter) pada Revisi " . ($revRow['revisi'] ?? '-'),
+            $revRow['process_code'] ?? ''
+        );
+
+        return $this->response->setJSON([
+            'status'  => 'success',
+            'message' => "Tabel {$tableIndex} beserta seluruh parameternya berhasil dihapus."
+        ]);
+    }
+
+    // --- FITUR IMPORT & EXPORT CSV UNTUK REGENERASI REVISI PARAMETER ---
+
+    public function exportCsv()
+    {
+        $revisionId = (int)$this->request->getGet('revision_id');
+        if (!$revisionId) {
+            return redirect()->to(base_url('form-builder'));
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        if (!$revRow) {
+            return redirect()->to(base_url('form-builder'));
+        }
+
+        $procCode = $revRow['process_code'] ?? 'FORM';
+        $revNum   = str_pad((string)($revRow['revisi'] ?? '0'), 2, '0', STR_PAD_LEFT);
+        $filename = "parameters_{$procCode}_rev{$revNum}.csv";
+
+        $params = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
+
+        $idToUrutan = [];
+        foreach ($params as $p) {
+            $idToUrutan[$p['id']] = $p['urutan'];
+        }
+
+        $headers = [
+            'table_index',
+            'urutan',
+            'parent_urutan',
+            'nama_parameter',
+            'kolom_db',
+            'tipe_input',
+            'standar_nilai',
+            'batas_min',
+            'batas_max',
+            'step_value',
+            'rentang_ganda',
+            'satuan_opsi',
+            'opsi_dropdown',
+            'target_evaluasi',
+            'rumus_otomatis',
+            'posisi_grid',
+            'is_readonly',
+            'is_exclusive'
+        ];
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+        // Tambahkan UTF-8 BOM agar Excel menampilkan simbol dengan benar (✔, ✖, θ, μm)
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        fputcsv($output, $headers);
+
+        if (!empty($params)) {
+            foreach ($params as $p) {
+                $parentUrutan = (!empty($p['parent_id']) && isset($idToUrutan[$p['parent_id']])) ? $idToUrutan[$p['parent_id']] : '';
+
+                $rumusStr = '';
+                if (!empty($p['rumus_otomatis'])) {
+                    $rDecoded = is_string($p['rumus_otomatis']) ? json_decode($p['rumus_otomatis'], true) : $p['rumus_otomatis'];
+                    if (is_array($rDecoded) && isset($rDecoded['type'])) {
+                        $rumusStr = $rDecoded['type'] . ':' . ($rDecoded['in_col'] ?? '') . ',' . ($rDecoded['out_col'] ?? '');
+                    } else {
+                        $rumusStr = is_string($p['rumus_otomatis']) ? $p['rumus_otomatis'] : json_encode($p['rumus_otomatis']);
+                    }
+                }
+
+                $satuanStr = '';
+                if (!empty($p['satuan_opsi'])) {
+                    $satuanStr = is_string($p['satuan_opsi']) ? $p['satuan_opsi'] : json_encode($p['satuan_opsi']);
+                }
+
+                $row = [
+                    $p['table_index'] ?? 1,
+                    $p['urutan'],
+                    $parentUrutan,
+                    $p['nama_parameter'],
+                    $p['kolom_db'] ?? '',
+                    $p['tipe_input'] ?? '',
+                    $p['standar_nilai'] ?? '',
+                    $p['batas_min'] !== null ? $p['batas_min'] : '',
+                    $p['batas_max'] !== null ? $p['batas_max'] : '',
+                    $p['step_value'] ?? 'any',
+                    $p['rentang_ganda'] ?? '',
+                    $satuanStr,
+                    $p['opsi_dropdown'] ?? '',
+                    $p['target_evaluasi'] ?? '',
+                    $rumusStr,
+                    $p['posisi_grid'] ?? '',
+                    $p['is_readonly'] ? '1' : '0',
+                    $p['is_exclusive'] ? '1' : '0',
+                ];
+                fputcsv($output, $row);
+            }
+        } else {
+            fputcsv($output, ['1', '', 'Quantity', '', '', '', '', '', 'any', '', '', '', '', '', '', '0', '0']);
+            fputcsv($output, ['2', '1', 'IN', 'par013', 'number', '', '0', '', '1', '', '', '', '', '', '', '0', '0']);
+            fputcsv($output, ['3', '1', 'OUT', 'par014', 'number', '', '0', '', '1', '', '', '', '', '', '', '0', '0']);
+            fputcsv($output, ['4', '1', 'NG', 'par015', 'number', '', '', '', '1', '', '', '', '', 'ng:par013,par014', '', '1', '0']);
+            fputcsv($output, ['5', '1', 'Yield (%)', 'par016', 'number', '', '', '', '0.01', '', '', '', '', 'yield:par013,par014', '', '1', '0']);
+            fputcsv($output, ['6', '', 'Start up Check Item', 'par001', 'dropdown_ok_ng', 'Check Condition', '', '', 'any', '', '', '', '', '', '', '0', '0']);
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    public function importCsv()
+    {
+        $revisionId = (int)$this->request->getPost('revision_id');
+        $importMode = $this->request->getPost('import_mode') ?: 'replace'; // 'replace' atau 'append'
+
+        if (!$revisionId) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Revision ID tidak valid!']);
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        if (!$revRow) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Dokumen revisi tidak ditemukan!']);
+        }
+
+        $file = $this->request->getFile('csv_file');
+        if (!$file || !$file->isValid() || $file->hasMoved()) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'File CSV tidak valid atau gagal diupload!']);
+        }
+
+        $ext = strtolower($file->getClientExtension());
+        if (!in_array($ext, ['csv', 'txt'])) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Format file harus berupa .csv!']);
+        }
+
+        $filePath = $file->getTempName();
+        $rawContent = file_get_contents($filePath);
+        if (empty(trim($rawContent))) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'File CSV kosong!']);
+        }
+
+        if (substr($rawContent, 0, 3) === pack('CCC', 0xEF, 0xBB, 0xBF)) {
+            $rawContent = substr($rawContent, 3);
+        }
+
+        $lines = preg_split("/\r\n|\n|\r/", trim($rawContent));
+        if (count($lines) < 2) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'File CSV harus memiliki minimal 1 baris header dan 1 baris data!']);
+        }
+
+        $delimiters = [',', ';', "\t", '|'];
+        $firstLine = $lines[0];
+        $bestDelimiter = ',';
+        $maxCols = 0;
+        foreach ($delimiters as $d) {
+            $cols = str_getcsv($firstLine, $d);
+            if (count($cols) > $maxCols) {
+                $maxCols = count($cols);
+                $bestDelimiter = $d;
+            }
+        }
+
+        $headerRow = str_getcsv($lines[0], $bestDelimiter);
+        $headerMap = [];
+        foreach ($headerRow as $idx => $hName) {
+            $cleanH = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]/', '', str_replace([' ', '-'], '_', $hName))));
+            $headerMap[$cleanH] = $idx;
+        }
+
+        $colKey = function($candidates) use ($headerMap) {
+            foreach ($candidates as $c) {
+                if (isset($headerMap[$c])) return $headerMap[$c];
+            }
+            return null;
+        };
+
+        $idxTableIndex   = $colKey(['table_index', 'tabel', 'table', 'section']);
+        $idxUrutan       = $colKey(['urutan', 'no', 'num', 'order']);
+        $idxParentUrutan = $colKey(['parent_urutan', 'parent_no', 'parent_order', 'induk_urutan']);
+        $idxParentName   = $colKey(['parent_name', 'parent', 'induk', 'nama_induk']);
+        $idxNamaParam    = $colKey(['nama_parameter', 'nama', 'parameter', 'parameter_name', 'item']);
+        $idxKolomDb      = $colKey(['kolom_db', 'kolom', 'db_col', 'column', 'par']);
+        $idxTipeInput    = $colKey(['tipe_input', 'tipe', 'type', 'input_type']);
+        $idxStandarNilai = $colKey(['standar_nilai', 'standar', 'standard', 'spec']);
+        $idxBatasMin     = $colKey(['batas_min', 'min', 'lower_limit']);
+        $idxBatasMax     = $colKey(['batas_max', 'max', 'upper_limit']);
+        $idxStepValue    = $colKey(['step_value', 'step', 'presisi', 'decimal']);
+        $idxRentangGanda = $colKey(['rentang_ganda', 'dual_range', 'range2']);
+        $idxSatuanOpsi   = $colKey(['satuan_opsi', 'satuan', 'unit', 'units']);
+        $idxOpsiDropdown = $colKey(['opsi_dropdown', 'dropdown_opsi', 'options', 'pilihan']);
+        $idxTargetEvaluasi = $colKey(['target_evaluasi', 'target_eval', 'target']);
+        $idxRumusOtomatis  = $colKey(['rumus_otomatis', 'rumus', 'formula', 'auto_calc']);
+        $idxPosisiGrid   = $colKey(['posisi_grid', 'posisi', 'grid_pos', 'pos', 'axis', 'sample']);
+        $idxIsReadonly   = $colKey(['is_readonly', 'readonly', 'kunci', 'locked']);
+        $idxIsExclusive  = $colKey(['is_exclusive', 'exclusive', 'gray_out', 'saling_kunci']);
+
+        if ($idxNamaParam === null) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Kolom "nama_parameter" tidak ditemukan pada baris header CSV!']);
+        }
+
+        if ($importMode === 'replace') {
+            $this->formParamModel->where('revision_id', $revisionId)->delete();
+        }
+
+        $startUrutan = 1;
+        if ($importMode === 'append') {
+            $last = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'DESC')->first();
+            $startUrutan = $last ? ((int)$last['urutan'] + 1) : 1;
+        }
+
+        $urutanToDbId = [];
+        $nameToDbId   = [];
+        $unresolvedChildren = [];
+        $insertedCount = 0;
+
+        for ($i = 1; $i < count($lines); $i++) {
+            $line = trim($lines[$i]);
+            if ($line === '') continue;
+
+            $rowCols = str_getcsv($line, $bestDelimiter);
+            if (count($rowCols) === 0) continue;
+
+            $getVal = function($idx) use ($rowCols) {
+                return ($idx !== null && isset($rowCols[$idx])) ? trim((string)$rowCols[$idx]) : '';
+            };
+
+            $namaParam = $getVal($idxNamaParam);
+            if ($namaParam === '') continue;
+
+            $csvUrutan = $getVal($idxUrutan);
+            if ($csvUrutan === '') $csvUrutan = (string)($startUrutan + $insertedCount);
+
+            $parentUrutan = $getVal($idxParentUrutan);
+            $parentName   = $getVal($idxParentName);
+
+            $kolomDb    = $getVal($idxKolomDb);
+            $tipeInput  = strtolower($getVal($idxTipeInput));
+            $standarNilai = $getVal($idxStandarNilai);
+            $rawMin     = str_replace(',', '.', $getVal($idxBatasMin));
+            $rawMax     = str_replace(',', '.', $getVal($idxBatasMax));
+            $batasMin   = ($rawMin !== '' && is_numeric($rawMin)) ? (float)$rawMin : null;
+            $batasMax   = ($rawMax !== '' && is_numeric($rawMax)) ? (float)$rawMax : null;
+            $stepValue  = $getVal($idxStepValue) ?: 'any';
+            $rentangGanda = $getVal($idxRentangGanda);
+            $satuanOpsi = $getVal($idxSatuanOpsi);
+            $opsiDropdown = $getVal($idxOpsiDropdown);
+            $targetEvaluasi = $getVal($idxTargetEvaluasi);
+            $rawRumus   = $getVal($idxRumusOtomatis);
+            $posisiGrid = $getVal($idxPosisiGrid) ?: null;
+            $isReadonly = in_array(strtolower($getVal($idxIsReadonly)), ['1', 'true', 'yes', 'ya']) ? 1 : 0;
+            $isExclusive = in_array(strtolower($getVal($idxIsExclusive)), ['1', 'true', 'yes', 'ya']) ? 1 : 0;
+
+            $rumusOtomatis = null;
+            if ($rawRumus !== '') {
+                if (stripos($rawRumus, 'ng:') === 0 || stripos($rawRumus, 'yield:') === 0) {
+                    $parts = explode(':', $rawRumus, 2);
+                    $fType = strtolower(trim($parts[0]));
+                    $cols  = explode(',', $parts[1] ?? 'par013,par014');
+                    $rumusOtomatis = json_encode([
+                        'type'    => $fType,
+                        'in_col'  => trim($cols[0] ?? 'par013'),
+                        'out_col' => trim($cols[1] ?? 'par014')
+                    ], JSON_UNESCAPED_UNICODE);
+                    $isReadonly = 1;
+                } elseif (str_starts_with($rawRumus, '{')) {
+                    $rumusOtomatis = $rawRumus;
+                    $isReadonly = 1;
+                }
+            }
+
+            if ($satuanOpsi !== '' && !str_starts_with($satuanOpsi, '[')) {
+                $unitsList = [];
+                $tokens = preg_split('/[|;]/', $satuanOpsi);
+                foreach ($tokens as $tk) {
+                    $uParts = explode(':', trim($tk));
+                    $uName = trim($uParts[0]);
+                    if ($uName !== '') {
+                        $unitsList[] = [
+                            'unit' => $uName,
+                            'min'  => isset($uParts[1]) && is_numeric(str_replace(',', '.', $uParts[1])) ? (float)str_replace(',', '.', $uParts[1]) : null,
+                            'max'  => isset($uParts[2]) && is_numeric(str_replace(',', '.', $uParts[2])) ? (float)str_replace(',', '.', $uParts[2]) : null,
+                        ];
+                    }
+                }
+                if (!empty($unitsList)) {
+                    $satuanOpsi = json_encode($unitsList, JSON_UNESCAPED_UNICODE);
+                } else {
+                    $satuanOpsi = null;
+                }
+            }
+
+            if ($tipeInput === '') {
+                if ($batasMin !== null || $batasMax !== null || $stepValue !== 'any') {
+                    $tipeInput = 'number';
+                }
+            }
+
+            if ($tipeInput === 'auto_judgment') {
+                $isReadonly = 1;
+                if ($targetEvaluasi === '') $targetEvaluasi = '*';
+            }
+
+            if ($tipeInput !== '' && $tipeInput !== 'header_only' && empty($kolomDb)) {
+                $kolomDb = $this->generateNextParCode($revisionId);
+            }
+
+            $parentId = null;
+            if ($parentUrutan !== '' && isset($urutanToDbId[$parentUrutan])) {
+                $parentId = $urutanToDbId[$parentUrutan];
+            } elseif ($parentName !== '' && isset($nameToDbId[$parentName])) {
+                $parentId = $nameToDbId[$parentName];
+            }
+
+            $currentUrutan = $startUrutan + $insertedCount;
+
+            $rawTableIdx = $getVal($idxTableIndex);
+            $tableIndex  = ($rawTableIdx !== '' && is_numeric($rawTableIdx)) ? (int)$rawTableIdx : 1;
+
+            $insertData = [
+                'revision_id'     => $revisionId,
+                'parent_id'       => $parentId,
+                'table_index'     => $tableIndex,
+                'nama_parameter'  => $namaParam,
+                'kolom_db'        => $kolomDb ?: null,
+                'tipe_input'      => $tipeInput ?: null,
+                'batas_min'       => $batasMin,
+                'batas_max'       => $batasMax,
+                'satuan_opsi'     => $satuanOpsi ?: null,
+                'is_readonly'     => $isReadonly,
+                'is_exclusive'    => $isExclusive,
+                'rumus_otomatis'  => $rumusOtomatis,
+                'opsi_dropdown'   => $opsiDropdown ?: null,
+                'step_value'      => $stepValue,
+                'rentang_ganda'   => $rentangGanda ?: null,
+                'target_evaluasi' => $targetEvaluasi ?: null,
+                'standar_nilai'   => $standarNilai ?: null,
+                'posisi_grid'     => $posisiGrid,
+                'urutan'          => $currentUrutan,
+            ];
+
+            $this->formParamModel->protect(false)->insert($insertData);
+            $insertedId = (int)$this->formParamModel->getInsertID();
+
+            $urutanToDbId[$csvUrutan] = $insertedId;
+            $nameToDbId[$namaParam]   = $insertedId;
+            $insertedCount++;
+
+            if (!$parentId && ($parentUrutan !== '' || $parentName !== '')) {
+                $unresolvedChildren[] = [
+                    'id'            => $insertedId,
+                    'parent_urutan' => $parentUrutan,
+                    'parent_name'   => $parentName
+                ];
+            }
+
+            if ($isExclusive && $parentId) {
+                $this->formParamModel->protect(false)->update($parentId, ['is_exclusive' => 1]);
+            }
+        }
+
+        foreach ($unresolvedChildren as $item) {
+            $pId = null;
+            if ($item['parent_urutan'] !== '' && isset($urutanToDbId[$item['parent_urutan']])) {
+                $pId = $urutanToDbId[$item['parent_urutan']];
+            } elseif ($item['parent_name'] !== '' && isset($nameToDbId[$item['parent_name']])) {
+                $pId = $nameToDbId[$item['parent_name']];
+            }
+            if ($pId) {
+                $this->formParamModel->protect(false)->update($item['id'], ['parent_id' => $pId]);
+            }
+        }
+
+        $procCode = $revRow['process_code'] ?? '';
+        $revNum   = $revRow['revisi'] ?? '-';
+        $modeKet  = ($importMode === 'replace') ? 'Regenerate Total' : 'Tambah (Append)';
+
+        $this->catatLog(
+            'IMPORT CSV PARAMETER',
+            "Berhasil membaca dan {$modeKet} {$insertedCount} parameter dari file CSV pada Revisi {$revNum}",
+            $procCode
+        );
+
+        return $this->response->setJSON([
+            'status'  => 'success',
+            'message' => "Berhasil membaca dan meregenerate {$insertedCount} parameter dari file CSV!",
+            'count'   => $insertedCount
+        ]);
     }
 
     // 5. AJAX Delete Parameter
@@ -956,6 +1602,7 @@ class FormBuilder extends BaseController
             'judul_proses'  => $procInfo['name'] ?? $processCode,
             'kategori_form' => $activeRevRow['kategori_form'] ?? $typeProcess,
             'revisi_label'  => $revLabel,
+            'revision'      => $activeRevRow,
             'treeParams'    => $treeParams,
             'alldata'       => $alldata,
             'is_export'     => false
@@ -1005,6 +1652,20 @@ class FormBuilder extends BaseController
         }
 
         $rawSource = file_get_contents($filePath);
+
+        // Deteksi Otomatis Catatan SOP dari file asli (<div class="note...">)
+        if (preg_match('/<div class="note[^"]*">(.*?)<\/div>/is', $rawSource, $mNote)) {
+            $noteText = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</li>'], ["\n", "\n", "\n", "\n", "\n"], $mNote[1]));
+            $noteText = trim(preg_replace("/\n\s+/", "\n", $noteText));
+            if (!empty($noteText)) {
+                $this->formRevModel->protect(false)->update($revisionId, ['catatan_sop' => $noteText]);
+            }
+        }
+
+        // Deteksi Mode Layout (Matriks 2D Grid seperti Mesin LDSM SL56)
+        if (stripos($rawSource, 'cnt-proses') !== false || (stripos($rawSource, 'Front 1') !== false && stripos($rawSource, 'Back 1') !== false)) {
+            $this->formRevModel->protect(false)->update($revisionId, ['layout_mode' => 'matrix_grid']);
+        }
 
         // Deteksi Standar Dinamis (seperti Jenis SM-Chip -> label_die_bond_std di fl18-p-db2.php)
         $detectedDynamicStd = null;
@@ -1066,9 +1727,10 @@ class FormBuilder extends BaseController
 
         $tables = $xpath->query('//table');
         $urutan = 1;
-        $dbIdMapping = [];
 
-        foreach ($tables as $table) {
+        foreach ($tables as $tTableIdx => $table) {
+            $currentTableIdx = $tTableIdx + 1;
+            $dbIdMapping = [];
             $theadRowsRaw = $xpath->query('./thead/tr', $table);
             $tbodyRowsRaw = $xpath->query('./tbody/tr | ./tr', $table);
 
@@ -1076,9 +1738,13 @@ class FormBuilder extends BaseController
             foreach ($theadRowsRaw as $tIdx => $tr) {
                 $cells = $xpath->query('./th | ./td', $tr);
                 if ($cells->length === 0) continue;
-                // Hanya abaikan baris judul mesin utama (1 sel dengan colspan besar >= 10)
-                if ($cells->length === 1 && (int)$cells->item(0)->getAttribute('colspan') >= 10) {
-                    continue;
+                // Abaikan baris judul banner mesin jika sel tunggal dengan colspan besar >= 8 atau teks judul banner
+                if ($cells->length === 1) {
+                    $cSpan = (int)$cells->item(0)->getAttribute('colspan');
+                    $cText = trim($cells->item(0)->textContent);
+                    if ($cSpan >= 8 || stripos($cText, 'MACHINE') !== false || stripos($cText, 'CHECK SHEET') !== false) {
+                        continue;
+                    }
                 }
                 $theadRows[] = $tr;
             }
@@ -1142,6 +1808,10 @@ class FormBuilder extends BaseController
                         $rumusOtomatis  = null;
                         $standarDinamis = null;
                         $name           = '';
+                        $opsiDropdown   = null;
+                        $stepValue      = 'any';
+                        $rentangGanda   = null;
+                        $targetEvaluasi = null;
 
                         $cellHtml = $cell->ownerDocument->saveHTML($cell);
 
@@ -1154,13 +1824,40 @@ class FormBuilder extends BaseController
                             }
 
                             $visibleNode = ($anyInputs->length > 0) ? $anyInputs->item(0) : $mainNode;
+
+                            // Deteksi Step Nilai Desimal
+                            if ($visibleNode->hasAttribute('step')) {
+                                $stepValue = $visibleNode->getAttribute('step') ?: 'any';
+                            }
+
                             if ($mainNode->nodeName === 'select' || ($visibleNode->nodeName === 'select' && $anyInputs->length === 1)) {
                                 $inputType = 'dropdown_ok_ng';
+                                $optsQuery = $xpath->query('.//option', $cell);
+                                $optList = [];
+                                foreach ($optsQuery as $oq) {
+                                    $t = trim($oq->textContent);
+                                    if ($t !== '' && $t !== '-- Pilih --') $optList[] = $t;
+                                }
+                                $isStdOk = true;
+                                foreach ($optList as $ol) {
+                                    if (!in_array($ol, ['✔', '✖', '✔ (OK)', '✖ (NG)', 'OK', 'NG', 'V', 'X', '-'])) {
+                                        $isStdOk = false;
+                                        break;
+                                    }
+                                }
+                                if (!$isStdOk && !empty($optList)) {
+                                    $inputType = 'dropdown_custom';
+                                    $opsiDropdown = implode(',', $optList);
+                                }
                             } elseif ($mainNode->nodeName === 'textarea' || $visibleNode->nodeName === 'textarea') {
                                 $inputType = 'textarea';
                             } else {
                                 $typeAttr = strtolower($visibleNode->getAttribute('type'));
-                                if ($typeAttr === 'number' || $visibleNode->hasAttribute('step') || in_array($dbCol, ['par013', 'par014', 'par015', 'par016'])) {
+                                if ($typeAttr === 'date') {
+                                    $inputType = 'date';
+                                } elseif ($typeAttr === 'time') {
+                                    $inputType = 'time';
+                                } elseif ($typeAttr === 'number' || $visibleNode->hasAttribute('step') || in_array($dbCol, ['par013', 'par014', 'par015', 'par016'])) {
                                     $inputType = 'number';
                                 }
                             }
@@ -1170,20 +1867,35 @@ class FormBuilder extends BaseController
                                 $isReadonly = 1;
                             }
 
-                            // 2. Deteksi Exclusive (Tidak boleh isi keduanya!)
+                            // 2. Deteksi Auto Judgment (✔ OK / ✖ NG)
+                            if (stripos($cellHtml, 'Judgment Start Up') !== false || stripos($cellHtml, 'evaluateStartupJudgment') !== false || stripos($cellHtml, '✔ / ✖') !== false || ($dbCol === 'par031' && $isReadonly)) {
+                                $inputType = 'auto_judgment';
+                                $isReadonly = 1;
+                                $targetEvaluasi = '*';
+                            }
+
+                            // 3. Deteksi Exclusive (Tidak boleh isi keduanya!)
                             if (stripos($cellHtml, 'Tidak boleh isi keduanya') !== false) {
                                 $isExclusive = 1;
                             }
 
-                            // 3. Deteksi Batas Min & Max dari changeRange
-                            if (preg_match('/changeRange\s*\(\s*[\'"][^\'"]+[\'"]\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/i', $cellHtml, $mRange)) {
+                            // 4. Deteksi Batas Rentang Ganda dari changeRange2 (id, min1, max1, min2, max2)
+                            if (preg_match('/changeRange2\s*\(\s*[\'"][^\'"]+[\'"]\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/i', $cellHtml, $mRange2)) {
+                                $rentangGanda = "{$mRange2[1]},{$mRange2[2]},{$mRange2[3]},{$mRange2[4]}";
+                                $minVal = (float)$mRange2[1];
+                                $maxVal = (float)$mRange2[4];
+                                if ($minVal > -999999) $batasMin = $minVal;
+                                if ($maxVal < 999999)  $batasMax = $maxVal;
+                            }
+                            // 5. Deteksi Batas Min & Max dari changeRange biasa
+                            elseif (preg_match('/changeRange\s*\(\s*[\'"][^\'"]+[\'"]\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/i', $cellHtml, $mRange)) {
                                 $minVal = (float)$mRange[1];
                                 $maxVal = (float)$mRange[2];
                                 if ($minVal > -999999) $batasMin = $minVal;
                                 if ($maxVal < 999999)  $batasMax = $maxVal;
                             }
 
-                            // 4. Deteksi Dropdown Satuan (satuan_opsi)
+                            // 6. Deteksi Dropdown Satuan (satuan_opsi)
                             $unitSelects = $xpath->query('.//select[contains(@id, "_unit")]/option', $cell);
                             if ($unitSelects->length > 0) {
                                 if ($dbCol && isset($unitLimitsMap[$dbCol])) {
@@ -1208,7 +1920,7 @@ class FormBuilder extends BaseController
                             }
                             $name = trim(preg_replace('/\s+/', ' ', $clone->textContent));
 
-                            // 5. Deteksi Header Standar Dinamis (label_die_bond_std / Min: - N)
+                            // 7. Deteksi Header Standar Dinamis (label_die_bond_std / Min: - N)
                             if ($detectedDynamicStd && (stripos($cellHtml, 'label_die_bond_std') !== false || preg_match('/Min:\s*-\s*N/i', $name))) {
                                 $standarDinamis = $detectedDynamicStd;
                             }
@@ -1228,6 +1940,10 @@ class FormBuilder extends BaseController
                             'isExclusive'    => $isExclusive,
                             'rumusOtomatis'  => $rumusOtomatis,
                             'standarDinamis' => $standarDinamis,
+                            'opsiDropdown'   => $opsiDropdown,
+                            'stepValue'      => $stepValue,
+                            'rentangGanda'   => $rentangGanda,
+                            'targetEvaluasi' => $targetEvaluasi,
                             'isLeaf'         => $isLeaf,
                             'isHeader'       => $isHeaderGroup,
                             'r'              => $rowIndex,
@@ -1294,17 +2010,21 @@ class FormBuilder extends BaseController
 
                         if ($isLastText) {
                             $this->formParamModel->protect(false)->insert([
-                                'revision_id'    => $revisionId,
-                                'parent_id'      => $parentId,
-                                'nama_parameter' => $chNode['name'],
-                                'kolom_db'       => $leafCell['dbCol'],
-                                'tipe_input'     => $leafCell['inputType'],
-                                'batas_min'      => $leafCell['batasMin'],
-                                'batas_max'      => $leafCell['batasMax'],
-                                'satuan_opsi'    => $leafCell['satuanOpsi'],
-                                'is_readonly'    => $leafCell['isReadonly'],
-                                'standar_nilai'  => $leafCell['stdNilai'],
-                                'urutan'         => $urutan++
+                                'revision_id'     => $revisionId,
+                                'parent_id'       => $parentId,
+                                'nama_parameter'  => $chNode['name'],
+                                'kolom_db'        => $leafCell['dbCol'],
+                                'tipe_input'      => $leafCell['inputType'],
+                                'batas_min'       => $leafCell['batasMin'],
+                                'batas_max'       => $leafCell['batasMax'],
+                                'satuan_opsi'     => $leafCell['satuanOpsi'],
+                                'is_readonly'     => $leafCell['isReadonly'],
+                                'standar_nilai'   => $leafCell['stdNilai'],
+                                'opsi_dropdown'   => $leafCell['opsiDropdown'],
+                                'step_value'      => $leafCell['stepValue'],
+                                'rentang_ganda'   => $leafCell['rentangGanda'],
+                                'target_evaluasi' => $leafCell['targetEvaluasi'],
+                                'urutan'          => $urutan++
                             ]);
                             if ($leafCell['isExclusive'] && $parentId) {
                                 $this->formParamModel->protect(false)->update($parentId, ['is_exclusive' => 1]);
@@ -1410,6 +2130,7 @@ class FormBuilder extends BaseController
                             $this->formParamModel->protect(false)->insert([
                                 'revision_id'     => $revisionId,
                                 'parent_id'       => $parentId,
+                                'table_index'     => $currentTableIdx,
                                 'nama_parameter'  => $chNode['name'],
                                 'kolom_db'        => $dbCol,
                                 'tipe_input'      => $finalTipeInput,
@@ -1420,6 +2141,10 @@ class FormBuilder extends BaseController
                                 'rumus_otomatis'  => $autoFormula,
                                 'standar_dinamis' => $chNode['standarDinamis'],
                                 'standar_nilai'   => $finalStdNilai,
+                                'opsi_dropdown'   => $leafCell['opsiDropdown'],
+                                'step_value'      => $leafCell['stepValue'],
+                                'rentang_ganda'   => $leafCell['rentangGanda'],
+                                'target_evaluasi' => $leafCell['targetEvaluasi'],
                                 'urutan'          => $urutan++
                             ]);
                             $parentId = $this->formParamModel->getInsertID();
@@ -1428,6 +2153,7 @@ class FormBuilder extends BaseController
                                 $this->formParamModel->protect(false)->insert([
                                     'revision_id'     => $revisionId,
                                     'parent_id'       => $parentId,
+                                    'table_index'     => $currentTableIdx,
                                     'nama_parameter'  => $chNode['name'],
                                     'kolom_db'        => null,
                                     'tipe_input'      => null,
@@ -1453,7 +2179,9 @@ class FormBuilder extends BaseController
 
                         if ($rowLabel === '' && !empty($leafCell['dbCol']) && preg_match('/^par\d+([a-z])$/i', $leafCell['dbCol'], $mSuf)) {
                             $suf = strtolower($mSuf[1]);
-                            $defaultAxisMap = ['a' => 'X', 'b' => 'Y', 'c' => 'Z', 'd' => 'θ'];
+                            $defaultAxisMap = ($kategori === 'production')
+                                ? ['a' => 'Front 1', 'b' => 'Front 2', 'c' => 'Back 1', 'd' => 'Back 2', 'e' => 'Sample 5']
+                                : ['a' => 'X', 'b' => 'Y', 'c' => 'Z', 'd' => 'θ'];
                             $rowLabel = $defaultAxisMap[$suf] ?? ('Sample ' . (ord($suf) - 96));
                         }
 
@@ -1462,24 +2190,29 @@ class FormBuilder extends BaseController
                         }
 
                         $this->formParamModel->protect(false)->insert([
-                            'revision_id'    => $revisionId,
-                            'parent_id'      => $parentId,
-                            'nama_parameter' => $rowLabel,
-                            'kolom_db'       => $leafCell['dbCol'],
-                            'tipe_input'     => $leafCell['inputType'],
-                            'batas_min'      => $leafCell['batasMin'],
-                            'batas_max'      => $leafCell['batasMax'],
-                            'satuan_opsi'    => $leafCell['satuanOpsi'],
-                            'is_readonly'    => $leafCell['isReadonly'],
-                            'posisi_grid'    => ($isMultiRowCol || $kategori === 'foregoing') ? $rowLabel : null,
-                            'urutan'         => $urutan++
+                            'revision_id'     => $revisionId,
+                            'parent_id'       => $parentId,
+                            'table_index'     => $currentTableIdx,
+                            'nama_parameter'  => $rowLabel,
+                            'kolom_db'        => $leafCell['dbCol'],
+                            'tipe_input'      => $leafCell['inputType'],
+                            'batas_min'       => $leafCell['batasMin'],
+                            'batas_max'       => $leafCell['batasMax'],
+                            'satuan_opsi'     => $leafCell['satuanOpsi'],
+                            'is_readonly'     => $leafCell['isReadonly'],
+                            'opsi_dropdown'   => $leafCell['opsiDropdown'],
+                            'step_value'      => $leafCell['stepValue'],
+                            'rentang_ganda'   => $leafCell['rentangGanda'],
+                            'target_evaluasi' => $leafCell['targetEvaluasi'],
+                            'posisi_grid'     => ($isMultiRowCol || $kategori === 'foregoing') ? $rowLabel : null,
+                            'urutan'          => $urutan++
                         ]);
                     }
                 }
             }
+        }
         return true;
     }
-}
 
     private function buildTree(array $elements, $parentId = null)
     {

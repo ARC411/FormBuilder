@@ -154,9 +154,6 @@ class EmpModel extends Model
             }
         }
 
-<<<<<<< HEAD
-        return $this->getLocalEmpFallback((string)$empid);
-=======
         $sql = "
             SELECT TOP 1
                 c.empid,
@@ -182,7 +179,6 @@ class EmpModel extends Model
         ";
 
         return $db->query($sql, [$empid, $empid])->getRow();
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
     }
 
     public function getDataEmp($empid)
@@ -251,13 +247,9 @@ class EmpModel extends Model
                 'name'       => 'admin',
                 'positionid' => 'admin',
                 'role'       => 'all',
-<<<<<<< HEAD
-                'level'      => 1,
-=======
                 'deptid'     => 'ADMIN',
                 'department' => 'ADMIN',
                 'level'      => 99,
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 'isadmin'    => true
             ];
         }
@@ -334,20 +326,12 @@ class EmpModel extends Model
             $posParts = preg_split('/,/', (string)($q->positionid ?? ''), -1, PREG_SPLIT_NO_EMPTY);
             $level    = isset($posParts[0]) && is_numeric($posParts[0]) ? (int)$posParts[0] : 15;
 
-<<<<<<< HEAD
-            $role = 'all';
-            $dept = strtoupper(trim((string)($q->deptid ?? '')));
-            if (strpos($dept, 'FRAME') !== false || strpos($dept, 'FL') !== false || strpos($dept, '017') !== false) {
-                $role = 'fl';
-            } elseif (strpos($dept, 'SINGLE') !== false || strpos($dept, 'SL') !== false || strpos($dept, '044') !== false) {
-=======
             $department = self::determineDepartmentCategory($q->deptid);
 
             $role = 'bebas';
             if (strpos(strtoupper((string)$q->deptid), 'FRAME LASER') !== false) {
                 $role = 'fl';
             } elseif (strpos(strtoupper((string)$q->deptid), 'SINGLE LASER') !== false) {
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 $role = 'sl';
             } elseif ($department === 'QC') {
                 $role = 'qc';
@@ -359,17 +343,10 @@ class EmpModel extends Model
 
             return [
                 'empid'      => $empid,
-<<<<<<< HEAD
-                'name'       => !empty($q->name) ? $q->name : strtoupper($empid),
-                'positionid' => $q->positionid ?? 'Operator',
-                'shift'      => $q->acc ?? '',
-                'groupid'    => $q->groupid ?? '',
-=======
                 'name'       => $q->name,
                 'positionid' => $q->positionid,
                 'deptid'     => $q->deptid,
                 'department' => $department,
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 'role'       => $role,
                 'level'      => $level,
                 'isadmin'    => false

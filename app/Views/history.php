@@ -49,15 +49,7 @@
           <div class="mb-3 row">
             <label for="process-name" class="col-sm-1 col-form-label">Process</label>
             <div class="col-sm-3">
-<<<<<<< HEAD
-              <select class="form-control" id="type-process" name="type-process" onchange="changeDevice()" required>
-                <option class="dropdown-item" value="">choose type document</option>
-                <option value="production">Production Control Sheet</option>
-                <option value="startup">Startup Control Sheet</option>
-                <option value="foregoing">Foregoing Control Sheet</option>
-=======
-              <select class="form-control" id="process-name" onchange="fillDocType()">
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+<select class="form-control" id="process-name" onchange="fillDocType()">
               </select>
             </div>
           </div>
@@ -182,18 +174,16 @@
 
       $('#fldb1, #slcs, #submit').hide();
 
-<<<<<<< HEAD
-      $('#ModelName, #lotNo, #machno, #revisiSelect').change(function() {
+      // perubahan Process/Doc. Type ditangani fillDocType() lalu memicu change pada #process
+      $('#ModelName, #lotNo, #machno, #process, #revisiSelect').change(function(e) {
+        if (e.target.id === 'process') {
+          updateRevisiList();
+          updateMachine();
+          updateModel();
+        }
         updateDocNo();
         updateTable();
       });
-=======
-      // perubahan Process/Doc. Type ditangani fillDocType() lalu memicu change pada #process
-      $('#ModelName,#lotNo,#machno,#process').change(function() {
-        updateTable()
-        updateDocNo()
-      })
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 
       $('#process').change(function() {
         updateRevisiList();
@@ -342,13 +332,7 @@
       machno = encodeURIComponent(machno);
 
       let device = "";
-<<<<<<< HEAD
-      let typeProcess = document.getElementById("type-process").value;
-=======
-
-      // Tipe proses diambil murni dari dropdown
-      let typeProcess = getDocType();
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+let typeProcess = getDocType();
 
       if (process != null && process !== "") {
         device = process.split("-")[0];
@@ -409,32 +393,23 @@
     }
 
     function updateDocNo() {
-<<<<<<< HEAD
-      var docNo = document.getElementById("docno");
       var processValue = document.getElementById("process");
       var selectedRev = $('#revisiSelect').val();
+      var baseDoc = $('#process option:selected').data('docno') || '-';
 
-      if (processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
-        var text = processValue.options[processValue.selectedIndex].text;
-        var baseDoc = text.split(" ")[0];
-        if (selectedRev && selectedRev !== '' && selectedRev !== 'ALL') {
-          var parts = baseDoc.split('-');
-          if (parts.length >= 4) {
-            parts[parts.length - 1] = String(selectedRev).padStart(2, '0');
-            baseDoc = parts.join('-');
-          }
+      if (baseDoc !== '-' && selectedRev && selectedRev !== '' && selectedRev !== 'ALL') {
+        var parts = baseDoc.split('-');
+        if (parts.length >= 4) {
+          parts[parts.length - 1] = String(selectedRev).padStart(2, '0');
+          baseDoc = parts.join('-');
         }
-        docNo.value = baseDoc;
       }
-=======
-      // Doc. No menampilkan docno lengkap (dengan revisi) dari baris yang dipilih
-      $('#docno').val($('#process option:selected').data('docno') || '-');
+      $('#docno').val(baseDoc);
     }
 
     // Tipe dokumen (production/startup/foregoing) diambil dari opsi Doc. Type yang dipilih
     function getDocType() {
       return $('#process option:selected').data('type') || '';
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
     }
 
     function convertDate() {
@@ -451,18 +426,6 @@
     var TYPE_ORDER = { production: 1, startup: 2, foregoing: 3 };
     var TYPE_LABEL = { production: 'Production', startup: 'Startup', foregoing: 'Foregoing' };
 
-<<<<<<< HEAD
-      if (!docType || docType === "" || !device || device === "") {
-          $('#process').empty().append('<option value="">-- Pilih Device & Doc Type --</option>');
-          $('#revisiSelect').empty().append('<option value="">-- Pilih Process Dulu --</option>');
-          updateMachine();
-          updateModel();
-          return;
-      }
-
-      $('#process').empty();
-
-=======
     // "LD Die Bonding 1 Type GH16PSeries" -> base "LD Die Bonding 1", variant "Type GH16PSeries"
     function splitName(name) {
       name = $.trim(name || '');
@@ -486,25 +449,11 @@
         return;
       }
 
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
       $.ajax({
         url: "<?php echo base_url(); ?>process/list?device=" + encodeURIComponent(device),
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
-<<<<<<< HEAD
-          var processValue = document.getElementById("process");
-          processValue.innerHTML = "";
-          for (let i = 0; i < data.length; i++) {
-            var option = document.createElement("option");
-            option.text = data[i].name;
-            option.value = data[i].process_code;
-            processValue.add(option);
-          }
-          updateRevisiList();
-          updateMachine();
-          updateModel();
-=======
           processRows = data || [];
           populateProcessName();
         },
@@ -517,7 +466,6 @@
           }
           processRows = [];
           populateProcessName();
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         }
       });
     }

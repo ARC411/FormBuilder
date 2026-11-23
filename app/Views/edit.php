@@ -53,53 +53,32 @@
             <div class="mb-3 row">
               <label class="col-sm-2 col-form-label">Date</label>
               <div class="col-sm-6">
-<<<<<<< HEAD
-                <input type="text" class="form-control-plaintext" id="date" name="date" value="<?= !empty($alldata[0]['created_at']) ? date('Y-m-d', strtotime($alldata[0]['created_at'])) : date('Y-m-d'); ?>" readonly>
-=======
-                <!-- Lock data tanpa css custom agar natural seperti view input -->
+<!-- Lock data tanpa css custom agar natural seperti view input -->
                 <input type="text" class="form-control" id="date" name="date" value="<?= !empty($alldata[0]['created_at']) ? date('Y-m-d', strtotime($alldata[0]['created_at'])) : date('Y-m-d'); ?>" readonly>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
               </div>
             </div>
 
             <div class="mb-3 row">
               <label class="col-sm-2 col-form-label">Device</label>
               <div class="col-sm-6">
-<<<<<<< HEAD
-                <input type="hidden" id="device-txt" name="device-txt" value="<?= esc($alldata[0]["device"] ?? '') ?>">
-                <input type="text" class="form-control" value="<?= esc($alldata[0]["device_name"] ?? $alldata[0]["device"] ?? '') ?>" readonly>
-=======
-                <input type="hidden" id="device-txt" name="device-txt" value="<?php echo $alldata[0]["device"] ?? '' ?>" >
-                <input type="text" class="form-control" id="device-txt-name" name="device-txt-name" value="<?php echo $alldata[0]["device_name"] ?? $alldata[0]["device"] ?? '' ?>" readonly>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+<input type="hidden" id="device-txt" name="device-txt" value="<?= esc($alldata[0]["device"] ?? '') ?>">
+                <input type="text" class="form-control" id="device-txt-name" name="device-txt-name" value="<?= esc($alldata[0]["device_name"] ?? $alldata[0]["device"] ?? '') ?>" readonly>
               </div>
             </div>
 
             <div class="mb-3 row">
               <label class="col-sm-2 col-form-label">Process</label>
               <div class="col-sm-6">
-<<<<<<< HEAD
-                <input type="hidden" id="process-txt" name="process-txt" value="<?= esc($alldata[0]["process"] ?? '') ?>">
-                <input type="text" class="form-control" value="<?= esc($alldata[0]["process_name"] ?? $alldata[0]["name"] ?? $alldata[0]["process"] ?? '') ?>" readonly>
-=======
-                <input type="hidden" id="process-txt" name="process-txt" value="<?php echo $alldata[0]["process"] ?? '' ?>" >
-                <input type="text" class="form-control" id="process-txt-name" name="process-txt-name" value="<?php echo $alldata[0]["process_name"] ?? $alldata[0]["name"] ?? $alldata[0]["process"] ?? '' ?>" readonly>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+<input type="hidden" id="process-txt" name="process-txt" value="<?= esc($alldata[0]["process"] ?? '') ?>">
+                <input type="text" class="form-control" id="process-txt-name" name="process-txt-name" value="<?= esc($alldata[0]["process_name"] ?? $alldata[0]["name"] ?? $alldata[0]["process"] ?? '') ?>" readonly>
               </div>
             </div>
 
             <div class="mb-3 row">
               <label class="col-sm-2 col-form-label">Model Name</label>
               <div class="col-sm-6">
-<<<<<<< HEAD
-                <!-- Select2 Dropdown (Bisa diketik/diubah) -->
-                <select class="form-control" id="model-txt" name="model-txt">
-                    <option value="<?= esc($alldata[0]["model"] ?? '') ?>" selected><?= esc($alldata[0]["model"] ?? '') ?></option>
-                </select>
-=======
-                <input type="hidden" id="model-txt" name="model-txt" value="<?php echo $alldata[0]["model"] ?? '' ?>" >
-                <input type="text" class="form-control" id="model-txt-name" name="model-txt-name" value="<?php echo $alldata[0]["model"] ?? '' ?>" readonly>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+<input type="hidden" id="model-txt" name="model-txt" value="<?= esc($alldata[0]["model"] ?? '') ?>">
+                <input type="text" class="form-control" id="model-txt-name" name="model-txt-name" value="<?= esc($alldata[0]["model"] ?? '') ?>" readonly>
               </div>
             </div>
 
@@ -115,123 +94,20 @@
             <div class="mb-3 row">
               <label class="col-sm-2 col-form-label">Lot Number</label>
               <div class="col-sm-6">
-<<<<<<< HEAD
-                <!-- Bebas diedit -->
-                <input type="text" class="form-control" id="lotno-txt" name="lotno-txt" value="<?= esc($alldata[0]["lotno"] ?? '') ?>" onkeyup="this.value = this.value.toUpperCase()">
-=======
-                <!-- Lot & Machine di Complete dibuat readonly karena hanya melanjutkan -->
-                <input type="text" class="form-control" id="lotno-txt" name="lotno-txt" value="<?php echo $alldata[0]["lotno"] ?? '' ?>" readonly>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+<!-- Lot & Machine di Complete dibuat readonly karena hanya melanjutkan -->
+                <input type="text" class="form-control" id="lotno-txt" name="lotno-txt" value="<?= esc($alldata[0]["lotno"] ?? '') ?>" readonly>
               </div>
             </div>
 
             <div class="mb-3 row">
               <label class="col-sm-2 col-form-label">Machine Number <span style="color:red;">*</span></label>
               <div class="col-sm-6">
-<<<<<<< HEAD
-                <select class="form-control" id="machno-txt" name="machno-txt" required>
-                    <option value="<?= esc($alldata[0]["machno"] ?? '') ?>" selected><?= esc($alldata[0]["machno"] ?? '') ?></option>
-                </select>
-=======
-                <input type="text" class="form-control" id="machno-txt" name="machno-txt" value="<?php echo $alldata[0]["machno"] ?? '' ?>" readonly>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+<input type="text" class="form-control" id="machno-txt" name="machno-txt" value="<?= esc($alldata[0]["machno"] ?? '') ?>" readonly>
               </div>
             </div>
 
             <div class="mb-3 row">
-<<<<<<< HEAD
-              <label class="col-sm-2 col-form-label">Revisi</label>
-              <div class="col-sm-6">
-                <input type="text" class="form-control" id="revisi-txt" name="revisi-txt" value="<?= esc($alldata[0]["revisi"] ?? '0') ?>" readonly>
-              </div>
-            </div>
-
-            <div class="mb-3 row">
-              <label class="col-sm-2 col-form-label">Operator Start</label>
-              <div class="col-sm-6">
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Emp. ID :</span>
-                  <!-- Readonly -->
-                  <input type="text" class="form-control" value="<?= esc($alldata[0]['empid'] ?? '') ?>" id="empid-txt" name="empid-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Name---:</span>
-                  <input type="text" class="form-control" value="<?= esc($alldata[0]['name'] ?? '') ?>" id="name-txt" name="name-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Position:</span>
-                  <input type="text" class="form-control" value="Operator" id="position-txt" name="position-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Shift----:</span>
-                  <input type="number" class="form-control" value="<?= esc($alldata[0]['shift'] ?? '') ?>" id="shift-txt" name="shift-txt">
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Group---:</span>
-                  <input type="text" class="form-control" value="<?= esc($alldata[0]['group'] ?? '') ?>" id="group-txt" name="group-txt" onkeyup="this.value = this.value.toUpperCase()">
-                </div>
-              </div>
-            </div>
-
-            <?php if (empty($alldata[0]["empid2"])): ?>
-            <div class="mb-3 row">
-              <label class="col-sm-2 col-form-label">Operator Finish</label>
-              <div class="col-sm-6">
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Emp. ID :</span>
-                  <input type="text" class="form-control" value="<?= esc($sessEmp) ?>" id="empid2-txt" name="empid2-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Name---:</span>
-                  <input type="text" class="form-control" value="<?= esc($sessName) ?>" id="name2-txt" name="name2-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Position:</span>
-                  <input type="text" class="form-control" value="<?= esc($sessPos) ?>" id="position2-txt" name="position2-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Shift----:</span>
-                  <input type="number" class="form-control" value="<?= esc($sessShift) ?>" id="shift2-txt" name="shift2-txt" placeholder="Ketik shift Anda">
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Group---:</span>
-                  <input type="text" class="form-control" value="<?= esc($sessGroup) ?>" id="group2-txt" name="group2-txt" placeholder="Ketik group Anda" onkeyup="this.value = this.value.toUpperCase()">
-                </div>
-              </div>
-            </div>
-            
-            <?php else: ?>
-            <div class="mb-3 row">
-              <label class="col-sm-2 col-form-label">Operator Finish</label>
-              <div class="col-sm-6">
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Emp. ID :</span>
-                  <input type="text" class="form-control" value="<?= esc($alldata[0]['empid2'] ?? '') ?>" id="empid2-txt" name="empid2-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Name---:</span>
-                  <input type="text" class="form-control" value="<?= esc($alldata[0]['name2'] ?? '') ?>" id="name2-txt" name="name2-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Position:</span>
-                  <input type="text" class="form-control" value="Operator" id="position2-txt" name="position2-txt" readonly>
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Shift----:</span>
-                  <input type="number" class="form-control" value="<?= esc($alldata[0]['shift2'] ?? '') ?>" id="shift2-txt" name="shift2-txt">
-                </div>
-                <div class="input-group mb-1">
-                  <span class="input-group-text">Group---:</span>
-                  <input type="text" class="form-control" value="<?= esc($alldata[0]['group2'] ?? '') ?>" id="group2-txt" name="group2-txt" onkeyup="this.value = this.value.toUpperCase()">
-                </div>
-              </div>
-            </div>
-            <?php endif; ?>
-
-          </div>
-          <div id="modal" class="mt-3"></div>
-=======
-              <?php
+<?php
                 $empid = $session->get('empid');
                 $nameSession = $session->get('name') ?? '';
                 $posSession  = $session->get('positionid') ?? '';
@@ -389,7 +265,7 @@
           ?>
 
           <div id="modal" class=""></div>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+
         </div>
 
         <div class="w-100 text-center d-flex justify-content-center my-4">
@@ -400,49 +276,8 @@
   </div>
 </form>
 
-<<<<<<< HEAD
-<script>
-$(document).ready(function() {
-    $('#model-txt').select2({ tags: true, width: '100%' });
-    $('#machno-txt').select2({ width: '100%' });
-    updateMachineList();
-
-    var num = $('#number-edit').val();
-    if (num) {
-        $.ajax({
-            url: "<?= base_url('production/edit/form'); ?>",
-            type: "GET",
-            data: { number: num },
-            dataType: "html",
-            success: function(responseHtml) {
-                $('#modal').html(responseHtml);
-                $('#submit').show();
-            }
-        });
-    }
-});
-
-function updateMachineList() {
-    var processCode = $('#process-txt').val();
-    if(!processCode) return;
-    $.getJSON("<?= base_url('machine/list') ?>?process=" + processCode, function(data) {
-        var mSel = $('#machno-txt');
-        var curVal = mSel.val();
-        mSel.empty().append('<option value="">-- Pilih Mesin --</option>');
-        if(data && data.length > 0) {
-            $.each(data, function(i, item) {
-                var isSel = (item.machine_name === curVal);
-                mSel.append(new Option(item.machine_name, item.machine_name, isSel, isSel));
-            });
-        }
-        if (curVal && mSel.find("option[value='" + curVal + "']").length === 0) {
-            mSel.append(new Option(curVal, curVal, true, true));
-        }
-    });
-=======
 <link rel="stylesheet" href="<?= base_url('assets/css/jquery-ui.css'); ?>">
 <link rel="stylesheet" href="<?= base_url('assets/css/global.css'); ?>">
-<script src="<?= base_url('assets/js/jquery-3.7.1.js'); ?>"></script>
 <script src="<?= base_url('assets/js/jquery-3.7.1.min.js'); ?>"></script>
 <script src="<?= base_url('assets/js/jquery-ui.js'); ?>"></script>
 <script src="<?= base_url('assets/js/edit.js?v=' . time()); ?>"></script>
@@ -514,7 +349,6 @@ function empAuto(empIdTag, shiftTag, groupTag, nameTag, positionTag, empIdlTag) 
         .fail(function () {
             warn.removeClass('invisible').addClass('visible');
         });
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 }
 </script>
 </main>

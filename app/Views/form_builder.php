@@ -33,7 +33,7 @@
             </div>
 
             <div class="card-body">
-                <!-- 1. CASCADING DROPDOWN FILTER -->
+                <!-- 1. CASCADING DROPDOWN FILTER (Seragam dengan Input & History) -->
                 <div class="row mb-4 bg-light p-3 rounded border">
                     <div class="col-md-3">
                         <label class="font-weight-bold">1. Device</label>
@@ -45,21 +45,18 @@
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="font-weight-bold">2. Doc Type</label>
-                        <select id="docTypeSelect" class="form-select" onchange="onFbDocTypeChange()" disabled>
+                    <div class="col-md-4">
+                        <label class="font-weight-bold">2. Process</label>
+                        <select id="processNameSelect" class="form-select" onchange="onFbProcessNameChange()" disabled>
                             <option value="">-- Pilih Device Dulu --</option>
-                            <option value="startup">Startup (Menurun / Vertikal)</option>
-                            <option value="startup_horizontal">Startup (Mendatar / Horizontal)</option>
-                            <option value="production">Production</option>
-                            <option value="foregoing">Foregoing</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="font-weight-bold">3. Process</label>
+                    <div class="col-md-3">
+                        <label class="font-weight-bold">3. Doc. Type</label>
                         <select id="processSelect" class="form-select" onchange="onFbProcessChange()" disabled>
-                            <option value="">-- Pilih Doc Type Dulu --</option>
+                            <option value="">-- Pilih Process Dulu --</option>
                         </select>
+                        <input type="hidden" id="docTypeSelect" value="">
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="button" id="btnLoadForm" class="btn btn-primary w-100" disabled>
@@ -86,22 +83,34 @@
                             </select>
                         </div>
 
-                        <!-- FILTER & PENGATUR STANDAR MODEL (KHUSUS FOREGOING) -->
+                        <!-- FILTER & PENGATUR STANDAR MODEL UNIVERSAL -->
                         <div id="foregoingModelBar" class="d-none d-flex align-items-center gap-1 bg-light p-1 rounded border border-primary me-1">
                             <span class="badge bg-primary"><i class="fas fa-microchip"></i> Model:</span>
                             <select id="fbModelSelect" class="form-select form-select-sm" style="min-width: 165px;">
                                 <option value="">-- Pilih Model --</option>
                             </select>
-                            <button type="button" class="btn btn-primary btn-sm" id="btnOpenModelStd" title="Atur Standar Min/Max X, Y, Z, θ untuk Model ini">
+                            <button type="button" class="btn btn-primary btn-sm" id="btnOpenModelStd" title="Atur Standar Min/Max untuk Model ini">
                                 <i class="fas fa-sliders-h"></i> Standar Model
                             </button>
                             <button type="button" class="btn btn-outline-dark btn-sm" id="btnManageModels" title="Tambah / Edit / Hapus Daftar Model">
-                                <i class="fas fa-cog"></i>
+                                <i class="fas fa-cog"></i> Kelola Model
                             </button>
                         </div>
 
+                        <button type="button" class="btn btn-outline-info btn-sm" id="btnOpenSopNote" title="Atur Catatan SOP & Mode Layout Form">
+                            <i class="fas fa-sticky-note"></i> Catatan SOP & Layout
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" id="btnExportCsv" title="Download Template CSV atau Export Parameter Saat Ini">
+                            <i class="fas fa-file-csv"></i> Download CSV
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" id="btnOpenImportCsv" title="Upload CSV untuk meregenerate parameter secara otomatis">
+                            <i class="fas fa-file-upload"></i> Upload CSV (Regenerate)
+                        </button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" id="btnResyncHtml" title="Reset mengikuti file form HTML bawaan">
                             <i class="fas fa-sync-alt"></i> Tarik Ulang dari File Asli
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" id="btnAddNewTable" title="Tambah Bagian / Tabel Baru (Pilih bentuk Mendatar, Menurun, atau Matriks seperti Foregoing)">
+                            <i class="fas fa-table"></i> + Tambah Tabel Baru
                         </button>
                         <button type="button" class="btn btn-success btn-sm" id="btnAddUtama">
                             <i class="fas fa-plus-circle"></i> Tambah Parameter Utama (Induk)
@@ -189,21 +198,21 @@
         </div>
     </div>
 
-    <!-- MODAL 3: PENGATUR STANDAR (X, Y, Z, θ) PER MODEL FOREGOING -->
+    <!-- MODAL 3: PENGATUR STANDAR PER MODEL (UNIVERSAL) -->
     <div class="modal fade" id="modalModelStd" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <form id="formModelStd">
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title fw-bold">
-                            <i class="fas fa-sliders-h"></i> Standar Foregoing Model: <span id="lblModalModelName" class="badge bg-warning text-dark fs-6">-</span>
+                            <i class="fas fa-sliders-h"></i> Standar Model: <span id="lblModalModelName" class="badge bg-warning text-dark fs-6">-</span>
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="stdModelId">
                         <div class="d-flex justify-content-between align-items-center mb-3 bg-light p-2 rounded border">
-                            <small class="text-muted">Atur batas <b>Min</b> dan <b>Max</b> untuk setiap baris posisi pada model ini. Jika tidak diukur (seperti baris Y pada model tertentu), matikan centang <b>Aktif</b>.</small>
+                            <small class="text-muted">Atur batas <b>Min</b> dan <b>Max</b> untuk setiap parameter/posisi pada model ini. Jika tidak diukur (seperti baris Y atau Point tertentu pada model tertentu), matikan centang <b>Aktif</b>.</small>
                             <div class="d-flex align-items-center gap-1" style="min-width: 240px;">
                                 <select id="copyFromModelSelect" class="form-select form-select-sm">
                                     <option value="">-- Copy Standar dari Model Lain --</option>
@@ -214,10 +223,10 @@
                         <table class="table table-bordered align-middle text-center">
                             <thead class="table-secondary">
                                 <tr>
-                                    <th width="20%">Baris Posisi (Pos)</th>
-                                    <th width="20%">Status Ukur</th>
-                                    <th width="30%">Batas Minimum (Min)</th>
-                                    <th width="30%">Batas Maksimum (Max)</th>
+                                    <th width="30%">Item / Parameter</th>
+                                    <th width="15%">Status Ukur</th>
+                                    <th width="27%">Batas Minimum (Min)</th>
+                                    <th width="28%">Batas Maksimum (Max)</th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyModelStdRows"></tbody>
@@ -273,82 +282,374 @@
             </div>
         </div>
     </div>
+    <!-- MODAL 5: PENGATURAN CATATAN SOP & MODE LAYOUT -->
+    <div class="modal fade" id="modalSopNote" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="formSopNote">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title fw-bold">
+                            <i class="fas fa-sticky-note"></i> Pengaturan Catatan SOP & Mode Layout
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body bg-light">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mode Layout Tampilan:</label>
+                            <select class="form-select" id="sopLayoutModeSelect" name="layout_mode">
+                                <option value="standard">Standard (Tampilan Normal Tunggal)</option>
+                                <option value="matrix_grid">Matriks 2D Grid (Multiple Rows seperti Front/Back pada LDSM SL56)</option>
+                            </select>
+                            <small class="text-muted">Pilih <b>Matriks 2D Grid</b> jika form ini membutuhkan baris bertingkat banyak (seperti Front 1, Front 2, Back 1, Back 2).</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Catatan SOP / Kriteria Inspeksi (Tampil di Bawah Form Input & History):</label>
+                            <textarea class="form-control" id="sopCatatanText" name="catatan_sop" rows="6" placeholder="Contoh:&#10;@ : Tulis hasil pemeriksaan sesuai angka alat ukur.&#10;* : Beri tanda V jika OK dan X jika NG.&#10;# : Isi note apabila ada penggantian part."></textarea>
+                            <small class="text-muted">Catatan ini akan otomatis muncul pada form input operator dan lembar history pemeriksaan.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-white">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-info text-white px-4" id="btnSaveSopNote">
+                            <i class="fas fa-save"></i> Simpan Catatan & Mode
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL 6: IMPORT & REGENERATE PARAMETER DARI CSV -->
+    <div class="modal fade" id="modalImportCsv" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="formImportCsv" enctype="multipart/form-data">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title fw-bold">
+                            <i class="fas fa-file-csv"></i> Upload CSV & Regenerate Parameter
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body bg-light">
+                        <div class="alert alert-info py-2 px-3 small mb-3">
+                            <i class="fas fa-info-circle me-1"></i> <b>Fitur Cepat Revisi:</b> Jika Anda memiliki revisi hard file atau daftar parameter di Excel, Anda dapat langsung menyimpannya sebagai file <b>.csv</b> dan menguploadnya di sini. Sistem akan otomatis meregenerate seluruh struktur parameter form.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Pilih File CSV <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="csvFileInput" name="csv_file" accept=".csv,text/csv" required>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <small class="text-muted">Mendukung format koma (,) maupun titik koma (;) dari Microsoft Excel.</small>
+                                <a href="javascript:void(0)" id="btnDownloadTemplateInModal" class="small text-decoration-none fw-bold">
+                                    <i class="fas fa-download"></i> Download Template CSV
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="card p-3 border mb-3 bg-white">
+                            <label class="form-label fw-bold mb-2">Metode Import:</label>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="import_mode" id="modeReplace" value="replace" checked>
+                                <label class="form-check-label fw-bold text-danger" for="modeReplace">
+                                    <i class="fas fa-sync-alt"></i> Regenerate Total (Rekomendasi)
+                                </label>
+                                <div class="text-muted small ps-4">
+                                    Menghapus parameter lama pada revisi ini dan menggantikannya secara bersih dengan isi file CSV.
+                                </div>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_mode" id="modeAppend" value="append">
+                                <label class="form-check-label fw-bold text-success" for="modeAppend">
+                                    <i class="fas fa-plus"></i> Tambah ke Bawah (Append)
+                                </label>
+                                <div class="text-muted small ps-4">
+                                    Mempertahankan parameter yang sudah ada dan menambahkan parameter dari CSV ke bagian bawah.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion" id="accCsvGuide">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingGuide">
+                                    <button class="accordion-button collapsed py-2 small fw-bold bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGuide">
+                                        <i class="fas fa-question-circle text-primary me-2"></i> Petunjuk Kolom Header CSV
+                                    </button>
+                                </h2>
+                                <div id="collapseGuide" class="accordion-collapse collapse" data-bs-parent="#accCsvGuide">
+                                    <div class="accordion-body small bg-light" style="line-height: 1.6;">
+                                        <ul>
+                                            <li><b>urutan</b>: Nomor urut baris (1, 2, 3, ...).</li>
+                                            <li><b>parent_urutan</b>: Kosongkan jika parameter utama. Jika merupakan sub-kolom, isi dengan nomor <b>urutan</b> induknya.</li>
+                                            <li><b>nama_parameter</b>: Nama parameter / header (Wajib diisi).</li>
+                                            <li><b>kolom_db</b>: Nama kolom database (opsional, contoh: <code>par001</code>). Jika dikosongkan, sistem akan otomatis membuat kode berikutnya.</li>
+                                            <li><b>tipe_input</b>: <code>number</code>, <code>dropdown_ok_ng</code>, <code>dropdown_custom</code>, <code>auto_judgment</code>, <code>text</code>, <code>textarea</code>, <code>time</code>, <code>date</code>, <code>header_only</code>.</li>
+                                            <li><b>standar_nilai</b>: Keterangan standar teks (contoh: <code>0.2 ~ 0.6 mm</code>).</li>
+                                            <li><b>batas_min</b> &amp; <b>batas_max</b>: Nilai numerik untuk validasi (contoh: <code>0.2</code> dan <code>0.6</code>).</li>
+                                            <li><b>step_value</b>: Presisi desimal (contoh: <code>any</code>, <code>1</code>, <code>0.1</code>, <code>0.001</code>, <code>0.00000001</code>).</li>
+                                            <li><b>rentang_ganda</b>: Toleransi dua rentang (contoh: <code>40,60,25,45</code>).</li>
+                                            <li><b>satuan_opsi</b>: Pilihan dropdown satuan (contoh: <code>N:0.6:1.0 | gr:60:100</code>).</li>
+                                            <li><b>opsi_dropdown</b>: Opsi kustom dipisahkan koma untuk dropdown (contoh: <code>V,A,CP,WP</code>).</li>
+                                            <li><b>target_evaluasi</b>: Target auto-judgment (<code>*</code> untuk semua, atau <code>par001,par002</code>).</li>
+                                            <li><b>rumus_otomatis</b>: Hitung otomatis (contoh: <code>ng:par013,par014</code> atau <code>yield:par013,par014</code>).</li>
+                                            <li><b>is_readonly</b>: Isi <code>1</code> jika readonly, <code>0</code> jika normal.</li>
+                                            <li><b>is_exclusive</b>: Isi <code>1</code> jika sub-parameternya saling mengunci (gray out).</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer bg-white">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary px-4" id="btnSubmitImportCsv">
+                            <i class="fas fa-upload"></i> Mulai Regenerate Parameter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL 6: TAMBAH BAGIAN / TABEL BARU -->
+    <div class="modal fade" id="modalNewTable" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="formNewTable">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title fw-bold">
+                            <i class="fas fa-table"></i> Tambah Bagian / Tabel Baru
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body bg-light">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nama / Judul Tabel Baru: <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="newTableName" placeholder="Contoh: Quantity, Visual Inspection, Dimensi, Die Bonding Position" required>
+                            <small class="text-muted">Nama ini akan menjadi judul bagian tabel terpisah di form.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Pilih Bentuk / Tipe Layout Tabel: <span class="text-danger">*</span></label>
+                            <select class="form-select" id="newTableLayoutType" required>
+                                <option value="horizontal">1. Tabel Mendatar (Single Row / Horizontal Card) - Cocok untuk Quantity (IN/OUT), Ringkasan Hasil, Parameter Tunggal</option>
+                                <option value="matrix">2. Tabel Matriks Grid 2D (seperti Foregoing / Production Precision) - Pengukuran Berulang per Baris Sampel</option>
+                                <option value="vertical">3. Tabel Menurun (Vertikal Checklist) - Item Pemeriksaan Startup ke Bawah</option>
+                            </select>
+                        </div>
+
+                        <!-- OPSI KHUSUS MATRIKS GRID 2D -->
+                        <div id="boxMatrixOptions" class="card p-3 border mb-3 bg-white d-none">
+                            <h6 class="fw-bold text-primary mb-2"><i class="fas fa-th"></i> Konfigurasi Baris Matriks Grid 2D</h6>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Pilihan Template Baris Sampel:</label>
+                                <select class="form-select" id="selMatrixTemplate">
+                                    <option value="front_back">Front 1, Front 2, Back 1, Back 2 (Standar Production LDSM / WB)</option>
+                                    <option value="xyzt">X, Y, Z, θ (Standar Foregoing Die Bond)</option>
+                                    <option value="samples_5">Sample 1, Sample 2, Sample 3, Sample 4, Sample 5</option>
+                                    <option value="custom">Kustom Sendiri (Ketik manual)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="boxCustomMatrixRows">
+                                <label class="form-label fw-bold">Daftar Baris Sampel (Pisahkan dengan koma):</label>
+                                <input type="text" class="form-control" id="inpCustomMatrixRows" value="Front 1, Front 2, Back 1, Back 2">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fw-bold">Nama Kolom Parameter Pertama:</label>
+                                <input type="text" class="form-control" id="inpMatrixFirstCol" placeholder="Contoh: Point 1 (θc) atau Result">
+                            </div>
+                        </div>
+
+                        <!-- OPSI KHUSUS MENDATAR / MENURUN -->
+                        <div id="boxSimpleOptions" class="card p-3 border mb-3 bg-white">
+                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-sliders-h"></i> Parameter Awal</h6>
+                            <div class="row">
+                                <div class="col-md-7 mb-2">
+                                    <label class="form-label fw-bold">Nama Parameter / Kolom Pertama:</label>
+                                    <input type="text" class="form-control" id="inpSimpleParamName" placeholder="Contoh: IN atau Start up Check Item">
+                                </div>
+                                <div class="col-md-5 mb-2">
+                                    <label class="form-label fw-bold">Tipe Input:</label>
+                                    <select class="form-select" id="selSimpleTipeInput">
+                                        <option value="number">Angka (Number)</option>
+                                        <option value="dropdown_ok_ng">Dropdown OK / NG (V / X)</option>
+                                        <option value="text">Teks Bebas</option>
+                                        <option value="textarea">Catatan / Keterangan</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer bg-white">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success px-4" id="btnSubmitNewTable">
+                            <i class="fas fa-plus"></i> Buat Tabel Baru
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </main>
 
-<!-- SCRIPT 1: FUNGSI GLOBAL DROPDOWN FILTER (TERPISAH AGAR SELALU AKTIF) -->
+<!-- SCRIPT 1: FUNGSI GLOBAL DROPDOWN FILTER (Seragam dengan Input & History) -->
 <script>
-function onFbDeviceChange() {
-    var devEl  = document.getElementById('deviceSelect');
-    var docEl  = document.getElementById('docTypeSelect');
-    var procEl = document.getElementById('processSelect');
-    var btnEl  = document.getElementById('btnLoadForm');
+var fbProcessRows = [];
+var TYPE_ORDER = {production: 1, startup: 2, foregoing: 3};
+var TYPE_LABEL = {production: 'Production', startup: 'Startup', foregoing: 'Foregoing'};
 
-    if (devEl && devEl.value !== '') {
-        docEl.disabled = false;
-        docEl.options[0].text = '-- Pilih Doc Type --';
-        docEl.value = '';
-        procEl.innerHTML = '<option value="">-- Pilih Doc Type Dulu --</option>';
-        procEl.disabled = true;
-        btnEl.disabled = true;
-    } else if (docEl && procEl && btnEl) {
-        docEl.disabled = true;
-        docEl.options[0].text = '-- Pilih Device Dulu --';
-        docEl.value = '';
-        procEl.innerHTML = '<option value="">-- Pilih Device Dulu --</option>';
-        procEl.disabled = true;
-        btnEl.disabled = true;
-    }
+function splitName(name) {
+    name = (name || '').trim();
+    var i = name.indexOf(' Type ');
+    if (i === -1) return { base: name, variant: '' };
+    return { base: name.substring(0, i).trim(), variant: name.substring(i + 1).trim() };
 }
 
-function onFbDocTypeChange() {
-    var devEl  = document.getElementById('deviceSelect');
-    var docEl  = document.getElementById('docTypeSelect');
-    var procEl = document.getElementById('processSelect');
-    var btnEl  = document.getElementById('btnLoadForm');
+function stripRevision(docno) {
+    var p = (docno || '').split('-');
+    return p.length >= 4 ? p.slice(0, -1).join('-') : (docno || '');
+}
 
-    var device = devEl ? devEl.value : '';
-    var type   = docEl ? docEl.value : '';
+function onFbDeviceChange() {
+    var devEl     = document.getElementById('deviceSelect');
+    var procName  = document.getElementById('processNameSelect');
+    var procEl    = document.getElementById('processSelect');
+    var docEl     = document.getElementById('docTypeSelect');
+    var btnEl     = document.getElementById('btnLoadForm');
 
-    btnEl.disabled = true;
+    fbProcessRows = [];
+    if (docEl) docEl.value = '';
+    if (btnEl) btnEl.disabled = true;
 
-    if (!device || !type) {
-        procEl.innerHTML = '<option value="">-- Pilih Doc Type Dulu --</option>';
-        procEl.disabled = true;
+    if (!devEl || devEl.value === '') {
+        if (procName) {
+            procName.innerHTML = '<option value="">-- Pilih Device Dulu --</option>';
+            procName.disabled = true;
+        }
+        if (procEl) {
+            procEl.innerHTML = '<option value="">-- Pilih Process Dulu --</option>';
+            procEl.disabled = true;
+        }
         return;
     }
 
-    procEl.innerHTML = '<option value="">Loading...</option>';
-    procEl.disabled = true;
+    var device = devEl.value;
+    if (procName) {
+        procName.innerHTML = '<option value="">Loading daftar proses...</option>';
+        procName.disabled = true;
+    }
+    if (procEl) {
+        procEl.innerHTML = '<option value="">-- Pilih Process Dulu --</option>';
+        procEl.disabled = true;
+    }
 
-    fetch("<?= base_url('form-builder/get-processes') ?>?device_code=" + encodeURIComponent(device) + "&type=" + encodeURIComponent(type))
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            procEl.innerHTML = '';
-            if (data && data.length > 0) {
-                procEl.innerHTML = '<option value="">-- Pilih Process --</option>';
-                data.forEach(function(item) {
-                    var opt = document.createElement('option');
-                    opt.value = item.process_code;
-                    opt.textContent = item.name + ' (' + item.process_code + ')';
-                    procEl.appendChild(opt);
-                });
-                procEl.disabled = false;
-            } else {
-                procEl.innerHTML = '<option value="">Data Kosong</option>';
-                procEl.disabled = true;
-            }
-        })
-        .catch(function(err) {
-            console.error('Gagal mengambil daftar proses:', err);
-            procEl.innerHTML = '<option value="">Gagal memuat proses</option>';
+    fetch("<?= base_url('process/list') ?>?device=" + encodeURIComponent(device), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        fbProcessRows = data || [];
+        populateFbProcessNames();
+    })
+    .catch(function(err) {
+        console.error('Gagal memuat proses:', err);
+        if (procName) {
+            procName.innerHTML = '<option value="">Gagal memuat proses</option>';
+            procName.disabled = true;
+        }
+    });
+}
+
+function populateFbProcessNames() {
+    var procName = document.getElementById('processNameSelect');
+    if (!procName) return;
+
+    var names = [];
+    fbProcessRows.forEach(function(r) {
+        var base = splitName(r.process_name || r.name).base;
+        if (base && names.indexOf(base) === -1) names.push(base);
+    });
+    names.sort();
+
+    procName.innerHTML = '';
+    if (names.length === 0) {
+        procName.innerHTML = '<option value="">-- Data Kosong --</option>';
+        procName.disabled = true;
+    } else {
+        procName.innerHTML = '<option value="">-- Pilih Process --</option>';
+        names.forEach(function(n) {
+            var opt = document.createElement('option');
+            opt.value = n;
+            opt.textContent = n;
+            procName.appendChild(opt);
         });
+        procName.disabled = false;
+    }
+}
+
+function onFbProcessNameChange() {
+    var procName = document.getElementById('processNameSelect');
+    var procEl   = document.getElementById('processSelect');
+    var docEl    = document.getElementById('docTypeSelect');
+    var btnEl    = document.getElementById('btnLoadForm');
+
+    if (docEl) docEl.value = '';
+    if (btnEl) btnEl.disabled = true;
+
+    if (!procName || procName.value === '') {
+        if (procEl) {
+            procEl.innerHTML = '<option value="">-- Pilih Process Dulu --</option>';
+            procEl.disabled = true;
+        }
+        return;
+    }
+
+    var chosen = procName.value;
+    var rows = fbProcessRows.filter(function(r) {
+        return splitName(r.process_name || r.name).base === chosen;
+    });
+
+    rows.sort(function(a, b) {
+        var ta = TYPE_ORDER[a.type] || 9, tb = TYPE_ORDER[b.type] || 9;
+        if (ta !== tb) return ta - tb;
+        return String(a.docno).localeCompare(String(b.docno));
+    });
+
+    if (!procEl) return;
+    procEl.innerHTML = '';
+
+    if (rows.length === 0) {
+        procEl.innerHTML = '<option value="">-- Dokumen Tidak Ditemukan --</option>';
+        procEl.disabled = true;
+    } else {
+        procEl.innerHTML = '<option value="">-- Pilih Dokumen / Doc Type --</option>';
+        rows.forEach(function(r) {
+            var variant = splitName(r.process_name || r.name).variant;
+            var label = stripRevision(r.docno) + ' (' + (TYPE_LABEL[r.type] || r.type) + ')' + (variant ? ' - ' + variant : '');
+            var opt = document.createElement('option');
+            opt.value = r.process_code;
+            opt.textContent = label;
+            opt.setAttribute('data-type', r.type);
+            opt.setAttribute('data-docno', r.docno);
+            opt.setAttribute('data-name', r.process_name || r.name);
+            procEl.appendChild(opt);
+        });
+        procEl.disabled = false;
+    }
 }
 
 function onFbProcessChange() {
     var procEl = document.getElementById('processSelect');
+    var docEl  = document.getElementById('docTypeSelect');
     var btnEl  = document.getElementById('btnLoadForm');
-    if (btnEl && procEl) {
-        btnEl.disabled = (procEl.value === '');
+
+    if (procEl && procEl.value !== '') {
+        var selectedOpt = procEl.options[procEl.selectedIndex];
+        var docType = selectedOpt ? selectedOpt.getAttribute('data-type') : '';
+        if (docEl) docEl.value = docType || '';
+        if (btnEl) btnEl.disabled = false;
+    } else {
+        if (docEl) docEl.value = '';
+        if (btnEl) btnEl.disabled = true;
     }
 }
 
@@ -402,6 +703,7 @@ $(document).ready(function() {
                 if (response.status === 'success') {
                     window.currentParamsList = response.params_list || [];
                     window.currentTreeParams = response.tree_params || [];
+                    window.currentRevision   = response.revision || null;
                     currentRevisionId = response.revision.id;
 
                     $('#lblRevisi').text('Revisi ' + response.revision.revisi);
@@ -546,6 +848,11 @@ $(document).ready(function() {
         let rumusOtomatis = parseJsonSafe(nodeData.rumus_otomatis) || {};
         let stdDinamis    = parseJsonSafe(nodeData.standar_dinamis) || null;
         let children      = Array.isArray(nodeData.children) ? nodeData.children : [];
+        let opsiDropdown   = nodeData.opsi_dropdown || '';
+        let stepValue      = nodeData.step_value || 'any';
+        let rentangGanda   = nodeData.rentang_ganda || '';
+        let targetEvaluasi = nodeData.target_evaluasi || '*';
+        let tableIndex     = nodeData.table_index || 1;
 
         let badgeColors = ['primary', 'success', 'warning text-dark', 'info text-dark', 'danger', 'dark'];
         let badgeColor  = badgeColors[(level - 1) % badgeColors.length];
@@ -564,7 +871,7 @@ $(document).ready(function() {
         let isHeaderOnly  = (tipeInput === 'header_only' || (!nodeData.tipe_input && !nodeData.kolom_db && id));
 
         let cardHtml = `
-        <div class="card shadow-sm mb-3 tree-node-card" data-level="${level}" data-id="${id}" data-kolom-db="${kolomDb}">
+        <div class="card shadow-sm mb-3 tree-node-card" data-level="${level}" data-id="${id}" data-table-index="${tableIndex}" data-kolom-db="${kolomDb}">
             <div class="card-header py-2 bg-white d-flex justify-content-between align-items-center">
                 <div>
                     <span class="badge bg-${badgeColor} me-2">Tingkat ${level}</span>
@@ -637,6 +944,10 @@ $(document).ready(function() {
                             <select class="form-select form-select-sm sel-node-tipe">
                                 <option value="number" ${tipeInput === 'number' ? 'selected' : ''}>Angka (Ukuran / Qty / Tekanan)</option>
                                 <option value="dropdown_ok_ng" ${tipeInput === 'dropdown_ok_ng' ? 'selected' : ''}>Pilihan OK / NG (Dropdown)</option>
+                                <option value="dropdown_custom" ${tipeInput === 'dropdown_custom' ? 'selected' : ''}>Pilihan Dropdown Khusus (Custom Options)</option>
+                                <option value="auto_judgment" ${tipeInput === 'auto_judgment' ? 'selected' : ''}>Judgment Otomatis (✔ OK / ✖ NG)</option>
+                                <option value="time" ${tipeInput === 'time' ? 'selected' : ''}>Waktu (Jam:Menit)</option>
+                                <option value="date" ${tipeInput === 'date' ? 'selected' : ''}>Tanggal (Date Picker)</option>
                                 <option value="text" ${tipeInput === 'text' ? 'selected' : ''}>Teks Bebas (1 Baris)</option>
                                 <option value="textarea" ${tipeInput === 'textarea' ? 'selected' : ''}>Catatan Panjang (Kotak Besar)</option>
                                 <option value="header_only" ${isHeaderOnly ? 'selected' : ''}>Hanya Teks Statis / Label (Tanpa Input)</option>
@@ -676,6 +987,26 @@ $(document).ready(function() {
                             </div>
                         </div>
 
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold mb-1">Presisi Desimal (Step)</label>
+                                <select class="form-select form-select-sm inp-node-step">
+                                    <option value="any" ${stepValue === 'any' ? 'selected' : ''}>Bebas (any)</option>
+                                    <option value="1" ${stepValue === '1' ? 'selected' : ''}>Bilangan Bulat (1)</option>
+                                    <option value="0.1" ${stepValue === '0.1' ? 'selected' : ''}>1 Desimal (0.1)</option>
+                                    <option value="0.01" ${stepValue === '0.01' ? 'selected' : ''}>2 Desimal (0.01)</option>
+                                    <option value="0.001" ${stepValue === '0.001' ? 'selected' : ''}>3 Desimal (0.001)</option>
+                                    <option value="0.0001" ${stepValue === '0.0001' ? 'selected' : ''}>4 Desimal (0.0001)</option>
+                                    <option value="0.00000001" ${stepValue === '0.00000001' ? 'selected' : ''}>8 Desimal (0.00000001)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label small fw-bold mb-1">Rentang Ganda (Dual Range / Toleransi Pecah)</label>
+                                <input type="text" class="form-control form-control-sm inp-node-rentang-ganda" placeholder="Contoh: 40,60,25,45 (Min1, Max1, Min2, Max2)" value="${rentangGanda}">
+                                <small class="text-muted" style="font-size:10px;">Jika diisi, validasi akan memanggil changeRange2 jika nilai di luar kedua rentang.</small>
+                            </div>
+                        </div>
+
                         <div class="row g-2 mb-2 p-2 bg-white border border-primary rounded box-formula-cols ${formulaType !== '' ? '' : 'd-none'}">
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold mb-1">Kolom Acuan "In" (Input):</label>
@@ -698,6 +1029,22 @@ $(document).ready(function() {
                             </div>
                             <div class="unit-rows-container"></div>
                         </div>
+                    </div>
+
+                    <!-- BOX KHUSUS DROPDOWN CUSTOM -->
+                    <div class="box-dropdown-custom-extra mt-2 pt-2 border-top ${tipeInput === 'dropdown_custom' ? '' : 'd-none'}">
+                        <label class="form-label small fw-bold mb-1">Daftar Pilihan Dropdown (Pisahkan dengan tanda koma):</label>
+                        <input type="text" class="form-control form-control-sm inp-node-dropdown-opsi" placeholder="Contoh: ✔ (OK), ✖ (NG), - atau V = GOOD, A = Adjust, CP = Change Part, WP = Waiting Part" value="${opsiDropdown}">
+                        <small class="text-muted">Operator hanya dapat memilih dari opsi-opsi yang Anda daftarkan di sini.</small>
+                    </div>
+
+                    <!-- BOX KHUSUS AUTO JUDGMENT -->
+                    <div class="box-auto-judgment-extra mt-2 pt-2 border-top ${tipeInput === 'auto_judgment' ? '' : 'd-none'}">
+                        <div class="alert alert-warning py-1 px-2 mb-2 small">
+                            <i class="fas fa-magic"></i> Kolom ini akan otomatis menghitung status kelulusan: Jika ada input merah/NG maka otomatis <b>✖ (NG)</b>, jika semua terisi dan benar maka otomatis <b>✔ (OK)</b>.
+                        </div>
+                        <label class="form-label small fw-bold mb-1">Target Parameter Yang Dievaluasi:</label>
+                        <input type="text" class="form-control form-control-sm inp-node-target-eval" placeholder="Ketik * untuk seluruh form, atau sebutkan kolom: par001,par002,par003" value="${targetEvaluasi}">
                     </div>
                 </div>
 
@@ -760,11 +1107,15 @@ $(document).ready(function() {
 
     $(document).on('change', '.sel-node-tipe', function() {
         let card = $(this).closest('.tree-node-card');
-        let boxNum = card.children('.card-body').children('.node-leaf-settings').children('.box-number-extra');
-        if ($(this).val() === 'number') {
-            boxNum.removeClass('d-none');
-        } else {
-            boxNum.addClass('d-none');
+        let leaf = card.children('.card-body').children('.node-leaf-settings');
+        let val  = $(this).val();
+
+        leaf.children('.box-number-extra').toggleClass('d-none', val !== 'number');
+        leaf.children('.box-dropdown-custom-extra').toggleClass('d-none', val !== 'dropdown_custom');
+        leaf.children('.box-auto-judgment-extra').toggleClass('d-none', val !== 'auto_judgment');
+
+        if (val === 'auto_judgment') {
+            leaf.find('.chk-node-readonly').prop('checked', true);
         }
     });
 
@@ -806,10 +1157,11 @@ $(document).ready(function() {
     $(document).on('click', '.btn-add-subnode', function() {
         let parentCard = $(this).closest('.tree-node-card');
         let parentLevel = parseInt(parentCard.attr('data-level')) || 1;
+        let parentTableIndex = parseInt(parentCard.attr('data-table-index')) || 1;
         let childrenContainer = parentCard.children('.card-body').children('.node-children-container');
         let nextOrder = childrenContainer.children('.tree-node-card').length + 1;
 
-        let newChildCard = createNodeCard({ urutan: nextOrder, tipe_input: 'number' }, parentLevel + 1, false);
+        let newChildCard = createNodeCard({ urutan: nextOrder, tipe_input: 'number', table_index: parentTableIndex }, parentLevel + 1, false);
         childrenContainer.append(newChildCard);
         syncCardMode(parentCard);
     });
@@ -826,6 +1178,7 @@ $(document).ready(function() {
     function serializeNodeCard(card) {
         let id          = card.attr('data-id') || null;
         let kolomDb     = card.attr('data-kolom-db') || null;
+        let tableIndex  = parseInt(card.attr('data-table-index')) || 1;
         let body        = card.children('.card-body');
         let namaParam   = body.find('.inp-node-name').first().val().trim();
         let urutan      = parseInt(body.find('.inp-node-urutan').first().val()) || 1;
@@ -900,6 +1253,12 @@ $(document).ready(function() {
             isReadonly = 1;
         }
 
+        let opsiDropdown   = (tipeInput === 'dropdown_custom') ? (leafSettings.find('.inp-node-dropdown-opsi').first().val() || '').trim() : null;
+        let stepValue      = (tipeInput === 'number') ? (leafSettings.find('.inp-node-step').first().val() || 'any').trim() : 'any';
+        let rentangGanda   = (tipeInput === 'number') ? (leafSettings.find('.inp-node-rentang-ganda').first().val() || '').trim() : null;
+        let targetEvaluasi = (tipeInput === 'auto_judgment') ? (leafSettings.find('.inp-node-target-eval').first().val() || '*').trim() : null;
+        if (tipeInput === 'auto_judgment') isReadonly = 1;
+
         let childrenData = [];
         childCards.each(function() {
             childrenData.push(serializeNodeCard($(this)));
@@ -909,6 +1268,7 @@ $(document).ready(function() {
             id: id,
             nama_parameter: namaParam,
             kolom_db: kolomDb,
+            table_index: tableIndex,
             urutan: urutan,
             jenis_elemen: jenisElemen,
             tipe_input: tipeInput,
@@ -920,6 +1280,10 @@ $(document).ready(function() {
             satuan_opsi: satuanOpsi.length > 0 ? satuanOpsi : null,
             rumus_otomatis: rumusOtomatis,
             standar_dinamis: standarDinamis,
+            opsi_dropdown: opsiDropdown,
+            step_value: stepValue,
+            rentang_ganda: rentangGanda,
+            target_evaluasi: targetEvaluasi,
             children: childrenData
         };
     }
@@ -940,6 +1304,7 @@ $(document).ready(function() {
     $(document).on('click', '.btn-add-child', function() {
         let parentId   = $(this).data('id');
         let parentName = $(this).data('name') || 'Parameter Terpilih';
+        let tableIndex = parseInt($(this).data('table-index')) || 1;
 
         $('#revisionId').val(currentRevisionId);
         populateCleanParentDropdown([], parentId);
@@ -948,7 +1313,7 @@ $(document).ready(function() {
         $('#lblNamaInduk').text(parentName);
         $('#infoIndukBox').removeClass('d-none');
 
-        $('#treeBuilderRoot').empty().append(createNodeCard({ urutan: 1, tipe_input: 'number' }, 1, true));
+        $('#treeBuilderRoot').empty().append(createNodeCard({ urutan: 1, tipe_input: 'number', table_index: tableIndex }, 1, true));
 
         $('#modalTitle').html('<i class="fas fa-sitemap"></i> Tambah Sub-Parameter');
         $('#modalForm').modal('show');
@@ -1140,22 +1505,288 @@ $(document).ready(function() {
         }
     });
 
-    function getActiveForegoingRowNames() {
-        let rows = [];
-        (window.currentParamsList || []).forEach(function(p) {
-            if (p.posisi_grid && !rows.includes(p.posisi_grid)) {
-                rows.push(p.posisi_grid);
+    // PENGATURAN CATATAN SOP & MODE LAYOUT (MATRIKS 2D / STANDARD)
+    $('#btnOpenSopNote').click(function() {
+        let rev = window.currentRevision || {};
+        $('#sopLayoutModeSelect').val(rev.layout_mode || 'standard');
+        $('#sopCatatanText').val(rev.catatan_sop || '');
+        $('#modalSopNote').modal('show');
+    });
+
+    $('#formSopNote').submit(function(e) {
+        e.preventDefault();
+        let btn = $('#btnSaveSopNote');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Menyimpan...');
+
+        $.ajax({
+            url: "<?= base_url('form-builder/save-sop-note') ?>",
+            type: "POST",
+            data: {
+                revision_id: currentRevisionId,
+                layout_mode: $('#sopLayoutModeSelect').val(),
+                catatan_sop: $('#sopCatatanText').val()
+            },
+            dataType: "json",
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="fas fa-save"></i> Simpan Catatan & Mode');
+                if (res.status === 'success') {
+                    if (window.currentRevision) {
+                        window.currentRevision.layout_mode = $('#sopLayoutModeSelect').val();
+                        window.currentRevision.catatan_sop = $('#sopCatatanText').val();
+                    }
+                    $('#modalSopNote').modal('hide');
+                    alert(res.message);
+                } else {
+                    alert(res.message || 'Gagal menyimpan catatan SOP.');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="fas fa-save"></i> Simpan Catatan & Mode');
+                console.error("Save SOP Error:", xhr.responseText);
+                alert("Gagal menyimpan Catatan SOP! Cek tab Console.");
             }
         });
-        return rows.length > 0 ? rows : ['X', 'Y', 'Z', 'θ'];
+    });
+
+    // ==========================================================
+    // FITUR REGENERASI DARI CSV (EXPORT & UPLOAD CSV)
+    // ==========================================================
+
+    // 1. Download Template CSV atau Export Parameter Saat Ini
+    $('#btnExportCsv, #btnDownloadTemplateInModal').click(function(e) {
+        e.preventDefault();
+        if (!currentRevisionId) {
+            alert("Pilih dan muat form terlebih dahulu!");
+            return;
+        }
+        window.location.href = "<?= base_url('form-builder/export-csv') ?>?revision_id=" + currentRevisionId;
+    });
+
+    // 2. Buka Modal Upload CSV
+    $('#btnOpenImportCsv').click(function() {
+        if (!currentRevisionId) {
+            alert("Pilih dan muat form terlebih dahulu!");
+            return;
+        }
+        $('#formImportCsv')[0].reset();
+        $('#modalImportCsv').modal('show');
+    });
+
+    // 3. Submit File CSV untuk Regenerate Parameter
+    $('#formImportCsv').submit(function(e) {
+        e.preventDefault();
+        let fileInput = document.getElementById('csvFileInput');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Pilih file CSV terlebih dahulu!");
+            return;
+        }
+
+        let mode = $('input[name="import_mode"]:checked').val() || 'replace';
+        let confirmMsg = (mode === 'replace')
+            ? "PERINGATAN: Mode Regenerate Total akan menghapus seluruh parameter lama pada revisi ini dan menggantikannya dengan isi file CSV.\n\nApakah Anda yakin ingin meregenerate parameter?"
+            : "Parameter dari file CSV akan ditambahkan ke bagian bawah form.\n\nLanjutkan?";
+
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+
+        let formData = new FormData();
+        formData.append('revision_id', currentRevisionId);
+        formData.append('import_mode', mode);
+        formData.append('csv_file', fileInput.files[0]);
+
+        let btn = $('#btnSubmitImportCsv');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Memproses CSV...');
+
+        $.ajax({
+            url: "<?= base_url('form-builder/import-csv') ?>",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: "json",
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="fas fa-upload"></i> Mulai Regenerate Parameter');
+                if (res.status === 'success') {
+                    $('#modalImportCsv').modal('hide');
+                    alert(res.message);
+                    loadTableData(false);
+                } else {
+                    alert(res.message || 'Gagal memproses file CSV.');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="fas fa-upload"></i> Mulai Regenerate Parameter');
+                console.error("Import CSV Error:", xhr.responseText);
+                alert("Gagal mengupload CSV! Cek tab Console untuk detail.");
+            }
+        });
+    });
+
+    // ==========================================================
+    // FITUR TAMBAH & HAPUS TABEL BARU DENGAN PILIHAN BENTUK
+    // ==========================================================
+
+    $('#btnAddNewTable').click(function() {
+        if (!currentRevisionId) {
+            alert('Pilih dan muat form terlebih dahulu!');
+            return;
+        }
+        $('#formNewTable')[0].reset();
+        $('#newTableLayoutType').val('horizontal').trigger('change');
+        $('#modalNewTable').modal('show');
+    });
+
+    $('#newTableLayoutType').change(function() {
+        let val = $(this).val();
+        if (val === 'matrix') {
+            $('#boxMatrixOptions').removeClass('d-none');
+            $('#boxSimpleOptions').addClass('d-none');
+        } else {
+            $('#boxMatrixOptions').addClass('d-none');
+            $('#boxSimpleOptions').removeClass('d-none');
+        }
+    });
+
+    $('#selMatrixTemplate').change(function() {
+        let val = $(this).val();
+        if (val === 'front_back') {
+            $('#inpCustomMatrixRows').val('Front 1, Front 2, Back 1, Back 2');
+        } else if (val === 'xyzt') {
+            $('#inpCustomMatrixRows').val('X, Y, Z, θ');
+        } else if (val === 'samples_5') {
+            $('#inpCustomMatrixRows').val('Sample 1, Sample 2, Sample 3, Sample 4, Sample 5');
+        }
+    });
+
+    $('#formNewTable').submit(function(e) {
+        e.preventDefault();
+        let tableName = $('#newTableName').val().trim();
+        if (!tableName) {
+            alert('Nama tabel wajib diisi!');
+            return;
+        }
+
+        let layoutType = $('#newTableLayoutType').val();
+        let payload = {
+            revision_id: currentRevisionId,
+            table_name: tableName,
+            layout_type: layoutType
+        };
+
+        if (layoutType === 'matrix') {
+            payload.matrix_rows = $('#inpCustomMatrixRows').val();
+            payload.first_col_name = $('#inpMatrixFirstCol').val().trim() || 'Result';
+        } else {
+            payload.initial_param_name = $('#inpSimpleParamName').val().trim() || 'Parameter 1';
+            payload.initial_tipe_input = $('#selSimpleTipeInput').val();
+        }
+
+        let btn = $('#btnSubmitNewTable');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Membuat Tabel...');
+
+        $.ajax({
+            url: "<?= base_url('form-builder/add-table') ?>",
+            type: "POST",
+            data: payload,
+            dataType: "json",
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="fas fa-plus"></i> Buat Tabel Baru');
+                if (res.status === 'success') {
+                    $('#modalNewTable').modal('hide');
+                    alert(res.message);
+                    loadTableData(false);
+                } else {
+                    alert(res.message || 'Gagal membuat tabel baru.');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="fas fa-plus"></i> Buat Tabel Baru');
+                console.error("Add table error:", xhr.responseText);
+                alert('Gagal membuat tabel baru! Cek Console.');
+            }
+        });
+    });
+
+    $(document).on('click', '.btn-delete-table', function() {
+        let tIdx = $(this).data('table-index');
+        let tName = $(this).data('table-name') || ('Tabel ' + tIdx);
+
+        if (!confirm('PERINGATAN: Apakah Anda yakin ingin menghapus seluruh ' + tName + ' beserta semua parameternya?\n\nTindakan ini tidak dapat dibatalkan.')) {
+            return;
+        }
+
+        $.ajax({
+            url: "<?= base_url('form-builder/delete-table') ?>",
+            type: "POST",
+            data: {
+                revision_id: currentRevisionId,
+                table_index: tIdx
+            },
+            dataType: "json",
+            success: function(res) {
+                if (res.status === 'success') {
+                    alert(res.message);
+                    loadTableData(false);
+                } else {
+                    alert(res.message || 'Gagal menghapus tabel.');
+                }
+            },
+            error: function(xhr) {
+                console.error("Delete table error:", xhr.responseText);
+                alert('Gagal menghapus tabel! Cek Console.');
+            }
+        });
+    });
+
+    // ==========================================================
+    // FITUR STANDAR MODEL UNIVERSAL (FOREGOING & PRODUCTION)
+    // ==========================================================
+
+    function getModelStandardItems() {
+        let items = [];
+        // 1. Cek parameter kolom daun header yang memiliki anak grid (misal Point 1..Point 7 di LDSM Production)
+        (window.currentParamsList || []).forEach(function(p) {
+            if (p.posisi_grid && p.parent_id) {
+                let parentNode = (window.currentParamsList || []).find(function(par) {
+                    return String(par.id) === String(p.parent_id);
+                });
+                if (parentNode && parentNode.nama_parameter && !items.includes(parentNode.nama_parameter)) {
+                    if (p.tipe_input === 'number' || !p.tipe_input) {
+                        items.push(parentNode.nama_parameter);
+                    }
+                }
+            }
+        });
+
+        // 2. Jika tidak ada kolom bertingkat beranak grid, ambil baris posisi_grid (seperti X, Y, Z, θ di Foregoing)
+        if (items.length === 0) {
+            (window.currentParamsList || []).forEach(function(p) {
+                if (p.posisi_grid && !items.includes(p.posisi_grid)) {
+                    items.push(p.posisi_grid);
+                }
+            });
+        }
+
+        // 3. Fallback: ambil semua parameter input 'number'
+        if (items.length === 0) {
+            (window.currentParamsList || []).forEach(function(p) {
+                if (p.tipe_input === 'number' && p.kolom_db && !items.includes(p.nama_parameter)) {
+                    items.push(p.nama_parameter);
+                }
+            });
+        }
+
+        return items.length > 0 ? items : ['Point 1', 'Point 2', 'Point 3', 'Point 4', 'Point 5', 'Point 6', 'Point 7'];
     }
 
     function loadModelsForFormBuilder(selectedId) {
         selectedId = selectedId || null;
         let processCode = $('#processSelect').val();
         let docType     = $('#docTypeSelect').val();
+        let hasModel    = (docType === 'foregoing' || docType === 'production');
 
-        if (docType !== 'foregoing' || !processCode) {
+        if (!hasModel || !processCode) {
             $('#foregoingModelBar').addClass('d-none');
             return;
         }
@@ -1209,19 +1840,42 @@ $(document).ready(function() {
 
         if (!modelObj || !modelObj.standards) return;
 
+        // 1. Cek baris sampel / posisi matriks (seperti X, Y, Z, θ)
         $('#visualBuilderContainer table tbody tr').each(function() {
-            let posCell = $(this).find('td.bg-secondary .fs-6').first();
+            let posCell = $(this).find('td.bg-secondary .fs-6, th').first();
             if (posCell.length === 0) return;
             let rowName = posCell.text().trim();
             let cfg = modelObj.standards[rowName];
             if (!cfg) return;
 
             if (parseInt(cfg.active) === 0) {
-                posCell.after('<div class="model-std-preview-badge badge bg-dark text-warning mt-1 d-block" style="font-size:10px;">' + modelObj.model_name + ': OFF (Tidak Diukur)</div>');
+                posCell.append('<div class="model-std-preview-badge badge bg-dark text-warning mt-1 d-block" style="font-size:10px;">' + modelObj.model_name + ': OFF</div>');
             } else {
                 let minLbl = (cfg.min !== null && cfg.min !== '') ? cfg.min : '-∞';
                 let maxLbl = (cfg.max !== null && cfg.max !== '') ? cfg.max : '∞';
-                posCell.after('<div class="model-std-preview-badge badge bg-warning text-dark mt-1 d-block" style="font-size:10px;">' + modelObj.model_name + ': ' + minLbl + ' ~ ' + maxLbl + '</div>');
+                posCell.append('<div class="model-std-preview-badge badge bg-warning text-dark mt-1 d-block" style="font-size:10px;">' + modelObj.model_name + ': ' + minLbl + ' ~ ' + maxLbl + '</div>');
+            }
+        });
+
+        // 2. Cek kolom parameter (seperti Point 1..Point 7 di Production LDSM)
+        $('#visualBuilderContainer table thead th').each(function() {
+            let th = $(this);
+            let colTitle = th.find('.fw-semibold, .fw-bold').first().text().trim() || th.text().trim();
+            if (!colTitle) return;
+
+            let matchedKey = Object.keys(modelObj.standards).find(function(k) {
+                return colTitle === k || colTitle.startsWith(k) || k.startsWith(colTitle);
+            });
+            if (!matchedKey) return;
+            let cfg = modelObj.standards[matchedKey];
+            if (!cfg) return;
+
+            if (parseInt(cfg.active) === 0) {
+                th.append('<div class="model-std-preview-badge badge bg-dark text-warning mt-1 d-block" style="font-size:10px;">' + modelObj.model_name + ': OFF</div>');
+            } else {
+                let minLbl = (cfg.min !== null && cfg.min !== '') ? cfg.min : '-∞';
+                let maxLbl = (cfg.max !== null && cfg.max !== '') ? cfg.max : '∞';
+                th.append('<div class="model-std-preview-badge badge bg-warning text-dark mt-1 d-block" style="font-size:10px;">' + minLbl + ' ~ ' + maxLbl + '</div>');
             }
         });
     }
@@ -1232,7 +1886,7 @@ $(document).ready(function() {
 
     function renderModelStdRows(standardsObj) {
         standardsObj = standardsObj || {};
-        let rows = getActiveForegoingRowNames();
+        let rows = getModelStandardItems();
         let tbody = $('#tbodyModelStdRows');
         tbody.empty();
 
@@ -1243,7 +1897,7 @@ $(document).ready(function() {
             let maxV = (cfg.max !== null && cfg.max !== undefined) ? cfg.max : '';
             tbody.append(
                 '<tr class="model-std-row" data-pos="' + rName + '">' +
-                '<td class="fw-bold fs-6 bg-light">' + rName + '</td>' +
+                '<td class="fw-bold fs-6 bg-light text-start ps-3">' + rName + '</td>' +
                 '<td><div class="form-check d-flex justify-content-center">' +
                 '<input class="form-check-input chk-pos-active" type="checkbox" ' + (isAct ? 'checked' : '') + '>' +
                 '<label class="form-check-label ms-1 small">Aktif</label></div></td>' +

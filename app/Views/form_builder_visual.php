@@ -70,7 +70,7 @@ if (!function_exists('renderActionButtons')) {
         $rawJson = htmlspecialchars(json_encode($modalTree), ENT_QUOTES, 'UTF-8');
         return '
         <div class="mt-1" style="white-space: nowrap;">
-            <button type="button" class="btn btn-sm btn-success btn-add-child py-0 px-1" data-id="'.$node['id'].'" data-name="'.esc($node['nama_parameter']).'" title="Tambah Sub-Parameter di Bawah Ini"><i class="fas fa-plus" style="font-size:10px;"></i></button>
+            <button type="button" class="btn btn-sm btn-success btn-add-child py-0 px-1" data-id="'.$node['id'].'" data-name="'.esc($node['nama_parameter']).'" data-table-index="'.($node['table_index'] ?? 1).'" title="Tambah Sub-Parameter di Bawah Ini"><i class="fas fa-plus" style="font-size:10px;"></i></button>
             <button type="button" class="btn btn-sm btn-warning btn-edit-tree text-dark py-0 px-1" data-tree=\''.$rawJson.'\' title="Edit Parameter & Sub-Bagiannya"><i class="fas fa-edit" style="font-size:10px;"></i></button>
             <button type="button" class="btn btn-sm btn-danger btn-delete py-0 px-1" data-id="'.$node['id'].'" title="Hapus"><i class="fas fa-trash-alt" style="font-size:10px;"></i></button>
         </div>';
@@ -280,145 +280,173 @@ if (!function_exists('buildHorizontalHeaders')) {
             <!-- ENGINE 2 & 3: STARTUP MENDATAR, PRODUCTION, & FOREGOING (MATRIKS GRID)    -->
             <!-- ========================================================================= -->
             <?php
-            $headerMaxDepth = 0;
+            $tablesMap = [];
             foreach ($treeParams as $node) {
-                $d = getSubtreeDepth($node, true);
-                if ($d > $headerMaxDepth) $headerMaxDepth = $d;
+                $tIdx = !empty($node['table_index']) ? (int)$node['table_index'] : 1;
+                $tablesMap[$tIdx][] = $node;
             }
-            $headerMaxDepth = max(1, $headerMaxDepth);
+            ksort($tablesMap);
+            $isMultiTable = (count($tablesMap) > 1);
+            ?>
 
-            $headerRows = [];
-            $headerLeaves = [];
-            buildHorizontalHeaders($treeParams, 0, $headerRows, $headerLeaves, $headerMaxDepth);
-            ksort($headerRows);
+            <?php foreach ($tablesMap as $tIdx => $currentTree): ?>
+                <?php
+                $headerMaxDepth = 0;
+                foreach ($currentTree as $node) {
+                    $d = getSubtreeDepth($node, true);
+                    if ($d > $headerMaxDepth) $headerMaxDepth = $d;
+                }
+                $headerMaxDepth = max(1, $headerMaxDepth);
 
-            $gridRowNames = [];
-            $firstGridLeafIdx = null;
-            $gridHeaderLabel = 'Sample / Label';
-            foreach ($headerLeaves as $hIdx => $hLeaf) {
-                if (!empty($hLeaf['children']) && !empty($hLeaf['children'][0]['posisi_grid'])) {
-                    if ($firstGridLeafIdx === null) {
-                        $firstGridLeafIdx = $hIdx;
-                    }
-                    foreach ($hLeaf['children'] as $gridChild) {
-                        if (!empty($gridChild['standar_nilai'])) {
-                            $gridHeaderLabel = $gridChild['standar_nilai'];
+                $headerRows = [];
+                $headerLeaves = [];
+                buildHorizontalHeaders($currentTree, 0, $headerRows, $headerLeaves, $headerMaxDepth);
+                ksort($headerRows);
+
+                $gridRowNames = [];
+                $firstGridLeafIdx = null;
+                $gridHeaderLabel = 'Sample / Label';
+                foreach ($headerLeaves as $hIdx => $hLeaf) {
+                    if (!empty($hLeaf['children']) && !empty($hLeaf['children'][0]['posisi_grid'])) {
+                        if ($firstGridLeafIdx === null) {
+                            $firstGridLeafIdx = $hIdx;
                         }
-                        if (!empty($gridChild['posisi_grid']) && !in_array($gridChild['posisi_grid'], $gridRowNames)) {
-                            $gridRowNames[] = $gridChild['posisi_grid'];
+                        foreach ($hLeaf['children'] as $gridChild) {
+                            if (!empty($gridChild['standar_nilai'])) {
+                                $gridHeaderLabel = $gridChild['standar_nilai'];
+                            }
+                            if (!empty($gridChild['posisi_grid']) && !in_array($gridChild['posisi_grid'], $gridRowNames)) {
+                                $gridRowNames[] = $gridChild['posisi_grid'];
+                            }
                         }
                     }
                 }
-            }
-            ?>
+                ?>
 
-            <?php if ($kategori_form === 'foregoing' && empty($gridRowNames)): ?>
-                <div class="mb-2 d-flex justify-content-end">
-                    <button type="button" class="btn btn-sm btn-dark btn-add-matrix-row" data-rows='[]'>
-                        <i class="fas fa-list-ol"></i> + Tambah Baris Posisi (X, Y, Z, θ)
-                    </button>
-                </div>
-            <?php endif; ?>
+                <?php if ($isMultiTable): ?>
+                    <div class="d-flex justify-content-between align-items-center mb-2 mt-4 pt-2 border-top">
+                        <h6 class="fw-bold text-dark m-0">
+                            <i class="fas fa-table text-primary"></i> Tabel <?= $tIdx ?>: <?= esc($currentTree[0]['nama_parameter'] ?? ('Bagian ' . $tIdx)) ?>
+                        </h6>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-success btn-add-child py-0 px-2" data-id="" data-name="" data-table-index="<?= $tIdx ?>">
+                                <i class="fas fa-plus"></i> Tambah Parameter di Tabel <?= $tIdx ?>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-table py-0 px-2" data-table-index="<?= $tIdx ?>" data-table-name="<?= esc($currentTree[0]['nama_parameter'] ?? ('Tabel ' . $tIdx)) ?>" title="Hapus Seluruh Tabel <?= $tIdx ?>">
+                                <i class="fas fa-trash-alt"></i> Hapus Tabel <?= $tIdx ?>
+                            </button>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle text-center" style="white-space: nowrap; min-width: 100%;">
-                    <thead class="table-dark">
-                        <?php foreach ($headerRows as $level => $row): ?>
-                            <tr>
-                                <?php
-                                $runningCol = 0;
-                                $labelInserted = false;
-                                foreach ($row as $col):
-                                    if (!empty($gridRowNames) && $level === 0 && !$labelInserted && $runningCol === $firstGridLeafIdx):
-                                        $labelInserted = true;
-                                        $rowsJson = htmlspecialchars(json_encode($gridRowNames), ENT_QUOTES, 'UTF-8');
-                                ?>
-                                        <th rowspan="<?= $headerMaxDepth ?>" class="align-middle bg-secondary p-2">
-                                            <div class="d-flex justify-content-center align-items-center gap-1">
-                                                <span><?= esc($gridHeaderLabel) ?></span>
-                                                <button type="button" class="btn btn-sm btn-warning text-dark py-0 px-1 btn-edit-matrix-header" data-label="<?= esc($gridHeaderLabel) ?>" title="Ubah Nama Kolom Ini (Misal: Pos)">
-                                                    <i class="fas fa-edit" style="font-size:10px;"></i>
-                                                </button>
-                                            </div>
-                                            <button type="button" class="btn btn-xs btn-success mt-2 py-0 px-2 btn-add-matrix-row" data-rows='<?= $rowsJson ?>' title="Tambah Baris Baru (Misal: Y)">
-                                                <i class="fas fa-plus"></i> Tambah Baris
-                                            </button>
-                                        </th>
-                                <?php
-                                    endif;
-                                ?>
-                                    <th colspan="<?= $col['colspan'] ?>" rowspan="<?= $col['rowspan'] ?>" class="p-2 align-middle">
-                                        <?= esc($col['name']) ?>
-                                        <?= renderRuleBadges($col['node_data']) ?>
-                                        <?= renderActionButtons($col['node_data']) ?>
-                                    </th>
-                                <?php
-                                    $runningCol += $col['colspan'];
-                                endforeach;
-                                ?>
-                            </tr>
-                        <?php endforeach; ?>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($gridRowNames)): ?>
-                            <tr>
-                                <?php foreach ($headerLeaves as $leaf): ?>
-                                    <td class="p-3 bg-light">
-                                        <?= renderInputPreview($leaf) ?>
-                                    </td>
-                                <?php endforeach; ?>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($gridRowNames as $rIdx => $rowName): ?>
+                <?php if ($kategori_form === 'foregoing' && empty($gridRowNames)): ?>
+                    <div class="mb-2 d-flex justify-content-end">
+                        <button type="button" class="btn btn-sm btn-dark btn-add-matrix-row" data-rows='[]' data-table-index="<?= $tIdx ?>">
+                            <i class="fas fa-list-ol"></i> + Tambah Baris Posisi (X, Y, Z, θ)
+                        </button>
+                    </div>
+                <?php endif; ?>
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered align-middle text-center" style="white-space: nowrap; min-width: 100%;">
+                        <thead class="table-dark">
+                            <?php foreach ($headerRows as $level => $row): ?>
                                 <tr>
-                                    <?php foreach ($headerLeaves as $hIdx => $hLeaf): ?>
-                                        <?php if ($hIdx === $firstGridLeafIdx): ?>
-                                            <td class="fw-bold bg-secondary text-white px-3 py-2 align-middle">
-                                                <div class="fs-6 mb-1"><?= esc($rowName) ?></div>
-                                                <div class="btn-group btn-group-sm">
-                                                    <?php if ($rIdx > 0): ?>
-                                                        <button type="button" class="btn btn-light py-0 px-1 btn-move-matrix-row" data-label="<?= esc($rowName) ?>" data-dir="up" title="Geser Naik"><i class="fas fa-arrow-up" style="font-size:10px;"></i></button>
-                                                    <?php endif; ?>
-                                                    <?php if ($rIdx < count($gridRowNames) - 1): ?>
-                                                        <button type="button" class="btn btn-light py-0 px-1 btn-move-matrix-row" data-label="<?= esc($rowName) ?>" data-dir="down" title="Geser Turun"><i class="fas fa-arrow-down" style="font-size:10px;"></i></button>
-                                                    <?php endif; ?>
-                                                    <button type="button" class="btn btn-warning py-0 px-1 btn-edit-matrix-row" data-label="<?= esc($rowName) ?>" title="Ubah Nama Baris"><i class="fas fa-edit" style="font-size:10px;"></i></button>
-                                                    <button type="button" class="btn btn-danger py-0 px-1 btn-delete-matrix-row" data-label="<?= esc($rowName) ?>" title="Hapus Baris Ini"><i class="fas fa-trash-alt" style="font-size:10px;"></i></button>
+                                    <?php
+                                    $runningCol = 0;
+                                    $labelInserted = false;
+                                    foreach ($row as $col):
+                                        if (!empty($gridRowNames) && $level === 0 && !$labelInserted && $runningCol === $firstGridLeafIdx):
+                                            $labelInserted = true;
+                                            $rowsJson = htmlspecialchars(json_encode($gridRowNames), ENT_QUOTES, 'UTF-8');
+                                    ?>
+                                            <th rowspan="<?= $headerMaxDepth ?>" class="align-middle bg-secondary p-2">
+                                                <div class="d-flex justify-content-center align-items-center gap-1">
+                                                    <span><?= esc($gridHeaderLabel) ?></span>
+                                                    <button type="button" class="btn btn-sm btn-warning text-dark py-0 px-1 btn-edit-matrix-header" data-label="<?= esc($gridHeaderLabel) ?>" title="Ubah Nama Kolom Ini (Misal: Pos)">
+                                                        <i class="fas fa-edit" style="font-size:10px;"></i>
+                                                    </button>
                                                 </div>
-                                            </td>
-                                        <?php endif; ?>
-
-                                        <?php if (empty($hLeaf['children'])): ?>
-                                            <?php if ($rIdx === 0): ?>
-                                                <td rowspan="<?= count($gridRowNames) ?>" class="p-2 bg-light align-middle">
-                                                    <?= renderInputPreview($hLeaf) ?>
-                                                </td>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <?php
-                                            $matchedCell = null;
-                                            foreach ($hLeaf['children'] as $gChild) {
-                                                if ($gChild['posisi_grid'] === $rowName) {
-                                                    $matchedCell = $gChild;
-                                                    break;
-                                                }
-                                            }
-                                            ?>
-                                            <td class="p-2 bg-light align-middle">
-                                                <?php if ($matchedCell): ?>
-                                                    <?= renderInputPreview($matchedCell) ?>
-                                                <?php else: ?>
-                                                    -
-                                                <?php endif; ?>
-                                            </td>
-                                        <?php endif; ?>
-                                    <?php endforeach; ?>
+                                                <button type="button" class="btn btn-xs btn-success mt-2 py-0 px-2 btn-add-matrix-row" data-rows='<?= $rowsJson ?>' data-table-index="<?= $tIdx ?>" title="Tambah Baris Baru (Misal: Y)">
+                                                    <i class="fas fa-plus"></i> Tambah Baris
+                                                </button>
+                                            </th>
+                                    <?php
+                                        endif;
+                                    ?>
+                                        <th colspan="<?= $col['colspan'] ?>" rowspan="<?= $col['rowspan'] ?>" class="p-2 align-middle">
+                                            <?= esc($col['name']) ?>
+                                            <?= renderRuleBadges($col['node_data']) ?>
+                                            <?= renderActionButtons($col['node_data']) ?>
+                                        </th>
+                                    <?php
+                                        $runningCol += $col['colspan'];
+                                    endforeach;
+                                    ?>
                                 </tr>
                             <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($gridRowNames)): ?>
+                                <tr>
+                                    <?php foreach ($headerLeaves as $leaf): ?>
+                                        <td class="p-3 bg-light">
+                                            <?= renderInputPreview($leaf) ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($gridRowNames as $rIdx => $rowName): ?>
+                                    <tr>
+                                        <?php foreach ($headerLeaves as $hIdx => $hLeaf): ?>
+                                            <?php if ($hIdx === $firstGridLeafIdx): ?>
+                                                <td class="fw-bold bg-secondary text-white px-3 py-2 align-middle">
+                                                    <div class="fs-6 mb-1"><?= esc($rowName) ?></div>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <?php if ($rIdx > 0): ?>
+                                                            <button type="button" class="btn btn-light py-0 px-1 btn-move-matrix-row" data-label="<?= esc($rowName) ?>" data-dir="up" title="Geser Naik"><i class="fas fa-arrow-up" style="font-size:10px;"></i></button>
+                                                        <?php endif; ?>
+                                                        <?php if ($rIdx < count($gridRowNames) - 1): ?>
+                                                            <button type="button" class="btn btn-light py-0 px-1 btn-move-matrix-row" data-label="<?= esc($rowName) ?>" data-dir="down" title="Geser Turun"><i class="fas fa-arrow-down" style="font-size:10px;"></i></button>
+                                                        <?php endif; ?>
+                                                        <button type="button" class="btn btn-warning py-0 px-1 btn-edit-matrix-row" data-label="<?= esc($rowName) ?>" title="Ubah Nama Baris"><i class="fas fa-edit" style="font-size:10px;"></i></button>
+                                                        <button type="button" class="btn btn-danger py-0 px-1 btn-delete-matrix-row" data-label="<?= esc($rowName) ?>" title="Hapus Baris Ini"><i class="fas fa-trash-alt" style="font-size:10px;"></i></button>
+                                                    </div>
+                                                </td>
+                                            <?php endif; ?>
+
+                                            <?php if (empty($hLeaf['children'])): ?>
+                                                <?php if ($rIdx === 0): ?>
+                                                    <td rowspan="<?= count($gridRowNames) ?>" class="p-2 bg-light align-middle">
+                                                        <?= renderInputPreview($hLeaf) ?>
+                                                    </td>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                <?php
+                                                $matchedCell = null;
+                                                foreach ($hLeaf['children'] as $gChild) {
+                                                    if ($gChild['posisi_grid'] === $rowName) {
+                                                        $matchedCell = $gChild;
+                                                        break;
+                                                    }
+                                                }
+                                                ?>
+                                                <td class="p-2 bg-light align-middle">
+                                                    <?php if ($matchedCell): ?>
+                                                        <?= renderInputPreview($matchedCell) ?>
+                                                    <?php else: ?>
+                                                        -
+                                                    <?php endif; ?>
+                                                </td>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach; ?>
         <?php endif; ?>
     </div>
 </div>

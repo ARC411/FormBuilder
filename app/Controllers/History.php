@@ -216,23 +216,15 @@ class History extends BaseController
         string $model = '',
         string $lotno = '',
         string $machno = '',
-<<<<<<< HEAD
         $weeklyIdParam = null,
         string $selectedRevisi = ''
     ): array {
-        $alldata = [];
-        if ($typeProcess === 'production') {
-            if (!empty($weeklyIdParam)) {
-                $alldata = $this->ProductionModel->getByWeeklyId($weeklyIdParam);
-=======
-        int $weeklyId = 0
-    ): array {
+        $weeklyId = (int) $weeklyIdParam;
         $alldata = [];
         if ($typeProcess === 'production') {
             if ($weeklyId > 0) {
                 // Export 1 lembar (batch weekly_id) -> sama persis dengan halaman detail_production
                 $alldata = $this->ProductionModel->getByWeeklyId($weeklyId);
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             } else {
                 $alldata = $this->ProductionModel->getAll(
                     $dateStart,
@@ -240,12 +232,7 @@ class History extends BaseController
                     $process,
                     $model,
                     $lotno,
-<<<<<<< HEAD
-                    $machno,
-                    $selectedRevisi
-=======
                     $machno
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 );
             }
         } elseif ($typeProcess === 'foregoing') {
@@ -400,48 +387,24 @@ class History extends BaseController
         }
 
         $weeklyInfo = null;
-<<<<<<< HEAD
         try {
+            $weeklyId = (int) ($this->request->getGet('weekly_id') ?? 0);
+            if ($weeklyId <= 0 && !empty($weeklyIdParam)) {
+                $weeklyId = (int) $weeklyIdParam;
+            }
+
             if ($typeProcess === 'startup') {
                 $weeklyModel = new \App\Models\WeeklyApprovalModel();
-                $weeklyId    = null;
-                if (!empty($alldata)) {
+                if ($weeklyId <= 0 && !empty($alldata)) {
                     foreach ($alldata as $r) {
                         if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
-                            $weeklyId = $r['weekly_id'];
+                            $weeklyId = (int) $r['weekly_id'];
                             break;
                         }
                     }
                 }
-                if ($weeklyId) {
+                if ($weeklyId > 0) {
                     $weeklyInfo = $weeklyModel->find($weeklyId);
-=======
-        if ($typeProcess === 'startup') {
-            $weeklyModel = new \App\Models\WeeklyApprovalModel();
-            
-            $weeklyId = (int) ($this->request->getGet('weekly_id') ?? 0);
-            if ($weeklyId <= 0 && !empty($alldata)) {
-                foreach ($alldata as $r) {
-                    if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
-                        $weeklyId = (int) $r['weekly_id'];
-                        break;
-                    }
-                }
-            }
-            if ($weeklyId > 0) {
-                $weeklyInfo = $weeklyModel->find($weeklyId);
-            }
-
-            if (!$weeklyInfo) {
-                $refDate = '';
-                $firstCreated = $alldata[0]['created_at'] ?? '';
-                if (!empty($firstCreated) && $firstCreated !== '-') {
-                    $refDate = $firstCreated;
-                } elseif (!empty($dateStart)) {
-                    $refDate = $dateStart;
-                } elseif (!empty($dateEnd)) {
-                    $refDate = $dateEnd;
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 }
 
                 if (!$weeklyInfo) {
@@ -473,18 +436,21 @@ class History extends BaseController
                         }
                     }
                 }
-<<<<<<< HEAD
             } elseif ($typeProcess === 'production') {
                 $weeklyModel    = new \App\Models\WeeklyApprovalModel();
-                $targetWeeklyId = !empty($weeklyIdParam) ? $weeklyIdParam : null;
+                $targetWeeklyId = ($weeklyId > 0) ? $weeklyId : null;
                 if (!$targetWeeklyId && !empty($alldata)) {
                     foreach ($alldata as $r) {
                         if (!empty($r['weekly_id']) && $r['weekly_id'] !== '-') {
-                            $targetWeeklyId = $r['weekly_id'];
+                            $targetWeeklyId = (int) $r['weekly_id'];
                             break;
                         }
                     }
-=======
+                }
+                if ($targetWeeklyId) {
+                    $weeklyInfo = $weeklyModel->find($targetWeeklyId);
+                    $weeklyId   = $targetWeeklyId;
+                }
             }
 
             if ($weeklyInfo && $weeklyId <= 0) {
@@ -538,10 +504,6 @@ class History extends BaseController
             if ($weeklyInfo) {
                 if (!empty($weeklyInfo['approver_qc'])) {
                     $weeklyInfo['approver_qc'] = $this->resolveNameToEmpId((string) $weeklyInfo['approver_qc']);
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
-                }
-                if ($targetWeeklyId) {
-                    $weeklyInfo = $weeklyModel->find($targetWeeklyId);
                 }
             }
         } catch (\Throwable $e) {
@@ -629,6 +591,7 @@ class History extends BaseController
                     'judul_proses'  => $context['judulProses'] ?? $process,
                     'kategori_form' => $katForm,
                     'revisi_label'  => $context['revisi'] ?? '00',
+                    'revision'      => $activeRevRow,
                     'treeParams'    => $treeParams,
                     'alldata'       => $context['alldata'],
                     'is_export'     => $isExport
@@ -669,12 +632,8 @@ class History extends BaseController
                 $model,
                 $lotno,
                 $machno,
-<<<<<<< HEAD
                 $weeklyId,
                 $revisi
-=======
-                (int) ($req->getGet('weekly_id') ?? 0)
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             );
 
             $_SERVER['REQUEST_URI'] = 'exportExcel';
@@ -731,12 +690,8 @@ class History extends BaseController
                 $model,
                 $lotno,
                 $machno,
-<<<<<<< HEAD
                 $weeklyId,
                 $revisi
-=======
-                (int) ($req->getGet('weekly_id') ?? 0)
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
             );
 
             $_SERVER['REQUEST_URI'] = 'exportPDF';

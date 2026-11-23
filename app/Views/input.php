@@ -8,15 +8,9 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <!-- jQuery hanya dimuat SATU kali -->
-<<<<<<< HEAD
 <script src="<?= base_url('assets/js/jquery-3.7.1.min.js') ?>"></script>
 <script src="<?= base_url('assets/js/jquery-ui.js') ?>"></script>
-<script src="<?= base_url('assets/js/form/test.js') ?>"></script>
-=======
-<script src="assets/js/jquery-3.7.1.min.js"></script>
-<script src="assets/js/jquery-ui.js"></script>
 <script src="<?= base_url('assets/js/form/test.js?v=' . (file_exists(FCPATH . 'assets/js/form/test.js') ? filemtime(FCPATH . 'assets/js/form/test.js') : '20261103')); ?>"></script>
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 <!-- JS Select2 -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
@@ -109,10 +103,7 @@
                 </div>
               </div>
 
-<<<<<<< HEAD
-              <!-- Model name (Select2 Dropdown + Auto-Register jika ketik model baru) -->
-=======
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+<!-- Model name (Select2 Dropdown + Auto-Register jika ketik model baru) -->
               <div class="mb-3 row">
                 <label for="model-txt" class="col-sm-2 col-form-label">Model Name <span id="req-model" class="text-danger d-none">*</span></label>
                 <div class="col-sm-6">
@@ -267,6 +258,7 @@ $(document).ready(function()
         width: '100%'
     });
 
+    $('#device-txt').change(updateDevice);
     updateDevice();
     $('#submit').hide();
     if($('#msgsuccess').html()!="Kosong"){
@@ -284,14 +276,7 @@ $(document).ready(function()
         updateModelList();
     });
 
-<<<<<<< HEAD
-    $('#type-process-txt').change(function(){
-        document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + document.getElementById("type-process-txt").value;
-    });
 
-    // Auto-fill shift & group saat halaman dimuat
-=======
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
     empAuto('#empid-txt','#shift-txt','#group-txt','#name-txt','empid-lbl');
 
     // Aktifkan Select2 pada Model Name (Bisa pilih dari daftar ATAU ketik model baru untuk Auto-Register)
@@ -316,24 +301,96 @@ $(document).ready(function()
         var selectedModel = $(this).val();
         var processCode   = $('#process-txt').val();
         if (selectedModel && processCode && processCode !== '-') {
-            // Auto-Register ke database jika model belum terdaftar + terapkan standar X, Y, Z, θ
+            // Auto-Register ke database jika model belum terdaftar + terapkan standar model
             $.post("<?= base_url('model/auto-register') ?>", {
                 process_code: processCode,
                 model_name: selectedModel
             }, function(res) {
-                if (res && res.data && res.data.standards) {
-                    window.activeModelStandards = res.data.standards;
-                } else {
-                    window.activeModelStandards = null;
-                }
-                applyForegoingModelStandards();
+                var stds = (res && res.data && res.data.standards) ? res.data.standards : null;
+                applyDynamicModelStandards(stds, selectedModel);
             }, 'json');
         } else {
-            window.activeModelStandards = null;
-            applyForegoingModelStandards();
+            applyDynamicModelStandards(null, '');
         }
     });
 });
+
+function applyDynamicModelStandards(stds, modelName) {
+    window.activeModelStandards = stds;
+    var container = document.getElementById($('#process-txt').val()) || document.getElementById('form-input') || document.body;
+
+    $(container).find('.dyn-number-input').each(function() {
+        var el = this;
+        var colName   = (el.getAttribute('data-col-name') || '').trim();
+        var gridPos   = (el.getAttribute('data-grid-pos') || '').trim();
+        var paramName = (el.getAttribute('data-param-name') || '').trim();
+
+        var cfg = null;
+        if (stds) {
+            var matchedKey = Object.keys(stds).find(function(k) {
+                return (colName && (colName === k || colName.startsWith(k) || k.startsWith(colName))) ||
+                       (gridPos && (gridPos === k || gridPos.startsWith(k) || k.startsWith(gridPos))) ||
+                       (paramName && (paramName === k || paramName.startsWith(k) || k.startsWith(paramName)));
+            });
+            if (matchedKey) {
+                cfg = stds[matchedKey];
+            }
+        }
+
+        var stdLabelEl = el.parentNode ? el.parentNode.querySelector('.dyn-std-label') : null;
+
+        if (cfg) {
+            var isAct = (cfg.active === undefined || parseInt(cfg.active) === 1);
+            if (!isAct) {
+                el.value = '-';
+                el.readOnly = true;
+                el.style.backgroundColor = '#e9ecef';
+                el.dataset.hasError = "0";
+                if (stdLabelEl) {
+                    stdLabelEl.className = 'dyn-std-label badge bg-secondary d-block mt-1';
+                    stdLabelEl.textContent = (modelName ? modelName + ': ' : '') + 'Tidak Diukur';
+                }
+            } else {
+                el.readOnly = false;
+                el.style.backgroundColor = '';
+                if (cfg.min !== '' && cfg.min !== null && cfg.min !== undefined) {
+                    el.setAttribute('data-min', cfg.min);
+                } else {
+                    el.removeAttribute('data-min');
+                }
+                if (cfg.max !== '' && cfg.max !== null && cfg.max !== undefined) {
+                    el.setAttribute('data-max', cfg.max);
+                } else {
+                    el.removeAttribute('data-max');
+                }
+
+                var minLbl = (cfg.min !== '' && cfg.min !== null && cfg.min !== undefined) ? cfg.min : '-∞';
+                var maxLbl = (cfg.max !== '' && cfg.max !== null && cfg.max !== undefined) ? cfg.max : '∞';
+                if (stdLabelEl) {
+                    stdLabelEl.className = 'dyn-std-label text-primary fw-semibold d-block mt-1';
+                    stdLabelEl.style.fontSize = '10px';
+                    stdLabelEl.textContent = 'Std: ' + minLbl + ' ~ ' + maxLbl;
+                }
+            }
+        } else {
+            var origMin = el.getAttribute('data-orig-min');
+            var origMax = el.getAttribute('data-orig-max');
+            if (origMin) el.setAttribute('data-min', origMin); else el.removeAttribute('data-min');
+            if (origMax) el.setAttribute('data-max', origMax); else el.removeAttribute('data-max');
+            if (stdLabelEl) {
+                var defMin = origMin ? origMin : '-∞';
+                var defMax = origMax ? origMax : '∞';
+                stdLabelEl.className = 'dyn-std-label text-muted d-block mt-1';
+                stdLabelEl.style.fontSize = '10px';
+                stdLabelEl.textContent = (origMin || origMax) ? ('Std: ' + defMin + ' ~ ' + defMax) : '';
+            }
+        }
+
+        if (typeof checkInputMinMax === 'function') {
+            checkInputMinMax(el, false);
+        }
+    });
+}
 
 function checkSubmit() {
     var machno = $('#machno-txt').val();
@@ -377,10 +434,7 @@ function checkSubmit() {
     return confirm('Apakah kamu yakin data Shift Karyawan & Tanggal Input sudah BENAR?');
 }
 
-<<<<<<< HEAD
 // FUNGSI AUTO-FILL SHIFT & GROUP
-=======
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 function empAuto(empIdTag, shiftTag, groupTag, nameTag, empIdlTag) {
     var empid = $.trim($(empIdTag).val());
     if (!empid) return;
@@ -434,29 +488,16 @@ function stripRevision(docno) {
 
 function updateDevice() {
     var device = $('#device-txt').val();
-
-<<<<<<< HEAD
-    if(device === '-' || docType === '-') {
-        $('#process-txt').empty().append('<option value="-">choose process</option>');
-        $('#form-input').empty();
-        $('#submit').hide();
-        $('#revisi-txt').val('');
-        $('#docno').val('-');
-=======
     processRows = [];
     if (device === '-') {
         populateProcessName();
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         return;
     }
 
     $.ajax({
-<<<<<<< HEAD
-        url: "<?= base_url('process/list') ?>?device=" + device + "&type=" + docType,
-=======
-        url: "<?php echo base_url();?>process/list?device=" + encodeURIComponent(device),
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+        url: "<?= base_url('process/list') ?>?device=" + encodeURIComponent(device),
         dataType: 'JSON',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
             processRows = data || [];
             populateProcessName();
@@ -466,7 +507,7 @@ function updateDevice() {
                 try {
                     var data = JSON.parse(xhr.responseText);
                     if (data) { processRows = data; populateProcessName(); return; }
-                } catch(e) {}
+                } catch (e) {}
             }
             processRows = [];
             populateProcessName();
@@ -490,16 +531,8 @@ function populateProcessName() {
         $sel.append(new Option('choose process', '-'));
         $.each(names, function(i, n) { $sel.append(new Option(n, n)); });
     }
-<<<<<<< HEAD
-    updateDocNo();
-    updateInput();
-    updateMachine();
-    updateModelList();
-=======
-    fillDocType();
 }
 
-// Dropdown Doc. Type: semua baris (production/startup/foregoing + variasi) dari proses terpilih
 function fillDocType() {
     var chosen = $('#process-name-txt').val();
     var $sel = $('#process-txt').empty();
@@ -524,9 +557,11 @@ function fillDocType() {
             $sel.append(opt);
         });
     }
-    // memicu updateInput, updateDocNo, updateMachine; kalau masih "choose", form dikosongkan
+    updateDocNo();
+    updateInput();
+    updateMachine();
+    updateModelList();
     $sel.trigger('change');
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 }
 
 function updateMachine() {
@@ -571,11 +606,10 @@ function populateMachine(data, machineSelect) {
     machineSelect.trigger('change');
 }
 
-<<<<<<< HEAD
 // FUNGSI UPDATE MODEL LIST PER PROCESS (TERHUBUNG KE MASTER MODEL & AUTO-REGISTER)
 function updateModelList() {
     var processCode = document.getElementById("process-txt") ? document.getElementById("process-txt").value : '';
-    var docType     = document.getElementById("type-process-txt") ? document.getElementById("type-process-txt").value : '';
+    var typeProcess = $('#process-txt option:selected').data('type') || '';
     var modelSelect = $('#model-txt');
 
     modelSelect.empty().append('<option value="">-- Ketik atau Pilih Model Name --</option>');
@@ -586,7 +620,7 @@ function updateModelList() {
     }
 
     $.ajax({
-        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode) + "&type=" + encodeURIComponent(docType),
+        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode) + "&type=" + encodeURIComponent(typeProcess),
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
@@ -604,10 +638,6 @@ function updateModelList() {
         }
     });
 }
-
-// FUNGSI LOGIKA REVISI & FORM INPUT DINAMIS (TERHUBUNG KE FORM BUILDER)
-=======
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 function updateInput() {
     let typeProcess, device, process;
     process = document.getElementById("process-txt").value;
@@ -662,18 +692,13 @@ function updateInput() {
         $('#standby-wrapper').slideDown();
     }
 
-<<<<<<< HEAD
-    document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + typeProcess;
-=======
-    document.getElementById("form-action").action = "<?= base_url(); ?>" + typeProcess;
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
+document.getElementById("form-action").action = "<?= rtrim(base_url(), '/') ?>/" + typeProcess;
 
     let cnt_error = document.getElementById("cnt-error-input");
     let submit_button = document.getElementById("submit");
     submit_button.disabled = false;
     cnt_error.value = 0;
 
-<<<<<<< HEAD
     updateSetting(process);
 
     // 1. Panggil Endpoint Dynamic Form Builder terlebih dahulu!
@@ -686,43 +711,24 @@ function updateInput() {
             doc_type: typeProcess
         },
         dataType: "JSON",
-=======
-    $.ajax({
-        url: "<?php echo base_url();?>process/detail?process_code=" + process, 
-        dataType: 'JSON',
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
         success: function(res) {
             if (res && res.status === 'success' && res.html) {
-                $('#submit').show();
                 $('#form-input').html(res.html);
-
-                // Isi otomatis kolom Revisi dari Revisi Aktif di Form Builder
-                if (revField && res.revisi !== undefined) {
-                    revField.value = res.revisi;
+                $('#submit').show();
+                if (revField) {
+                    revField.value = res.revisi !== undefined ? res.revisi : '0';
                 }
-
-                // Sinkronkan juga akhiran Doc. No dengan Revisi aktif (jika Doc. No memiliki 4 segmen seperti FF-D2-003-14)
-                var docNoEl = document.getElementById("docno");
-                if (docNoEl && docNoEl.value && res.revisi !== undefined) {
-                    var dParts = docNoEl.value.split("-");
-                    if (dParts.length >= 4) {
-                        dParts[dParts.length - 1] = res.revisi;
-                        docNoEl.value = dParts.join("-");
-                    }
+                var machSelect = $('#machno-txt');
+                if (machSelect.length && machSelect.val()) {
+                    machSelect.trigger('change');
                 }
-
-                var processValue = document.getElementById("process-txt");
-                var header_modal = document.getElementById('catatan-modal-header');
-                if (processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
-                    header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
+                if ($('#is-standby').is(':checked')) {
+                    applyStandbyMode(true);
                 }
-
-                // Terapkan standar model jika Foregoing
-                if (typeof applyForegoingModelStandards === 'function') {
-                    applyForegoingModelStandards();
+                if ($('#model-txt').val()) {
+                    $('#model-txt').trigger('change');
                 }
             } else {
-<<<<<<< HEAD
                 loadStaticFallbackForm(typeProcess, device, process);
             }
         },
@@ -731,32 +737,11 @@ function updateInput() {
         }
     });
 }
-=======
-                if (revField) revField.value = "-";
-            }
-        },
-        error: function() {
-            var processValue = document.getElementById("process-txt");
-            if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-                var docno = $(processValue.options[processValue.selectedIndex]).data('docno') || "";
-                var parts = docno.split("-");
-                if (parts.length > 1) {
-                    var lastPart = parts[parts.length - 1]; 
-                    if (revField) revField.value = lastPart;
-                } else {
-                    if (revField) revField.value = "-";
-                }
-            }
-        }
-    });
 
-    updateSetting(process);
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
-
-// Fallback ke form statis lama HANYA jika proses belum bisa dirender oleh Form Builder
+// Fallback ke form statis jika proses belum dikonfigurasi di Form Builder
 function loadStaticFallbackForm(typeProcess, device, process) {
     $.ajax({
-        url: "<?= base_url() ?>" + typeProcess + "/form?device=" + encodeURIComponent(device) + "&process=" + encodeURIComponent(process),
+        url: "<?= rtrim(base_url(), '/') ?>/" + typeProcess + "/form?device=" + encodeURIComponent(device) + "&process=" + encodeURIComponent(process),
         type: "GET",
         success: function(response) {
             if (response && response.trim() !== "") {
@@ -764,18 +749,18 @@ function loadStaticFallbackForm(typeProcess, device, process) {
                 $('#form-input').html(response);
                 var processValue = document.getElementById("process-txt");
                 var header_modal = document.getElementById('catatan-modal-header');
-<<<<<<< HEAD
                 if (processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]) {
                     header_modal.innerHTML = processValue.options[processValue.selectedIndex].text;
-=======
-                if(processValue && processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-                    var $o = $(processValue.options[processValue.selectedIndex]);
-                    header_modal.innerHTML = ($o.data('docno') || '') + ' (' + ($o.data('name') || $o.text()) + ')';
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
                 }
-
+                var machSelect = $('#machno-txt');
+                if (machSelect.length && machSelect.val()) {
+                    machSelect.trigger('change');
+                }
                 if ($('#is-standby').is(':checked')) {
                     applyStandbyMode(true);
+                }
+                if ($('#model-txt').val()) {
+                    $('#model-txt').trigger('change');
                 }
             } else {
                 $('#submit').hide();
@@ -795,7 +780,7 @@ function updateSetting(processCode) {
         return;
     }
     $.ajax({
-        url: "<?php echo base_url();?>input/note-form/" + encodeURIComponent(processCode),
+        url: "<?= base_url('input/note-form') ?>/" + encodeURIComponent(processCode),
         type: "GET",
         success: function(response) {
             $('#catatan-modal-body').html(response);
@@ -807,17 +792,8 @@ function updateSetting(processCode) {
 }
 
 function updateDocNo() {
-<<<<<<< HEAD
-    var docNo = document.getElementById("docno");
-    var processValue = document.getElementById("process-txt");
-    if(processValue.selectedIndex >= 0 && processValue.options[processValue.selectedIndex]){
-        var text = processValue.options[processValue.selectedIndex].text;
-        docNo.value = text.split(" ")[0];
-    }
-=======
     // Doc. No tetap menampilkan docno lengkap (dengan revisi) dari baris yang dipilih
     $('#docno').val($('#process-txt option:selected').data('docno') || '-');
->>>>>>> 7a8ea7c7ca4e9a10c73b8a481160381304f54df2
 }
 
 function findNoteInput() {
