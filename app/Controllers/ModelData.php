@@ -23,14 +23,76 @@ class ModelData extends BaseController
     public function getList()
     {
         $processCode = trim((string)$this->request->getGet('process'));
+        $docType     = trim((string)$this->request->getGet('type'));
+
         if ($processCode === '' || $processCode === '-' || $processCode === 'null') {
             return $this->response->setJSON([]);
         }
 
-        $models = $this->modelListModel->getModelsByProcess($processCode);
+        // 1. Ambil dari master model_list
+        $models = [];
+        try {
+            $models = $this->modelListModel->getModelsByProcess($processCode);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal memuat master model_list: ' . $e->getMessage());
+        }
+
+        $modelNames = [];
         foreach ($models as &$m) {
             $m['standards'] = !empty($m['standards_json']) ? json_decode($m['standards_json'], true) : [];
+            $modelNames[strtoupper(trim((string)$m['model_name']))] = true;
         }
+
+        // 2. Ambil juga model-model dari riwayat transaksi (production, foregoing, startup)
+        // khusus untuk proses ini, agar dropdown di History dan Input terisi lengkap by process
+        try {
+            $db = \Config\Database::connect('default');
+            $tables = ['production', 'foregoing', 'startup'];
+            if ($docType && in_array($docType, $tables, true)) {
+                $tables = array_unique(array_merge([$docType], $tables));
+            }
+
+            foreach ($tables as $tbl) {
+                if ($db && $db->tableExists($tbl)) {
+                    $rows = $db->table($tbl)
+                        ->distinct()
+                        ->select('model')
+                        ->groupStart()
+                            ->where('process', $processCode)
+                            ->orWhere('process', strtolower($processCode))
+                            ->orWhere('process', strtoupper($processCode))
+                        ->groupEnd()
+                        ->where('model IS NOT NULL', null, false)
+                        ->where('model !=', '')
+                        ->where('model !=', '-')
+                        ->orderBy('model', 'ASC')
+                        ->get()
+                        ->getResultArray();
+
+                    foreach ($rows as $r) {
+                        $mName = strtoupper(trim((string)$r['model']));
+                        if ($mName !== '' && $mName !== '-' && !isset($modelNames[$mName])) {
+                            $modelNames[$mName] = true;
+                            $models[] = [
+                                'id'             => null,
+                                'process_code'   => $processCode,
+                                'model_name'     => $mName,
+                                'standards_json' => null,
+                                'standards'      => [],
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // Urutkan alfabetis
+            usort($models, function($a, $b) {
+                return strcasecmp((string)$a['model_name'], (string)$b['model_name']);
+            });
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal memuat model transaksi di ModelData::getList: ' . $e->getMessage());
+        }
+
         return $this->response->setJSON($models);
     }
 
@@ -44,7 +106,11 @@ class ModelData extends BaseController
             return $this->response->setJSON(['status' => 'ignored']);
         }
 
-        $existing = $this->modelListModel->where('process_code', $processCode)
+        $existing = $this->modelListModel->groupStart()
+                                         ->where('process_code', $processCode)
+                                         ->orWhere('process_code', strtoupper($processCode))
+                                         ->orWhere('LOWER(TRIM(process_code))', $processCode)
+                                         ->groupEnd()
                                          ->where('model_name', $modelName)
                                          ->first();
 
@@ -70,31 +136,37 @@ class ModelData extends BaseController
         ]);
     }
 
-    // 3. POST Tambah / Edit Nama Model (CRUD oleh Admin)
+    // 3. POST Tambah atau Edit Model Name (dari Form Builder / Manajemen Model)
     public function saveModel()
     {
         if (!$this->session->get('isadmin')) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Akses Ditolak!']);
         }
 
-        $id          = $this->request->getPost('id');
+        $id          = (int)$this->request->getPost('id');
         $processCode = strtolower(trim((string)$this->request->getPost('process_code')));
         $modelName   = strtoupper(trim((string)$this->request->getPost('model_name')));
 
         if ($processCode === '' || $modelName === '') {
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Process dan Nama Model wajib diisi!']);
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Kode Proses dan Nama Model wajib diisi!']);
         }
 
-        if ($id) {
+        if ($id > 0) {
             $old = $this->modelListModel->find($id);
+            $oldName = $old['model_name'] ?? '-';
             $this->modelListModel->update($id, [
                 'model_name' => $modelName
             ]);
-            $oldName = $old['model_name'] ?? '-';
             $this->catatLogModel('EDIT MODEL', "Mengubah nama Model dari '{$oldName}' menjadi '{$modelName}' pada proses " . strtoupper($processCode), $processCode);
             return $this->response->setJSON(['status' => 'success', 'message' => "Model berhasil diubah menjadi {$modelName}."]);
         } else {
-            $dup = $this->modelListModel->where('process_code', $processCode)->where('model_name', $modelName)->first();
+            $dup = $this->modelListModel->groupStart()
+                                       ->where('process_code', $processCode)
+                                       ->orWhere('process_code', strtoupper($processCode))
+                                       ->orWhere('LOWER(TRIM(process_code))', $processCode)
+                                       ->groupEnd()
+                                       ->where('model_name', $modelName)
+                                       ->first();
             if ($dup) {
                 return $this->response->setJSON(['status' => 'error', 'message' => "Model {$modelName} sudah terdaftar di proses ini!"]);
             }

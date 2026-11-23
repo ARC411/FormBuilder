@@ -23,12 +23,31 @@ class Device extends BaseController
     public function listDevice()
     {
         error_reporting(0);
-        $data = [
-            'title' => 'Device Data',
-            'alldata' => $this->DeviceModel->getAll()
-        ];
+        $allDevices = $this->DeviceModel->getAll();
 
-        echo json_encode($this->DeviceModel->getAll());
+        // Filter device sesuai divisi/role user jika bukan admin atau role bukan 'all'
+        $role    = strtolower((string)($this->session->get('role') ?? 'all'));
+        $isAdmin = (bool)($this->session->get('isadmin') ?? false);
+
+        if (!$isAdmin && $role !== 'all') {
+            $filtered = [];
+            foreach ($allDevices as $dev) {
+                $code = strtolower((string)($dev['code'] ?? ''));
+                $name = strtoupper((string)($dev['name'] ?? ''));
+                if ($role === 'fl') {
+                    if (str_starts_with($code, 'fl') || str_contains($name, 'FRAME')) {
+                        $filtered[] = $dev;
+                    }
+                } elseif ($role === 'sl') {
+                    if (str_starts_with($code, 'sl') || str_contains($name, 'SINGLE')) {
+                        $filtered[] = $dev;
+                    }
+                }
+            }
+            $allDevices = array_values($filtered);
+        }
+
+        echo json_encode($allDevices);
     }
 
     public function index()

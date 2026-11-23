@@ -84,11 +84,28 @@
                                 </label>
                                 <select class="form-select form-control" id="filter-device" style="border-radius: 6px;">
                                     <option value="">-- Semua Device --</option>
-                                    <option value="fl18">Frame Laser 1.8</option>
-                                    <option value="sl33">Single Laser 3.3</option>
-                                    <option value="sl38">Single Laser 3.8</option>
-                                    <option value="sl56">Single Laser 5.6</option>
-                                    <option value="sl90">Single Laser 9.0</option>
+                                    <?php
+                                        $userRole = strtolower((string)session()->get('role'));
+                                        $isAdmin  = (bool)session()->get('isadmin');
+                                        if ($isAdmin || $userRole === 'all') {
+                                            echo '
+                                                <option value="fl18">Frame Laser 1.8</option>
+                                                <option value="sl33">Single Laser 3.3</option>
+                                                <option value="sl38">Single Laser 3.8</option>
+                                                <option value="sl56">Single Laser 5.6</option>
+                                                <option value="sl90">Single Laser 9.0</option>
+                                            ';
+                                        } elseif ($userRole === 'fl') {
+                                            echo '<option value="fl18">Frame Laser 1.8</option>';
+                                        } elseif ($userRole === 'sl') {
+                                            echo '
+                                                <option value="sl33">Single Laser 3.3</option>
+                                                <option value="sl38">Single Laser 3.8</option>
+                                                <option value="sl56">Single Laser 5.6</option>
+                                                <option value="sl90">Single Laser 9.0</option>
+                                            ';
+                                        }
+                                    ?>
                                 </select>
                             </div>
 

@@ -75,7 +75,8 @@ class Auth extends BaseController
             
             $isAdmin = $this->AdminModel->getById($empid);
             if ($isAdmin) {
-                $result['isadmin'] = $isAdmin;
+                $result['isadmin'] = true;
+                $result['role']    = 'all';
                 log_message('info', 'Status User: ADMIN.');
             } else {
                 log_message('info', 'Status User: BUKAN ADMIN.');

@@ -273,19 +273,22 @@
     }
 
     function updateModel() {
-      var processCode = document.getElementById("process").value;
+      var processEl = document.getElementById("process");
+      var docTypeEl = document.getElementById("type-process");
+      var processCode = processEl ? processEl.value : '';
+      var docType = docTypeEl ? docTypeEl.value : '';
       var modelSelect = $('#ModelName');
 
       modelSelect.empty();
       modelSelect.append(new Option("-- Semua Model (Tidak Dipilih) --", "", true, true));
 
       if (!processCode || processCode === '' || processCode === '-' || processCode === 'null') {
-        modelSelect.trigger('change');
+        modelSelect.val('').trigger('change');
         return;
       }
 
       $.ajax({
-        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode),
+        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode) + "&type=" + encodeURIComponent(docType),
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
@@ -294,10 +297,10 @@
               modelSelect.append(new Option(data[i].model_name, data[i].model_name, false, false));
             }
           }
-          modelSelect.trigger('change');
+          modelSelect.val('').trigger('change');
         },
         error: function() {
-          modelSelect.trigger('change');
+          modelSelect.val('').trigger('change');
         }
       });
     }
@@ -423,6 +426,7 @@
           $('#process').empty().append('<option value="">-- Pilih Device & Doc Type --</option>');
           $('#revisiSelect').empty().append('<option value="">-- Pilih Process Dulu --</option>');
           updateMachine();
+          updateModel();
           return;
       }
 

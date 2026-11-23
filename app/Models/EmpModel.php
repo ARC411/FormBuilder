@@ -30,20 +30,29 @@ class EmpModel extends Model
         // 1. Cek di tabel users lokal (jika ada)
         try {
             if ($db->tableExists('users')) {
-                $u = $db->table('users')
-                    ->groupStart()
-                        ->where('empid', $empid)
-                        ->orWhere('username', $empid)
-                    ->groupEnd()
-                    ->get()
-                    ->getRowArray();
+                $fields = $db->getFieldNames('users');
+                $builder = $db->table('users');
+                if (in_array('empid', $fields, true)) {
+                    $builder->groupStart()->where('empid', $empid)->orWhere('username', $empid)->groupEnd();
+                } else {
+                    $builder->where('username', $empid);
+                }
+                $u = $builder->get()->getRowArray();
 
                 if ($u) {
+                    $sec = strtoupper(trim((string)($u['section'] ?? $u['dept'] ?? $u['deptid'] ?? '')));
+                    $dept = 'ALL';
+                    if (strpos($sec, 'FRAME') !== false || strpos($sec, 'FL') !== false || strpos($sec, '017') !== false) {
+                        $dept = '017,FRAME LASER 1.8';
+                    } elseif (strpos($sec, 'SINGLE') !== false || strpos($sec, 'SL') !== false || strpos($sec, '044') !== false) {
+                        $dept = '044,SINGLE LASER 5.6';
+                    }
+
                     return (object) [
                         'empid'      => $u['empid'] ?? $u['username'] ?? $empid,
                         'cardid'     => $empid,
                         'name'       => $u['name'] ?? $u['fullname'] ?? $u['username'] ?? strtoupper($empid),
-                        'deptid'     => $u['dept'] ?? $u['deptid'] ?? 'ALL',
+                        'deptid'     => $dept,
                         'positionid' => $u['position'] ?? $u['role'] ?? 'Operator',
                         'groupid'    => $u['group'] ?? $u['groupid'] ?? '',
                         'acc'        => $u['shift'] ?? '',
@@ -189,13 +198,14 @@ class EmpModel extends Model
         try {
             $db = \Config\Database::connect('default');
             if ($db->tableExists('users')) {
-                $userRow = $db->table('users')
-                    ->groupStart()
-                        ->where('empid', $empid)
-                        ->orWhere('username', $empid)
-                    ->groupEnd()
-                    ->get()
-                    ->getRowArray();
+                $fields = $db->getFieldNames('users');
+                $builder = $db->table('users');
+                if (in_array('empid', $fields, true)) {
+                    $builder->groupStart()->where('empid', $empid)->orWhere('username', $empid)->groupEnd();
+                } else {
+                    $builder->where('username', $empid);
+                }
+                $userRow = $builder->get()->getRowArray();
 
                 if ($userRow) {
                     $dbPass = $userRow['password'] ?? '';
@@ -206,17 +216,26 @@ class EmpModel extends Model
                     if ($passMatch) {
                         $uId   = $userRow['empid'] ?? $userRow['username'] ?? $empid;
                         $uName = $userRow['name'] ?? $userRow['fullname'] ?? $userRow['username'] ?? $uId;
-                        $uRole = strtolower((string)($userRow['role'] ?? 'all'));
-                        if (!in_array($uRole, ['sl', 'fl', 'all'])) {
+                        $sec   = strtoupper(trim((string)($userRow['section'] ?? $userRow['role'] ?? '')));
+                        $uRole = 'all';
+                        if (strpos($sec, 'FRAME') !== false || strpos($sec, 'FL') !== false || strpos($sec, '017') !== false) {
+                            $uRole = 'fl';
+                        } elseif (strpos($sec, 'SINGLE') !== false || strpos($sec, 'SL') !== false || strpos($sec, '044') !== false) {
+                            $uRole = 'sl';
+                        }
+
+                        $isAdmin = (strtolower((string)($userRow['role'] ?? '')) === 'admin' || strtolower((string)($userRow['state'] ?? '')) === 'admin');
+                        if ($isAdmin) {
                             $uRole = 'all';
                         }
+
                         return [
                             'empid'      => $uId,
                             'name'       => $uName,
                             'positionid' => $userRow['position'] ?? $userRow['role'] ?? 'Operator',
                             'role'       => $uRole,
                             'level'      => (int)($userRow['level'] ?? 15),
-                            'isadmin'    => (strtolower((string)($userRow['role'] ?? '')) === 'admin')
+                            'isadmin'    => $isAdmin
                         ];
                     }
                 }
@@ -248,10 +267,10 @@ class EmpModel extends Model
             $level    = isset($posParts[0]) && is_numeric($posParts[0]) ? (int)$posParts[0] : 15;
 
             $role = 'all';
-            $dept = strtoupper((string)($q->deptid ?? ''));
-            if (strpos($dept, 'FRAME LASER') !== false || $dept === 'FL') {
+            $dept = strtoupper(trim((string)($q->deptid ?? '')));
+            if (strpos($dept, 'FRAME') !== false || strpos($dept, 'FL') !== false || strpos($dept, '017') !== false) {
                 $role = 'fl';
-            } elseif (strpos($dept, 'SINGLE LASER') !== false || $dept === 'SL') {
+            } elseif (strpos($dept, 'SINGLE') !== false || strpos($dept, 'SL') !== false || strpos($dept, '044') !== false) {
                 $role = 'sl';
             }
 
@@ -263,7 +282,7 @@ class EmpModel extends Model
                 'empid'      => $empid,
                 'name'       => !empty($q->name) ? $q->name : strtoupper($empid),
                 'positionid' => $q->positionid ?? 'Operator',
-                ' shift'      => $q->acc ?? '',
+                'shift'      => $q->acc ?? '',
                 'groupid'    => $q->groupid ?? '',
                 'role'       => $role,
                 'level'      => $level,

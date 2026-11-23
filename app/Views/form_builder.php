@@ -1183,15 +1183,17 @@ $(document).ready(function() {
                     copySel.append('<option value="' + m.id + '">Copy dari: ' + m.model_name + '</option>');
                 }
 
+                let actionHtml = m.id ? (
+                    '<button type="button" class="btn btn-xs btn-warning py-0 px-1 me-1 btn-edit-model-item" data-id="' + m.id + '" data-name="' + m.model_name + '"><i class="fas fa-edit"></i></button>' +
+                    '<button type="button" class="btn btn-xs btn-danger py-0 px-1 btn-del-model-item" data-id="' + m.id + '" data-name="' + m.model_name + '"><i class="fas fa-trash"></i></button>'
+                ) : '<span class="badge bg-light text-secondary">Riwayat</span>';
+
                 tbodyCrud.append(
                     '<tr>' +
                     '<td>' + (idx + 1) + '</td>' +
                     '<td class="fw-bold">' + m.model_name + '</td>' +
                     '<td><span class="badge ' + (hasStd ? 'bg-success' : 'bg-secondary') + '">' + badgeTxt + '</span></td>' +
-                    '<td>' +
-                    '<button type="button" class="btn btn-xs btn-warning py-0 px-1 me-1 btn-edit-model-item" data-id="' + m.id + '" data-name="' + m.model_name + '"><i class="fas fa-edit"></i></button>' +
-                    '<button type="button" class="btn btn-xs btn-danger py-0 px-1 btn-del-model-item" data-id="' + m.id + '" data-name="' + m.model_name + '"><i class="fas fa-trash"></i></button>' +
-                    '</td>' +
+                    '<td>' + actionHtml + '</td>' +
                     '</tr>'
                 );
             });

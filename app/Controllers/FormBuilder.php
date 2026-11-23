@@ -55,6 +55,26 @@ class FormBuilder extends BaseController
         // Baik startup menurun maupun startup mendatar sama-sama mengambil daftar proses bertipe 'startup'
         $dbType     = ($type === 'startup_horizontal') ? 'startup' : $type;
         $processes  = $this->processModel->getAll($deviceCode, $dbType);
+
+        // Jika user memilih tipe startup menurun vs mendatar, filter agar daftarnya berbeda sesuai jenis layoutnya
+        if ($type === 'startup' || $type === 'startup_horizontal') {
+            $isWantHorizontal = ($type === 'startup_horizontal');
+            $filtered = [];
+
+            foreach ($processes as $proc) {
+                $procCode     = $proc['process_code'] ?? '';
+                $isHorizontal = $this->isStartupProcessHorizontal($procCode, (string)$deviceCode);
+
+                if ($isWantHorizontal && $isHorizontal) {
+                    $filtered[] = $proc;
+                } elseif (!$isWantHorizontal && !$isHorizontal) {
+                    $filtered[] = $proc;
+                }
+            }
+
+            $processes = array_values($filtered);
+        }
+
         return $this->response->setJSON($processes);
     }
 
@@ -1516,5 +1536,60 @@ class FormBuilder extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal mencatat Log Activity FormBuilder: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Memeriksa apakah suatu proses startup berformat Horizontal (Mendatar) atau Vertikal (Menurun).
+     */
+    private function isStartupProcessHorizontal(string $processCode, string $deviceCode = ''): bool
+    {
+        $processCode = strtolower(trim($processCode));
+        if ($processCode === '') {
+            return false;
+        }
+
+        // 1. Cek dari database form_revisions jika sudah pernah tersimpan
+        $revRow = $this->formRevModel->where('process_code', $processCode)
+                                     ->orderBy('id', 'DESC')
+                                     ->first();
+        if ($revRow && !empty($revRow['kategori_form'])) {
+            if ($revRow['kategori_form'] === 'startup_horizontal') {
+                return true;
+            }
+            if ($revRow['kategori_form'] === 'startup') {
+                return false;
+            }
+        }
+
+        // 2. Karakteristik kode proses: Burn In (-bi*) dan Ag Paste Hardening (-ag) adalah proses Mendatar (Horizontal)
+        if (preg_match('/-s-bi[0-9]*$/', $processCode) || preg_match('/-s-ag$/', $processCode)) {
+            return true;
+        }
+
+        // 3. Cek file template view jika ada
+        if ($deviceCode === '') {
+            $parts = explode('-', $processCode);
+            $deviceCode = $parts[0] ?? '';
+        }
+
+        if ($deviceCode !== '') {
+            $viewFile = APPPATH . 'Views/layout/' . $deviceCode . '/input/startup/' . $processCode . '.php';
+            if (is_file($viewFile)) {
+                $fileContent = @file_get_contents($viewFile);
+                if ($fileContent !== false) {
+                    if (preg_match('/<tbody>\s*<td/i', $fileContent)) {
+                        return true;
+                    }
+                    if (preg_match('/<tr[^>]*>(.*?)<\/tr>/is', $fileContent, $mTr)) {
+                        $inputCount = preg_match_all('/<(?:input|select)\b/i', $mTr[1], $dummy);
+                        if ($inputCount > 1) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

@@ -49,26 +49,29 @@
                   <select class="form-control" id="device-txt" name="device-txt" onchange="updateDevice()" required>
                     <option class="dropdown-item" value="-">choose device</option>
                     <?php
-                      if($session->get('role')=="sl"){
-                        echo '
-                          <option value="sl33">Single Laser 3.3</option>
-                          <option value="sl38">Single Laser 3.8</option>
-                          <option value="sl56">Single Laser 5.6</option>
-                          <option value="sl90">Single Laser 9.0</option>
-                        ';
-                      }
-                      else if($session->get('role')=="fl"){
-                        echo '
-                          <option value="fl18">Frame Laser 1.8</option>
-                        ';
-                      }
-                      else if($session->get('role')=="all"){
+                      $userRole = strtolower((string)$session->get('role'));
+                      $isAdmin  = (bool)$session->get('isadmin');
+
+                      if ($isAdmin || $userRole === 'all') {
                         echo '
                           <option value="sl33">Single Laser 3.3</option>
                           <option value="sl38">Single Laser 3.8</option>
                           <option value="sl56">Single Laser 5.6</option>
                           <option value="sl90">Single Laser 9.0</option>
                           <option value="fl18">Frame Laser 1.8</option>
+                        ';
+                      }
+                      else if ($userRole === 'fl') {
+                        echo '
+                          <option value="fl18">Frame Laser 1.8</option>
+                        ';
+                      }
+                      else if ($userRole === 'sl') {
+                        echo '
+                          <option value="sl33">Single Laser 3.3</option>
+                          <option value="sl38">Single Laser 3.8</option>
+                          <option value="sl56">Single Laser 5.6</option>
+                          <option value="sl90">Single Laser 9.0</option>
                         ';
                       }
                     ?>
@@ -456,6 +459,39 @@ function populateMachine(data, machineSelect) {
          machineSelect.empty().append('<option value="">-- Mesin Belum Didaftarkan --</option>');
     }
     machineSelect.trigger('change');
+}
+
+// FUNGSI UPDATE MODEL LIST PER PROCESS (TERHUBUNG KE MASTER MODEL & AUTO-REGISTER)
+function updateModelList() {
+    var processCode = document.getElementById("process-txt") ? document.getElementById("process-txt").value : '';
+    var docType     = document.getElementById("type-process-txt") ? document.getElementById("type-process-txt").value : '';
+    var modelSelect = $('#model-txt');
+
+    modelSelect.empty().append('<option value="">-- Ketik atau Pilih Model Name --</option>');
+
+    if (!processCode || processCode === '-' || processCode === 'null') {
+        modelSelect.val('').trigger('change');
+        return;
+    }
+
+    $.ajax({
+        url: "<?= base_url('model/list') ?>?process=" + encodeURIComponent(processCode) + "&type=" + encodeURIComponent(docType),
+        dataType: 'JSON',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+            if (data && data.length > 0) {
+                for (let i = 0; i < data.length; i++) {
+                    var mName = data[i].model_name;
+                    modelSelect.append(new Option(mName, mName, false, false));
+                }
+            }
+            modelSelect.val('').trigger('change');
+        },
+        error: function(xhr) {
+            console.error("Gagal memuat Model List:", xhr.responseText);
+            modelSelect.val('').trigger('change');
+        }
+    });
 }
 
 // FUNGSI LOGIKA REVISI & FORM INPUT DINAMIS (TERHUBUNG KE FORM BUILDER)
