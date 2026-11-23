@@ -92,9 +92,9 @@ class Auth extends BaseController
         }
         
         // 5. Log gagal karena data tidak cocok
-        log_message('error', 'Pencocokan GAGAL. ID atau password salah di database lokal.');
+        log_message('error', 'Pencocokan GAGAL. ID tidak terdaftar di database tbempinfa TMS atau password salah: ' . $empid);
         return redirect()->to(base_url('login'))
-            ->with('message', 'Invalid credentials, please check your Employee ID and Password.');
+            ->with('message', 'Kredensial tidak valid. Pastikan Employee ID aktif dan terdaftar di database TMS (tbempinfa).');
     }
     
     /**

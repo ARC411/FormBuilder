@@ -183,22 +183,84 @@ class EmpModel extends Model
 
     public function getDataEmp($empid)
     {
+        $empid = trim((string)$empid);
+        if ($empid === '') {
+            return null;
+        }
+
+        // 1. Coba ambil dari Secondary Database (SQL Server 192.168.132.130 db_TMS tbempinfa)
         if ($this->isSqlSrvReady()) {
             try {
                 $db = \Config\Database::connect('second');
-                $q = "SELECT empid, LTRIM(RTRIM(ISNULL(firstname, '') + ' ' + ISNULL(midname, '') + ' ' + ISNULL(lastname, ''))) as name, deptid, positionid, titleid, empstsid
+                $q = "SELECT TOP 1 empid, LTRIM(RTRIM(ISNULL(firstname, '') + ' ' + ISNULL(midname, '') + ' ' + ISNULL(lastname, ''))) as name, deptid, positionid, titleid, empstsid
                       FROM tbempinfa
                       WHERE empstsid <> '3,Not Active' AND empid = ?";
                 $res = $db->query($q, [$empid])->getRow();
                 if ($res) {
                     return $res;
                 }
+                // Jika koneksi ke SQL Server berhasil dan data tidak ditemukan,
+                // berarti user memang tidak terdaftar di database secondary TMS
+                return null;
             } catch (\Throwable $e) {
-                log_message('error', 'getDataEmp SQLSRV fallback: ' . $e->getMessage());
+                log_message('error', 'getDataEmp SQLSRV connection failed, checking local tbempinfa: ' . $e->getMessage());
             }
         }
 
-        return $this->getLocalEmpFallback((string)$empid);
+        // 2. Fallback Lokal (MySQL) jika di lingkungan lokal di mana SQL Server TMS tidak dapat diakses
+        try {
+            $db = \Config\Database::connect('default');
+
+            // 2a. Cek di tabel tbempinfa lokal (mock replica dari TMS)
+            if ($db->tableExists('tbempinfa')) {
+                $localEmp = $db->table('tbempinfa')
+                    ->select("empid, TRIM(CONCAT_WS(' ', COALESCE(firstname, ''), COALESCE(midname, ''), COALESCE(lastname, ''))) as name, deptid, positionid, titleid, empstsid")
+                    ->where('empstsid <>', '3,Not Active')
+                    ->where('empid', $empid)
+                    ->get()
+                    ->getRow();
+
+                if ($localEmp) {
+                    return $localEmp;
+                }
+            }
+
+            // 2b. Cek di tabel users terdaftar
+            if ($db->tableExists('users')) {
+                $fields = $db->getFieldNames('users');
+                $builder = $db->table('users');
+                if (in_array('empid', $fields, true)) {
+                    $builder->groupStart()->where('empid', $empid)->orWhere('username', $empid)->groupEnd();
+                } else {
+                    $builder->where('username', $empid);
+                }
+                $u = $builder->get()->getRowArray();
+
+                if ($u) {
+                    $sec = strtoupper(trim((string)($u['section'] ?? $u['dept'] ?? $u['deptid'] ?? '')));
+                    $dept = 'ALL';
+                    if (strpos($sec, 'FRAME') !== false || strpos($sec, 'FL') !== false || strpos($sec, '017') !== false) {
+                        $dept = '017,FRAME LASER 1.8';
+                    } elseif (strpos($sec, 'SINGLE') !== false || strpos($sec, 'SL') !== false || strpos($sec, '044') !== false) {
+                        $dept = '044,SINGLE LASER 5.6';
+                    }
+
+                    return (object) [
+                        'empid'      => $u['empid'] ?? $u['username'] ?? $empid,
+                        'name'       => $u['name'] ?? $u['fullname'] ?? $u['username'] ?? strtoupper($empid),
+                        'deptid'     => $dept,
+                        'positionid' => $u['position'] ?? $u['role'] ?? '15,Operator',
+                        'titleid'    => '',
+                        'empstsid'   => '2,Permanent',
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'getDataEmp local MySQL fallback error: ' . $e->getMessage());
+        }
+
+        // Jika tidak ditemukan di secondary DB maupun tabel mock lokal terdaftar, tolak (return null)
+        return null;
     }
 
     public static function determineDepartmentCategory(?string $deptid): string
@@ -227,7 +289,10 @@ class EmpModel extends Model
             strpos($d, 'HOLOGRAM') !== false ||
             strpos($d, 'LED') !== false ||
             strpos($d, 'REGULATOR') !== false ||
-            strpos($d, 'OPTO') !== false
+            strpos($d, 'OPTO') !== false ||
+            strpos($d, 'COMPOUND') !== false ||
+            strpos($d, 'PROCESS') !== false ||
+            strpos($d, 'ENGINEERING') !== false
         ) {
             return 'PRODUCTION';
         }
@@ -240,12 +305,16 @@ class EmpModel extends Model
         $empid    = trim((string)$empid);
         $password = trim((string)$password);
 
+        if ($empid === '' || $password === '') {
+            return false;
+        }
+
         // 1. Validasi Super Admin Lokal
         if (strtolower($empid) === 'admin' && strtolower($password) === 'admin') {
             return [
                 'empid'      => 'admin',
-                'name'       => 'admin',
-                'positionid' => 'admin',
+                'name'       => 'Administrator',
+                'positionid' => '1,Admin',
                 'role'       => 'all',
                 'deptid'     => 'ADMIN',
                 'department' => 'ADMIN',
@@ -289,67 +358,87 @@ class EmpModel extends Model
                             $uRole = 'all';
                         }
 
+                        $level = (int)($userRow['level'] ?? 15);
+                        if ($level <= 7) {
+                            $uRole = 'all';
+                        }
+
                         return [
                             'empid'      => $uId,
                             'name'       => $uName,
                             'positionid' => $userRow['position'] ?? $userRow['role'] ?? 'Operator',
                             'role'       => $uRole,
-                            'level'      => (int)($userRow['level'] ?? 15),
+                            'deptid'     => $sec ?: 'ALL',
+                            'department' => self::determineDepartmentCategory($sec),
+                            'level'      => $level,
                             'isadmin'    => $isAdmin
                         ];
                     }
                 }
             }
         } catch (\Throwable $e) {
-            // Abaikan jika tabel users berbeda struktur
+            log_message('error', 'User table check error: ' . $e->getMessage());
         }
 
-        // 3. Validasi Karyawan Biasa (EmpID == Password)
+        // 3. Validasi Karyawan TMS (EmpID == Password)
+        // Karyawan hanya boleh login jika benar-benar terdaftar di tbempinfa (Secondary DB)
         if ($password === $empid) {
             $q = $this->getDataEmp($empid);
 
-            // Jika SQLSRV tidak aktif dan EmpID baru pertama kali login di lokal,
-            // izinkan masuk sebagai Operator dengan akses semua device ('all')
-            if (!$q && !$this->isSqlSrvReady()) {
-                $q = (object) [
-                    'empid'      => $empid,
-                    'name'       => strtoupper($empid),
-                    'deptid'     => 'ALL',
-                    'positionid' => '15,Operator',
-                ];
+            // JIKA TIDAK DITEMUKAN DI SECONDARY DB MAUPUN MOCK LOKAL:
+            // STRICT REJECT! Jangan pernah membuat mock user otomatis untuk user ngasal!
+            if (!$q) {
+                log_message('warning', "Login ditolak: EmpID {$empid} tidak terdaftar di tbempinfa.");
+                return false;
             }
 
-            if (!$q) {
+            // Validasi status karyawan aktif
+            if (isset($q->empstsid) && stripos((string)$q->empstsid, 'Not Active') !== false) {
+                log_message('warning', "Login ditolak: EmpID {$empid} berstatus Not Active.");
                 return false;
             }
 
             $posParts = preg_split('/,/', (string)($q->positionid ?? ''), -1, PREG_SPLIT_NO_EMPTY);
             $level    = isset($posParts[0]) && is_numeric($posParts[0]) ? (int)$posParts[0] : 15;
 
-            $department = self::determineDepartmentCategory($q->deptid);
+            $department = self::determineDepartmentCategory($q->deptid ?? '');
 
             $role = 'bebas';
-            if (strpos(strtoupper((string)$q->deptid), 'FRAME LASER') !== false) {
+            if (strpos(strtoupper((string)($q->deptid ?? '')), 'FRAME LASER') !== false) {
                 $role = 'fl';
-            } elseif (strpos(strtoupper((string)$q->deptid), 'SINGLE LASER') !== false) {
+            } elseif (strpos(strtoupper((string)($q->deptid ?? '')), 'SINGLE LASER') !== false) {
                 $role = 'sl';
             } elseif ($department === 'QC') {
                 $role = 'qc';
             }
 
+            // Level <= 7 (Supervisor, Engineer, Management) memiliki akses ke semua device
             if ($level > 0 && $level <= 7) {
                 $role = 'all';
             }
 
+            // Cek apakah admin dari tabel admin MySQL
+            $isAdmin = false;
+            try {
+                $db = \Config\Database::connect('default');
+                if ($db->tableExists('admin')) {
+                    $adminCheck = $db->table('admin')->where('empid', $empid)->get()->getRowArray();
+                    if ($adminCheck) {
+                        $isAdmin = true;
+                        $role = 'all';
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             return [
-                'empid'      => $empid,
-                'name'       => $q->name,
-                'positionid' => $q->positionid,
-                'deptid'     => $q->deptid,
+                'empid'      => $q->empid ?? $empid,
+                'name'       => $q->name ?? strtoupper($empid),
+                'positionid' => $q->positionid ?? '15,Operator',
+                'deptid'     => $q->deptid ?? '',
                 'department' => $department,
                 'role'       => $role,
                 'level'      => $level,
-                'isadmin'    => false
+                'isadmin'    => $isAdmin
             ];
         }
 
@@ -358,18 +447,34 @@ class EmpModel extends Model
 
     public function testing()
     {
-        if (!$this->isSqlSrvReady()) {
-            return [];
+        if ($this->isSqlSrvReady()) {
+            try {
+                $db = \Config\Database::connect('second');
+                $query = "SELECT empid, firstname, lastname, deptid, positionid, empstsid
+                          FROM tbempinfa
+                          WHERE (empstsid LIKE '%Permanent%' OR empstsid LIKE '%Contract%')";
+                $res = $db->query($query)->getResultArray();
+                if (!empty($res)) {
+                    return $res;
+                }
+            } catch (\Throwable $e) {
+                log_message('error', 'testing SQLSRV error: ' . $e->getMessage());
+            }
         }
+
+        // Local fallback untuk cek_role() di lokal
         try {
-            $db = \Config\Database::connect('second');
-            $query = "SELECT empid, firstname, lastname, deptid, positionid, empstsid
-                      FROM tbempinfa
-                      WHERE (empstsid LIKE '%Permanent%' OR empstsid LIKE '%Contract%')";
-            return $db->query($query)->getResultArray();
-        } catch (\Throwable $e) {
-            return [];
-        }
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                return $db->table('tbempinfa')
+                    ->select('empid, firstname, lastname, deptid, positionid, empstsid')
+                    ->where('empstsid <>', '3,Not Active')
+                    ->get()
+                    ->getResultArray();
+            }
+        } catch (\Throwable $e) {}
+
+        return [];
     }
 
     /**
@@ -383,28 +488,55 @@ class EmpModel extends Model
             'email' => ''
         ];
 
-        if (empty($empid) || !$this->isSqlSrvReady()) {
+        if (empty($empid)) {
             return $result;
         }
 
-        try {
-            $db  = \Config\Database::connect('second');
-            $row = $db->query("SELECT TOP 1 * FROM tbempinfa WHERE empid = ?", [$empid])->getRowArray();
+        if ($this->isSqlSrvReady()) {
+            try {
+                $db  = \Config\Database::connect('second');
+                $row = $db->query("SELECT TOP 1 * FROM tbempinfa WHERE empid = ?", [$empid])->getRowArray();
 
-            if ($row) {
-                $fullName = trim(($row['firstname'] ?? '') . ' ' . ($row['midname'] ?? '') . ' ' . ($row['lastname'] ?? ''));
-                $result['name'] = preg_replace('/\s+/', ' ', $fullName);
+                if ($row) {
+                    $fullName = trim(($row['firstname'] ?? '') . ' ' . ($row['midname'] ?? '') . ' ' . ($row['lastname'] ?? ''));
+                    $result['name'] = preg_replace('/\s+/', ' ', $fullName);
 
-                foreach (['email', 'mail', 'email_address', 'user_email', 'work_email'] as $col) {
-                    if (!empty($row[$col]) && filter_var(trim((string)$row[$col]), FILTER_VALIDATE_EMAIL)) {
-                        $result['email'] = strtolower(trim((string)$row[$col]));
-                        break;
+                    foreach (['email', 'mail', 'email_address', 'user_email', 'work_email'] as $col) {
+                        if (!empty($row[$col]) && filter_var(trim((string)$row[$col]), FILTER_VALIDATE_EMAIL)) {
+                            $result['email'] = strtolower(trim((string)$row[$col]));
+                            break;
+                        }
                     }
+                    return $result;
+                }
+            } catch (\Throwable $e) {
+                log_message('error', 'Gagal ambil kontak operator dari second: ' . $e->getMessage());
+            }
+        }
+
+        // Local fallback
+        try {
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                $row = $db->table('tbempinfa')->where('empid', $empid)->get()->getRowArray();
+                if ($row) {
+                    $fullName = trim(($row['firstname'] ?? '') . ' ' . ($row['midname'] ?? '') . ' ' . ($row['lastname'] ?? ''));
+                    $result['name'] = preg_replace('/\s+/', ' ', $fullName);
+                    if (!empty($row['email'])) {
+                        $result['email'] = strtolower(trim((string)$row['email']));
+                    }
+                    return $result;
                 }
             }
-        } catch (\Throwable $e) {
-            log_message('error', 'Gagal ambil kontak operator: ' . $e->getMessage());
-        }
+            if ($db->tableExists('users')) {
+                $row = $db->table('users')->where('username', $empid)->orWhere('empid', $empid)->get()->getRowArray();
+                if ($row) {
+                    $result['name'] = $row['name'] ?? $row['fullname'] ?? $empid;
+                    $result['email'] = strtolower(trim((string)($row['email'] ?? '')));
+                    return $result;
+                }
+            }
+        } catch (\Throwable $e) {}
 
         return $result;
     }
@@ -414,20 +546,44 @@ class EmpModel extends Model
      */
     public function getForemanEmails(): array
     {
-        $db = \Config\Database::connect('second');
+        if ($this->isSqlSrvReady()) {
+            try {
+                $db = \Config\Database::connect('second');
+                $sql = "
+                    SELECT *
+                    FROM tbempinfa
+                    WHERE empstsid <> '3,Not Active'
+                      AND (
+                          positionid LIKE '%14%' 
+                          OR positionid LIKE '%FOREMAN%' 
+                          OR positionid LIKE '%Foreman%'
+                      )
+                ";
+                $res = (array) $db->query($sql)->getResultArray();
+                if (!empty($res)) {
+                    return $res;
+                }
+            } catch (\Throwable $e) {
+                log_message('error', 'Gagal ambil email foreman dari second: ' . $e->getMessage());
+            }
+        }
 
-        // Query mengambil seluruh karyawan aktif dengan positionid Foreman (kode 14 / tulisan FOREMAN)
-        $sql = "
-            SELECT *
-            FROM tbempinfa
-            WHERE empstsid <> '3,Not Active'
-              AND (
-                  positionid LIKE '%14%' 
-                  OR positionid LIKE '%FOREMAN%' 
-                  OR positionid LIKE '%Foreman%'
-              )
-        ";
+        // Local fallback
+        try {
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                return (array) $db->table('tbempinfa')
+                    ->where('empstsid <>', '3,Not Active')
+                    ->groupStart()
+                        ->like('positionid', '14')
+                        ->orLike('positionid', 'FOREMAN')
+                        ->orLike('positionid', 'Foreman')
+                    ->groupEnd()
+                    ->get()
+                    ->getResultArray();
+            }
+        } catch (\Throwable $e) {}
 
-        return (array) $db->query($sql)->getResultArray();
+        return [];
     }
 }
