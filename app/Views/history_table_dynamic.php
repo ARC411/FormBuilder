@@ -749,27 +749,74 @@ $lenData      = count($alldata ?? []);
                             ?>
                             <tr>
                                 <?php if ($rIdx === 0): ?>
-                                    <?php
-                                    $opRaw = !empty($baseRow['empid']) ? $baseRow['empid'] : (!empty($baseRow['name']) ? $baseRow['name'] : ($baseRow['operator'] ?? '-'));
-                                    $opEmp = histResolveEmpId($opRaw);
-
-                                    $shiftVal = trim((string)($baseRow['shift'] ?? ''));
-                                    $groupVal = trim((string)($baseRow['group'] ?? ''));
-                                    $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
-                                        ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
-                                        : ($groupVal !== '' ? $groupVal : '-');
-
-                                    $createdRaw = trim((string)($baseRow['created_at'] ?? ''));
-                                    $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
-                                    $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
-                                    ?>
                                     <td rowspan="<?= $gridCount ?>" align="center"><?= $noUrut++ ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['machno'] ?? '-')) ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['model'] ?? '-')) ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['lotno'] ?? '-')) ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc($opEmp) ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc($shiftGroupStr) ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= $dateStr ?></td>
+                                    <?php if ($kategori_form === 'production'): ?>
+                                        <?php
+                                        $op1Raw = !empty($baseRow['empid']) ? $baseRow['empid'] : (!empty($baseRow['name']) ? $baseRow['name'] : ($baseRow['operator'] ?? '-'));
+                                        $op1Emp = histResolveEmpId($op1Raw);
+
+                                        $op2Raw = !empty($baseRow['empid2']) ? $baseRow['empid2'] : ($baseRow['name2'] ?? '');
+                                        $op2Emp = ($op2Raw !== '' && $op2Raw !== '-') ? histResolveEmpId($op2Raw) : '';
+
+                                        $opDisplay = ($op2Emp !== '' && $op2Emp !== '-') ? ($op1Emp . ' / ' . $op2Emp) : $op1Emp;
+
+                                        $shiftVal = trim((string)($baseRow['shift'] ?? ''));
+                                        $groupVal = trim((string)($baseRow['group'] ?? ''));
+                                        $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
+                                            ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
+                                            : ($groupVal !== '' ? $groupVal : '-');
+
+                                        $shift2Val = trim((string)($baseRow['shift2'] ?? ''));
+                                        $group2Val = trim((string)($baseRow['group2'] ?? ''));
+                                        if ($shift2Val !== '' && $shift2Val !== '-') {
+                                            $sg2 = $shift2Val . ' / ' . ($group2Val !== '' ? $group2Val : '-');
+                                            if ($sg2 !== $shiftGroupStr) {
+                                                $shiftGroupStr .= ' / ' . $sg2;
+                                            }
+                                        }
+
+                                        $createdRaw = trim((string)($baseRow['created_at'] ?? ''));
+                                        $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
+                                        $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
+                                        ?>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($opDisplay) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($shiftGroupStr) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['machno'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['model'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['lotno'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= $dateStr ?></td>
+                                        <?php if ($showAutoTimeCols): ?>
+                                            <td rowspan="<?= $gridCount ?>" align="center"><?= (!empty($baseRow['par008']) && $baseRow['par008'] !== '-') ? date('H:i', strtotime((string)$baseRow['par008'])) : '-' ?></td>
+                                            <td rowspan="<?= $gridCount ?>" align="center"><?= (!empty($baseRow['par009']) && $baseRow['par009'] !== '-') ? date('H:i', strtotime((string)$baseRow['par009'])) : '-' ?></td>
+                                        <?php endif; ?>
+                                    <?php elseif ($kategori_form === 'startup_horizontal'): ?>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= (!empty($baseRow['created_at']) && $baseRow['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$baseRow['created_at'])) : '-' ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['machno'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc(($baseRow['shift'] ?? '-') . ' / ' . ($baseRow['group'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>"><?= esc(histResolveEmpId($baseRow['empid'] ?? $baseRow['name'] ?? $baseRow['operator'] ?? $baseRow['nama'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['status'] ?? '-')) ?></td>
+                                    <?php else: ?>
+                                        <?php
+                                        $opRaw = !empty($baseRow['empid']) ? $baseRow['empid'] : (!empty($baseRow['name']) ? $baseRow['name'] : ($baseRow['operator'] ?? '-'));
+                                        $opEmp = histResolveEmpId($opRaw);
+
+                                        $shiftVal = trim((string)($baseRow['shift'] ?? ''));
+                                        $groupVal = trim((string)($baseRow['group'] ?? ''));
+                                        $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
+                                            ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
+                                            : ($groupVal !== '' ? $groupVal : '-');
+
+                                        $createdRaw = trim((string)($baseRow['created_at'] ?? ''));
+                                        $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
+                                        $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
+                                        ?>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['machno'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['model'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['lotno'] ?? '-')) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($opEmp) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($shiftGroupStr) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= $dateStr ?></td>
+                                    <?php endif; ?>
                                 <?php endif; ?>
 
                                 <?php foreach ($headerLeaves as $hIdx => $hLeaf): ?>
