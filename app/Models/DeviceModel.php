@@ -8,7 +8,7 @@ class DeviceModel extends Model {
 
 	protected $table = 'device';
     protected $useTimestamps = true;
-    protected $allowedFields = ['id','code','name'];
+    protected $allowedFields = ['id','code','name', 'deleted_at'];
 
     public function getAll()
     {

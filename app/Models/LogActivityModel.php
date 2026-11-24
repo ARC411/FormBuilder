@@ -9,7 +9,7 @@ class LogActivityModel extends Model {
 	protected $table = 'log_activity';
     protected $useTimestamps = true;
     protected $updatedField  = '';
-    protected $allowedFields = ['id','emp_id','type_activity','activity','user','table_name','created_at'];
+    protected $allowedFields = ['id','emp_id','type_activity','activity','user','table_name','created_at', 'deleted_at'];
 
     public function addLogActivity($data)
     {

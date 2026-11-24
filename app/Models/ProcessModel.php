@@ -8,7 +8,7 @@ class ProcessModel extends Model {
 
 	protected $table = 'proses';
     protected $useTimestamps = true;
-    protected $allowedFields = ['id','device','type','process_code','name','docno'];
+    protected $allowedFields = ['id','device','type','process_code','name','docno', 'deleted_at'];
 
     public function getAll($device = '', $type = '')
     {

@@ -22,6 +22,12 @@ class ProductionModel extends Model
             if ($db->tableExists($this->table) && !$db->fieldExists('weekly_id', $this->table)) {
                 $db->query("ALTER TABLE `production` ADD COLUMN `weekly_id` INT(11) UNSIGNED NULL DEFAULT NULL AFTER `revisi`, ADD INDEX `idx_prod_weekly_id` (`weekly_id`)");
             }
+            if ($db->tableExists($this->table) && $db->fieldExists('deleted_at', $this->table)) {
+                $db->query("ALTER TABLE `production` MODIFY COLUMN `deleted_at` DATETIME NULL DEFAULT NULL");
+            }
+            if ($db->tableExists($this->table) && $db->fieldExists('updated_at', $this->table)) {
+                $db->query("ALTER TABLE `production` MODIFY COLUMN `updated_at` DATETIME NULL DEFAULT NULL");
+            }
         } catch (\Throwable $e) {
             // Abaikan jika kolom sudah ada
         }
@@ -39,7 +45,7 @@ class ProductionModel extends Model
         'par029', 'par030', 'par031', 'par032', 'par033', 'par034', 'par035',
         'par036', 'par037', 'par038', 'par039', 'par040', 'par041', 'par042',
         'par043', 'par044', 'par045', 'foreman', 'leader', 'supervisor', 'docno', 'revisi', 'weekly_id',
-        'created_at'
+        'created_at', 'updated_at', 'deleted_at'
     ];
 
     public function getCsheet($slug = false)

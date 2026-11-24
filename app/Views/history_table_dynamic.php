@@ -26,7 +26,7 @@ if (!function_exists('histResolveEmpId')) {
             $empMap = [];
             // 1. Coba ambil dari Secondary Database (SQL Server 192.168.132.130 tbempinfa)
             try {
-                if (function_exists('sqlsrv_configure') || extension_loaded('sqlsrv') || extension_loaded('pdo_sqlsrv')) {
+                if (extension_loaded('sqlsrv') && function_exists('sqlsrv_connect')) {
                     $db2 = \Config\Database::connect('second');
                     $rows = $db2->query("SELECT empid, firstname, midname, lastname FROM tbempinfa")->getResultArray();
                     foreach ($rows as $r) {

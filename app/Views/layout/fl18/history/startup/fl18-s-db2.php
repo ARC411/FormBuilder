@@ -22,15 +22,17 @@ if (!function_exists('resolveStartupEmpId')) {
         if ($empMap === null) {
             $empMap = [];
             try {
-                $db2 = \Config\Database::connect('second');
-                $rows = $db2->query("SELECT empid, firstname, midname, lastname FROM tbempinfa")->getResultArray();
-                foreach ($rows as $r) {
-                    $eid = trim((string)($r['empid'] ?? ''));
-                    if ($eid === '') continue;
-                    $full = strtoupper(trim(preg_replace('/\s+/', ' ', ($r['firstname'] ?? '') . ' ' . ($r['midname'] ?? '') . ' ' . ($r['lastname'] ?? ''))));
-                    if ($full !== '') $empMap[$full] = $eid;
-                    $fl = strtoupper(trim(preg_replace('/\s+/', ' ', ($r['firstname'] ?? '') . ' ' . ($r['lastname'] ?? ''))));
-                    if ($fl !== '' && !isset($empMap[$fl])) $empMap[$fl] = $eid;
+                if (extension_loaded('sqlsrv') && function_exists('sqlsrv_connect')) {
+                    $db2 = \Config\Database::connect('second');
+                    $rows = $db2->query("SELECT empid, firstname, midname, lastname FROM tbempinfa")->getResultArray();
+                    foreach ($rows as $r) {
+                        $eid = trim((string)($r['empid'] ?? ''));
+                        if ($eid === '') continue;
+                        $full = strtoupper(trim(preg_replace('/\s+/', ' ', ($r['firstname'] ?? '') . ' ' . ($r['midname'] ?? '') . ' ' . ($r['lastname'] ?? ''))));
+                        if ($full !== '') $empMap[$full] = $eid;
+                        $fl = strtoupper(trim(preg_replace('/\s+/', ' ', ($r['firstname'] ?? '') . ' ' . ($r['lastname'] ?? ''))));
+                        if ($fl !== '' && !isset($empMap[$fl])) $empMap[$fl] = $eid;
+                    }
                 }
             } catch (\Throwable $e) {
                 // Abaikan jika gagal koneksi

@@ -19,7 +19,7 @@ class StartupModel extends Model
         'status','role','foreman','leader','supervisor','name', 'docno', 'revisi',
         'par015_unit', 'par016_unit', 'par018_unit', 'par019_unit', 'par020_unit', 
         'par021_unit', 'weekly_id', 'edit_status', 'unlocked_by', 'reject_reason', 'reject_by', 'reject_date',
-        'created_at'
+        'created_at', 'updated_at', 'deleted_at'
     ];
 
     public function __construct()
@@ -32,6 +32,12 @@ class StartupModel extends Model
     {
         try {
             $db = \Config\Database::connect();
+            if ($db->fieldExists('deleted_at', 'startup')) {
+                $db->query("ALTER TABLE `startup` MODIFY COLUMN `deleted_at` DATETIME NULL DEFAULT NULL");
+            }
+            if ($db->fieldExists('updated_at', 'startup')) {
+                $db->query("ALTER TABLE `startup` MODIFY COLUMN `updated_at` DATETIME NULL DEFAULT NULL");
+            }
             if (!$db->fieldExists('work_date', 'startup')) {
                 $db->query("ALTER TABLE `startup` ADD COLUMN `work_date` DATE NULL AFTER `shift`, ADD INDEX `idx_startup_work_date` (`work_date`)");
             }

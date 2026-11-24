@@ -17,7 +17,7 @@ class ForegoingModel extends Model
         'par039', 'par040', 'par041', 'par042', 'docno', 'revisi',
         'status', 'role', 'foreman', 'leader', 'supervisor', 'edit_status', 'unlocked_by',
         'reject_reason', 'reject_by', 'reject_date',
-        'created_at'
+        'created_at', 'updated_at', 'deleted_at'
     ];
 
     public function __construct()
@@ -30,6 +30,12 @@ class ForegoingModel extends Model
     {
         try {
             $db = \Config\Database::connect();
+            if ($db->fieldExists('deleted_at', 'foregoing')) {
+                $db->query("ALTER TABLE `foregoing` MODIFY COLUMN `deleted_at` DATETIME NULL DEFAULT NULL");
+            }
+            if ($db->fieldExists('updated_at', 'foregoing')) {
+                $db->query("ALTER TABLE `foregoing` MODIFY COLUMN `updated_at` DATETIME NULL DEFAULT NULL");
+            }
             $colsToCheck = [
                 'work_date'     => "ALTER TABLE `foregoing` ADD COLUMN `work_date` DATE NULL AFTER `shift`, ADD INDEX `idx_foregoing_work_date` (`work_date`)",
                 'name'          => "ALTER TABLE `foregoing` ADD COLUMN `name` VARCHAR(100) NULL DEFAULT NULL AFTER `shift`",
