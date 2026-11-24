@@ -175,27 +175,25 @@
       $('#fldb1, #slcs, #submit').hide();
 
       // perubahan Process/Doc. Type ditangani fillDocType() lalu memicu change pada #process
-      $('#ModelName, #lotNo, #machno, #process, #revisiSelect').change(function(e) {
-        if (e.target.id === 'process') {
-          updateRevisiList();
-          updateMachine();
-          updateModel();
-        }
-        updateDocNo();
-        updateTable();
-      });
-
       $('#process').change(function() {
         updateRevisiList();
         updateMachine();
         updateModel();
+        updateDocNo();
+        updateTable();
+      });
+
+      $('#ModelName, #lotNo, #machno, #revisiSelect').change(function() {
+        updateDocNo();
+        updateTable();
       });
     });
 
     // Tarik daftar versi Revisi setiap kali Process berganti
     function updateRevisiList() {
-      var processCode = document.getElementById("process").value;
-      var docType     = document.getElementById("type-process").value;
+      var processEl   = document.getElementById("process");
+      var processCode = processEl ? processEl.value : '';
+      var docType     = getDocType();
       var revSelect   = $('#revisiSelect');
 
       revSelect.empty();
@@ -234,7 +232,8 @@
     }
 
     function updateMachine() {
-      var processCode = document.getElementById("process").value;
+      var processEl   = document.getElementById("process");
+      var processCode = processEl ? processEl.value : '';
       var machineSelect = $('#machno');
 
       // Kosongkan dropdown dan pasang opsi default di urutan paling atas
@@ -247,7 +246,7 @@
 
       // Kirim processCode langsung karena MachineModel::getMachineByProcess() sudah menangani mapping prosesnya
       $.ajax({
-        url: "<?php echo base_url(); ?>machine/list?process=" + processCode,
+        url: "<?php echo base_url(); ?>machine/list?process=" + encodeURIComponent(processCode),
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
@@ -276,10 +275,9 @@
     }
 
     function updateModel() {
-      var processEl = document.getElementById("process");
-      var docTypeEl = document.getElementById("type-process");
+      var processEl   = document.getElementById("process");
       var processCode = processEl ? processEl.value : '';
-      var docType = docTypeEl ? docTypeEl.value : '';
+      var docType     = getDocType();
       var modelSelect = $('#ModelName');
 
       modelSelect.empty();
@@ -322,7 +320,8 @@
       }
 
       let resDate = convertDate();
-      let process = document.getElementById("process").value;
+      let processEl = document.getElementById("process");
+      let process = processEl ? processEl.value : '';
       let model   = $('#ModelName').val();
       let lotNo   = $('#lotNo').val();
       let revisi  = $('#revisiSelect').val() || '';
@@ -409,7 +408,15 @@ let typeProcess = getDocType();
 
     // Tipe dokumen (production/startup/foregoing) diambil dari opsi Doc. Type yang dipilih
     function getDocType() {
-      return $('#process option:selected').data('type') || '';
+      var selOpt = $('#process option:selected');
+      var type = selOpt.data('type') || selOpt.attr('data-type');
+      if (type) return String(type).toLowerCase();
+      var processCode = ($('#process').val() || '').toLowerCase();
+      var seg = (processCode.split('-')[1] || '');
+      if (seg.charAt(0) === 's') return 'startup';
+      if (seg.charAt(0) === 'p') return 'production';
+      if (seg.charAt(0) === 'f') return 'foregoing';
+      return '';
     }
 
     function convertDate() {
@@ -545,7 +552,8 @@ let typeProcess = getDocType();
         return;
       }
 
-      let process = document.getElementById("process").value;
+      let processEl = document.getElementById("process");
+      let process = processEl ? processEl.value : '';
       let model   = $('#ModelName').val();
       let lotNo   = $('#lotNo').val();
       let revisi  = $('#revisiSelect').val() || '';
@@ -582,7 +590,8 @@ let typeProcess = getDocType();
           return;
       }
 
-      let process = document.getElementById("process").value;
+      let processEl = document.getElementById("process");
+      let process = processEl ? processEl.value : '';
       let model   = $('#ModelName').val();
       let lotNo   = $('#lotNo').val();
       let revisi  = $('#revisiSelect').val() || '';

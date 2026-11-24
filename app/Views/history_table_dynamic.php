@@ -1,5 +1,112 @@
 <?php
 // --- HELPER REKURSIF UNTUK TABEL HISTORY DINAMIS (WEB, EXCEL, & PDF) ---
+if (!function_exists('histResolveEmpId')) {
+    /**
+     * Resolusi nama karyawan atau raw ID menjadi EmpID resmi dari database secondary (.130 tbempinfa)
+     */
+    function histResolveEmpId($val) {
+        static $empMap = null;
+        $clean = trim((string)$val);
+        if ($clean === '' || $clean === '-') {
+            return '-';
+        }
+
+        $roleSuffix = '';
+        if (preg_match('/^(.*?)\s*(\(.*?\))$/', $clean, $m)) {
+            $clean = trim($m[1]);
+            $roleSuffix = ' ' . trim($m[2]);
+        }
+
+        // Jika nilai sudah berupa Employee ID numerik/kode (misal: 001955, S106458, OP001)
+        if (preg_match('/^[0-9A-Za-z_-]{3,12}$/', $clean) && preg_match('/\d/', $clean)) {
+            return $clean . $roleSuffix;
+        }
+
+        if ($empMap === null) {
+            $empMap = [];
+            // 1. Coba ambil dari Secondary Database (SQL Server 192.168.132.130 tbempinfa)
+            try {
+                if (function_exists('sqlsrv_configure') || extension_loaded('sqlsrv') || extension_loaded('pdo_sqlsrv')) {
+                    $db2 = \Config\Database::connect('second');
+                    $rows = $db2->query("SELECT empid, firstname, midname, lastname FROM tbempinfa")->getResultArray();
+                    foreach ($rows as $r) {
+                        $eid = trim((string)($r['empid'] ?? ''));
+                        if ($eid === '') continue;
+                        $fn = strtoupper(trim((string)($r['firstname'] ?? '')));
+                        $mn = strtoupper(trim((string)($r['midname'] ?? '')));
+                        $ln = strtoupper(trim((string)($r['lastname'] ?? '')));
+                        $full = strtoupper(trim(preg_replace('/\s+/', ' ', "$fn $mn $ln")));
+                        if ($full !== '') $empMap[$full] = $eid;
+                        $fl = strtoupper(trim(preg_replace('/\s+/', ' ', "$fn $ln")));
+                        if ($fl !== '' && !isset($empMap[$fl])) $empMap[$fl] = $eid;
+                        if ($fn !== '' && !isset($empMap[$fn])) $empMap[$fn] = $eid;
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            // 2. Fallback dari MySQL default jika ada tbempinfa atau tabel users lokal
+            try {
+                $db = \Config\Database::connect('default');
+                if ($db->tableExists('tbempinfa')) {
+                    $rows = $db->table('tbempinfa')->select('empid, firstname, midname, lastname')->get()->getResultArray();
+                    foreach ($rows as $r) {
+                        $eid = trim((string)($r['empid'] ?? ''));
+                        if ($eid === '') continue;
+                        $fn = strtoupper(trim((string)($r['firstname'] ?? '')));
+                        $mn = strtoupper(trim((string)($r['midname'] ?? '')));
+                        $ln = strtoupper(trim((string)($r['lastname'] ?? '')));
+                        $full = strtoupper(trim(preg_replace('/\s+/', ' ', "$fn $mn $ln")));
+                        if ($full !== '') $empMap[$full] = $eid;
+                        $fl = strtoupper(trim(preg_replace('/\s+/', ' ', "$fn $ln")));
+                        if ($fl !== '' && !isset($empMap[$fl])) $empMap[$fl] = $eid;
+                        if ($fn !== '' && !isset($empMap[$fn])) $empMap[$fn] = $eid;
+                    }
+                }
+                if ($db->tableExists('users')) {
+                    $uRows = $db->table('users')->select('username, name')->get()->getResultArray();
+                    foreach ($uRows as $ur) {
+                        $uname = trim((string)($ur['username'] ?? ''));
+                        $fn = strtoupper(trim((string)($ur['name'] ?? '')));
+                        if ($uname !== '' && $fn !== '' && !isset($empMap[$fn])) {
+                            $empMap[$fn] = $uname;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        $key = strtoupper((string)preg_replace('/\s+/', ' ', $clean));
+        $resolved = $empMap[$key] ?? $clean;
+        return $resolved . $roleSuffix;
+    }
+}
+
+if (!function_exists('histFormatCheckedEmpId')) {
+    /**
+     * Resolusi siapa yang menyetujui (Supervisor / Leader / Foreman) ke dalam format EmpID (Jabatan)
+     */
+    function histFormatCheckedEmpId($row) {
+        if (!is_array($row)) return '-';
+        $rawStatus = strtolower(trim((string)($row['status'] ?? '')));
+        if ($rawStatus === '' || $rawStatus === '-' || (strpos($rawStatus, 'approve') === false && strpos($rawStatus, 'bypass') === false && strpos($rawStatus, 'check') === false)) {
+            return '-';
+        }
+        $spv = trim((string)($row['supervisor'] ?? ''));
+        $ldr = trim((string)($row['leader'] ?? ''));
+        $frm = trim((string)($row['foreman'] ?? ''));
+        if ($spv !== '' && $spv !== '-') {
+            return histResolveEmpId($spv) . ' (Supervisor)';
+        }
+        if ($ldr !== '' && $ldr !== '-') {
+            return histResolveEmpId($ldr) . ' (Leader)';
+        }
+        if ($frm !== '' && $frm !== '-') {
+            return histResolveEmpId($frm) . ' (Foreman)';
+        }
+        return '-';
+    }
+}
+
 if (!function_exists('histPrepareTree')) {
     function histPrepareTree(array $nodes): array {
         $result = [];
@@ -161,19 +268,9 @@ if (!function_exists('histBuildStartupRows')) {
         foreach ($nodes as $node) {
             if (!isset($verticalRows[$rowIndex])) $verticalRows[$rowIndex] = [];
 
-            $isNoteRow = ($isRootLevel && empty($node['children']) && stripos($node['nama_parameter'], 'note') !== false);
+            $isNoteRow = (empty($node['children']) && (stripos($node['nama_parameter'], 'note') !== false || stripos($node['nama_parameter'], 'catatan') !== false));
             if ($isNoteRow) {
-                $verticalRows[$rowIndex][] = [
-                    'type'      => 'note_label',
-                    'name'      => 'Note',
-                    'colspan'   => $maxDepth + 1,
-                    'node_data' => $node
-                ];
-                $verticalRows[$rowIndex][] = [
-                    'type'      => 'input',
-                    'node_data' => $node
-                ];
-                $rowIndex++;
+                // Note diposisikan selalu di baris paling bawah tabel, jangan dirender di tengah-tengah parameter
                 continue;
             }
 
@@ -302,10 +399,10 @@ $lenData      = count($alldata ?? []);
             }
         }
 
-        $hasNoteRow = false;
-        foreach ($verticalRows as $vr) {
-            if (isset($vr[0]['type']) && $vr[0]['type'] === 'note_label') {
-                $hasNoteRow = true;
+        $noteDbCol = null;
+        foreach ($preparedTree as $n) {
+            if ((stripos($n['nama_parameter'] ?? '', 'note') !== false || stripos($n['nama_parameter'] ?? '', 'catatan') !== false) && !empty($n['kolom_db'])) {
+                $noteDbCol = $n['kolom_db'];
                 break;
             }
         }
@@ -358,57 +455,71 @@ $lenData      = count($alldata ?? []);
                     </tr>
                 <?php endforeach; ?>
 
-                <?php if (!$hasNoteRow): ?>
-                    <tr>
-                        <td colspan="<?= $identityCols ?>">Note</td>
-                        <?php if ($lenData > 0): ?>
-                            <?php for ($i = 0; $i < $lenData; $i++): ?>
-                                <td align="center"><?= esc($alldata[$i]['par030'] ?? $alldata[$i]['par023'] ?? '-') ?></td>
-                            <?php endfor; ?>
-                        <?php else: ?>
-                            <td align="center">-</td>
-                        <?php endif; ?>
-                    </tr>
-                <?php endif; ?>
-
+                <!-- 1. Judgment Start Up * -->
                 <tr>
-                    <td colspan="<?= $identityCols ?>">Status Approval</td>
+                    <td colspan="<?= $identityCols ?>"><strong>Judgment Start Up *</strong></td>
                     <?php if ($lenData > 0): ?>
-                        <?php for ($i = 0; $i < $lenData; $i++): ?>
-                            <td align="center"><?= esc((string)($alldata[$i]['status'] ?? '-')) ?></td>
-                        <?php endfor; ?>
-                    <?php else: ?>
-                        <td align="center">-</td>
-                    <?php endif; ?>
-                </tr>
-                <tr>
-                    <td colspan="<?= $identityCols ?>">Operator</td>
-                    <?php if ($lenData > 0): ?>
-                        <?php for ($i = 0; $i < $lenData; $i++): ?>
-                            <?php
-                            $opDisplay = '-';
-                            $roleKey = strtolower(trim((string)($alldata[$i]['role'] ?? '')));
-                            if ($roleKey && $roleKey !== '-' && !empty($alldata[$i][$roleKey]) && $alldata[$i][$roleKey] !== '-') {
-                                $opDisplay = (string)$alldata[$i][$roleKey];
-                            } elseif (!empty($alldata[$i]['operator']) && $alldata[$i]['operator'] !== '-') {
-                                $opDisplay = (string)$alldata[$i]['operator'];
-                            } elseif (!empty($alldata[$i]['name']) && $alldata[$i]['name'] !== '-') {
-                                $opDisplay = (string)$alldata[$i]['name'];
-                            } elseif (!empty($alldata[$i]['nama']) && $alldata[$i]['nama'] !== '-') {
-                                $opDisplay = (string)$alldata[$i]['nama'];
+                        <?php for ($i = 0; $i < $lenData; $i++): 
+                            $judg = $alldata[$i]['par025'] ?? $alldata[$i]['judgment'] ?? '';
+                            if ($judg === '' || $judg === '-') {
+                                $hasNg = false;
+                                foreach ($alldata[$i] as $k => $v) {
+                                    if (str_starts_with($k, 'par')) {
+                                        $vUpper = strtoupper(trim((string)$v));
+                                        if ($vUpper === 'NG' || $vUpper === '✖' || $vUpper === 'X') {
+                                            $hasNg = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                $judg = $hasNg ? '✖' : '✔';
                             }
-                            ?>
-                            <td align="center"><?= esc($opDisplay) ?></td>
+                            $judgDisplay = ($judg === '✔' || strtoupper($judg) === 'OK') ? ($isExportMode ? 'OK (✔)' : '<strong style="color: #198754; font-size: 1.1rem;">&#10004;</strong>') : ($isExportMode ? 'NG (✖)' : '<strong style="color: #dc3545; font-size: 1.1rem;">&#10008;</strong>');
+                        ?>
+                            <td align="center"><?= $judgDisplay ?></td>
                         <?php endfor; ?>
                     <?php else: ?>
                         <td align="center">-</td>
                     <?php endif; ?>
                 </tr>
+
+                <!-- 2. Operator (by EmpID dari Secondary Database .130) -->
                 <tr>
-                    <td colspan="<?= $identityCols ?>">Time</td>
+                    <td colspan="<?= $identityCols ?>"><strong>Operator</strong></td>
+                    <?php if ($lenData > 0): ?>
+                        <?php for ($i = 0; $i < $lenData; $i++): 
+                            $rawOp = !empty($alldata[$i]['empid']) ? $alldata[$i]['empid'] : ($alldata[$i]['name'] ?? $alldata[$i]['operator'] ?? $alldata[$i]['nama'] ?? '-');
+                        ?>
+                            <td align="center"><?= esc(histResolveEmpId($rawOp)) ?></td>
+                        <?php endfor; ?>
+                    <?php else: ?>
+                        <td align="center">-</td>
+                    <?php endif; ?>
+                </tr>
+
+                <!-- 3. Checked (by EmpID + Role) -->
+                <tr>
+                    <td colspan="<?= $identityCols ?>"><strong>Checked</strong></td>
                     <?php if ($lenData > 0): ?>
                         <?php for ($i = 0; $i < $lenData; $i++): ?>
-                            <td align="center"><?= (!empty($alldata[$i]['updated_at']) && $alldata[$i]['updated_at'] !== '-') ? date('H:i', strtotime((string)$alldata[$i]['updated_at'])) : '-' ?></td>
+                            <td align="center"><?= esc(histFormatCheckedEmpId($alldata[$i] ?? null)) ?></td>
+                        <?php endfor; ?>
+                    <?php else: ?>
+                        <td align="center">-</td>
+                    <?php endif; ?>
+                </tr>
+
+                <!-- 4. Note # (selalu berada di baris paling bawah) -->
+                <tr>
+                    <td colspan="<?= $identityCols ?>">Note #</td>
+                    <?php if ($lenData > 0): ?>
+                        <?php for ($i = 0; $i < $lenData; $i++): 
+                            $noteVal = $alldata[$i]['note'] ?? $alldata[$i]['par030'] ?? $alldata[$i]['par023'] ?? $alldata[$i]['catatan'] ?? '-';
+                            if (($noteVal === '' || $noteVal === '-') && !empty($noteDbCol)) {
+                                $noteVal = $alldata[$i][$noteDbCol] ?? '-';
+                            }
+                        ?>
+                            <td align="center"><?= esc($noteVal !== '' ? $noteVal : '-') ?></td>
                         <?php endfor; ?>
                     <?php else: ?>
                         <td align="center">-</td>
@@ -438,7 +549,7 @@ $lenData      = count($alldata ?? []);
         $gridRowNames     = [];
         $firstGridLeafIdx = null;
         $hasSuffixCols    = false;
-        $gridHeaderLabel  = 'Sample / Label';
+        $gridHeaderLabel  = ($kategori_form === 'foregoing' || str_contains($process_code ?? '', '-f-')) ? 'Measure Die Bond Pos' : 'Sample / Label';
 
         foreach ($headerLeaves as $hIdx => $hLeaf) {
             if (!empty($hLeaf['children']) && !empty($hLeaf['children'][0]['posisi_grid'])) {
@@ -466,7 +577,7 @@ $lenData      = count($alldata ?? []);
         }
         $showAutoTimeCols = ($kategori_form === 'production' && !$hasTimeInTree);
 
-        $metaColCount   = ($kategori_form === 'production') ? 9 : (($kategori_form === 'startup_horizontal') ? 6 : 7);
+        $metaColCount   = ($kategori_form === 'production') ? 7 : (($kategori_form === 'startup_horizontal') ? 6 : 7);
         $extraTimeCols  = $showAutoTimeCols ? 2 : 0;
         $extraLabelCol  = !empty($gridRowNames) ? 1 : 0;
         $totalTableCols = $metaColCount + $extraTimeCols + $extraLabelCol + count($headerLeaves);
@@ -483,14 +594,12 @@ $lenData      = count($alldata ?? []);
                         <?php if ($level === 0): ?>
                             <?php if ($kategori_form === 'production'): ?>
                                 <th rowspan="<?= $headerMaxDepth ?>">No.</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Operator Start</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Operator Finish</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Operator</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Mch. No.</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Date</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Model</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Lot No.</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Date (dd/mm/yyyy)</th>
                                 <?php if ($showAutoTimeCols): ?>
                                     <th colspan="2" rowspan="<?= max(1, $headerMaxDepth - 1) ?>">Time</th>
                                 <?php endif; ?>
@@ -503,12 +612,12 @@ $lenData      = count($alldata ?? []);
                                 <th rowspan="<?= $headerMaxDepth ?>">Status Approval</th>
                             <?php else: ?>
                                 <th rowspan="<?= $headerMaxDepth ?>">No.</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Date</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Mch. No.</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Model</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Lot No.</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Operator</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
+                                <th rowspan="<?= $headerMaxDepth ?>">Date (dd/mm/yyyy)</th>
                             <?php endif; ?>
                         <?php elseif ($showAutoTimeCols && $level === $headerMaxDepth - 1): ?>
                             <th>IN</th>
@@ -551,14 +660,40 @@ $lenData      = count($alldata ?? []);
                         <tr>
                             <td align="center"><?= $i + 1 ?></td>
                             <?php if ($kategori_form === 'production'): ?>
-                                <td><?= esc($row['name'] ?? '-') ?></td>
-                                <td align="center"><?= esc(($row['shift'] ?? '-') . ' / ' . ($row['group'] ?? '-')) ?></td>
-                                <td><?= !empty($row['name2']) && $row['name2'] !== '-' ? esc($row['name2']) : '-' ?></td>
-                                <td align="center"><?= (!empty($row['shift2']) && $row['shift2'] !== '-') ? esc($row['shift2'] . ' / ' . ($row['group2'] ?? '-')) : '-' ?></td>
+                                <?php
+                                $op1Raw = !empty($row['empid']) ? $row['empid'] : (!empty($row['name']) ? $row['name'] : ($row['operator'] ?? '-'));
+                                $op1Emp = histResolveEmpId($op1Raw);
+
+                                $op2Raw = !empty($row['empid2']) ? $row['empid2'] : ($row['name2'] ?? '');
+                                $op2Emp = ($op2Raw !== '' && $op2Raw !== '-') ? histResolveEmpId($op2Raw) : '';
+
+                                $opDisplay = ($op2Emp !== '' && $op2Emp !== '-') ? ($op1Emp . ' / ' . $op2Emp) : $op1Emp;
+
+                                $shiftVal = trim((string)($row['shift'] ?? ''));
+                                $groupVal = trim((string)($row['group'] ?? ''));
+                                $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
+                                    ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
+                                    : ($groupVal !== '' ? $groupVal : '-');
+
+                                $shift2Val = trim((string)($row['shift2'] ?? ''));
+                                $group2Val = trim((string)($row['group2'] ?? ''));
+                                if ($shift2Val !== '' && $shift2Val !== '-') {
+                                    $sg2 = $shift2Val . ' / ' . ($group2Val !== '' ? $group2Val : '-');
+                                    if ($sg2 !== $shiftGroupStr) {
+                                        $shiftGroupStr .= ' / ' . $sg2;
+                                    }
+                                }
+
+                                $createdRaw = trim((string)($row['created_at'] ?? ''));
+                                $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
+                                $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
+                                ?>
+                                <td align="center"><?= esc($opDisplay) ?></td>
+                                <td align="center"><?= esc($shiftGroupStr) ?></td>
                                 <td align="center"><?= esc((string)($row['machno'] ?? '-')) ?></td>
-                                <td align="center"><?= (!empty($row['created_at']) && $row['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$row['created_at'])) : '-' ?></td>
                                 <td align="center"><?= esc((string)($row['model'] ?? '-')) ?></td>
                                 <td align="center"><?= esc((string)($row['lotno'] ?? '-')) ?></td>
+                                <td align="center"><?= $dateStr ?></td>
                                 <?php if ($showAutoTimeCols): ?>
                                     <td align="center"><?= (!empty($row['par008']) && $row['par008'] !== '-') ? date('H:i', strtotime((string)$row['par008'])) : '-' ?></td>
                                     <td align="center"><?= (!empty($row['par009']) && $row['par009'] !== '-') ? date('H:i', strtotime((string)$row['par009'])) : '-' ?></td>
@@ -567,15 +702,29 @@ $lenData      = count($alldata ?? []);
                                 <td align="center"><?= (!empty($row['created_at']) && $row['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$row['created_at'])) : '-' ?></td>
                                 <td align="center"><?= esc((string)($row['machno'] ?? '-')) ?></td>
                                 <td align="center"><?= esc(($row['shift'] ?? '-') . ' / ' . ($row['group'] ?? '-')) ?></td>
-                                <td><?= esc($row['name'] ?? $row['operator'] ?? $row['nama'] ?? '-') ?></td>
+                                <td><?= esc(histResolveEmpId($row['empid'] ?? $row['name'] ?? $row['operator'] ?? $row['nama'] ?? '-')) ?></td>
                                 <td align="center"><?= esc((string)($row['status'] ?? '-')) ?></td>
                             <?php else: ?>
-                                <td align="center"><?= (!empty($row['created_at']) && $row['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$row['created_at'])) : '-' ?></td>
+                                <?php
+                                $opRaw = !empty($row['empid']) ? $row['empid'] : (!empty($row['name']) ? $row['name'] : ($row['operator'] ?? '-'));
+                                $opEmp = histResolveEmpId($opRaw);
+
+                                $shiftVal = trim((string)($row['shift'] ?? ''));
+                                $groupVal = trim((string)($row['group'] ?? ''));
+                                $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
+                                    ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
+                                    : ($groupVal !== '' ? $groupVal : '-');
+
+                                $createdRaw = trim((string)($row['created_at'] ?? ''));
+                                $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
+                                $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
+                                ?>
                                 <td align="center"><?= esc((string)($row['machno'] ?? '-')) ?></td>
                                 <td align="center"><?= esc((string)($row['model'] ?? '-')) ?></td>
                                 <td align="center"><?= esc((string)($row['lotno'] ?? '-')) ?></td>
-                                <td align="center"><?= esc(($row['shift'] ?? '-') . ' / ' . ($row['group'] ?? '-')) ?></td>
-                                <td><?= esc($row['name'] ?? $row['operator'] ?? '-') ?></td>
+                                <td align="center"><?= esc($opEmp) ?></td>
+                                <td align="center"><?= esc($shiftGroupStr) ?></td>
+                                <td align="center"><?= $dateStr ?></td>
                             <?php endif; ?>
 
                             <?php foreach ($headerLeaves as $leaf): ?>
@@ -600,13 +749,27 @@ $lenData      = count($alldata ?? []);
                             ?>
                             <tr>
                                 <?php if ($rIdx === 0): ?>
+                                    <?php
+                                    $opRaw = !empty($baseRow['empid']) ? $baseRow['empid'] : (!empty($baseRow['name']) ? $baseRow['name'] : ($baseRow['operator'] ?? '-'));
+                                    $opEmp = histResolveEmpId($opRaw);
+
+                                    $shiftVal = trim((string)($baseRow['shift'] ?? ''));
+                                    $groupVal = trim((string)($baseRow['group'] ?? ''));
+                                    $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
+                                        ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
+                                        : ($groupVal !== '' ? $groupVal : '-');
+
+                                    $createdRaw = trim((string)($baseRow['created_at'] ?? ''));
+                                    $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
+                                    $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
+                                    ?>
                                     <td rowspan="<?= $gridCount ?>" align="center"><?= $noUrut++ ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= (!empty($baseRow['created_at']) && $baseRow['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$baseRow['created_at'])) : '-' ?></td>
                                     <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['machno'] ?? '-')) ?></td>
                                     <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['model'] ?? '-')) ?></td>
                                     <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['lotno'] ?? '-')) ?></td>
-                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc(($baseRow['shift'] ?? '-') . ' / ' . ($baseRow['group'] ?? '-')) ?></td>
-                                    <td rowspan="<?= $gridCount ?>"><?= esc($baseRow['name'] ?? $baseRow['operator'] ?? '-') ?></td>
+                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc($opEmp) ?></td>
+                                    <td rowspan="<?= $gridCount ?>" align="center"><?= esc($shiftGroupStr) ?></td>
+                                    <td rowspan="<?= $gridCount ?>" align="center"><?= $dateStr ?></td>
                                 <?php endif; ?>
 
                                 <?php foreach ($headerLeaves as $hIdx => $hLeaf): ?>
