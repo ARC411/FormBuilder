@@ -40,11 +40,32 @@ class EmpModel extends Model
                   AND c.datetl = '1900-01-01'
             ";
 
-            return $db->query($sql, [$empid, $empid])->getRow();
-        } catch (\Throwable $e) {
-            log_message('error', 'getEmp error: ' . $e->getMessage());
+            $res = $db->query($sql, [$empid, $empid])->getRow();
+            if ($res) {
+                return $res;
+            }
             return null;
+        } catch (\Throwable $e) {
+            log_message('error', 'getEmp error on second: ' . $e->getMessage());
         }
+
+        // Fallback untuk autofill di lokal jika SQL Server .130 sedang offline
+        try {
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                $row = $db->table('tbempinfa')
+                    ->select("empid, empid as cardid, TRIM(CONCAT_WS(' ', COALESCE(firstname, ''), COALESCE(midname, ''), COALESCE(lastname, ''))) as name, positionid, 'A' as groupid, '1' as acc")
+                    ->where('empstsid <>', '3,Not Active')
+                    ->where('empid', $empid)
+                    ->get()
+                    ->getRow();
+                if ($row) {
+                    return $row;
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        return null;
     }
 
     public function getDataEmp($empid)
@@ -61,11 +82,30 @@ class EmpModel extends Model
                   FROM tbempinfa
                   WHERE empstsid <> '3,Not Active' AND empid = ?";
 
-            return $db->query($q, [$empid])->getRow();
-        } catch (\Throwable $e) {
-            log_message('error', 'getDataEmp error: ' . $e->getMessage());
+            $res = $db->query($q, [$empid])->getRow();
+            if ($res) {
+                return $res;
+            }
+            // Jika koneksi SQL Server berhasil tetapi data memang tidak ada, jangan fallback
             return null;
+        } catch (\Throwable $e) {
+            log_message('error', 'getDataEmp error on second: ' . $e->getMessage());
         }
+
+        // Fallback untuk testing di lokal jika SQL Server .130 sedang offline
+        try {
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                return $db->table('tbempinfa')
+                    ->select("empid, TRIM(CONCAT_WS(' ', COALESCE(firstname, ''), COALESCE(midname, ''), COALESCE(lastname, ''))) as name, deptid, positionid, titleid, empstsid")
+                    ->where('empstsid <>', '3,Not Active')
+                    ->where('empid', $empid)
+                    ->get()
+                    ->getRow();
+            }
+        } catch (\Throwable $e) {}
+
+        return null;
     }
 
     public static function determineDepartmentCategory(?string $deptid): string
@@ -180,11 +220,27 @@ class EmpModel extends Model
                       FROM tbempinfa
                       WHERE (empstsid LIKE '%Permanent%' OR empstsid LIKE '%Contract%')";
 
-            return $db->query($query)->getResultArray();
+            $res = $db->query($query)->getResultArray();
+            if (!empty($res)) {
+                return $res;
+            }
         } catch (\Throwable $e) {
-            log_message('error', 'testing error: ' . $e->getMessage());
-            return [];
+            log_message('error', 'testing error on second: ' . $e->getMessage());
         }
+
+        // Fallback untuk cek_role() di lokal jika SQL Server .130 sedang offline
+        try {
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                return $db->table('tbempinfa')
+                    ->select('empid, firstname, lastname, deptid, positionid, empstsid')
+                    ->where('empstsid <>', '3,Not Active')
+                    ->get()
+                    ->getResultArray();
+            }
+        } catch (\Throwable $e) {}
+
+        return [];
     }
 
     /**
@@ -217,10 +273,27 @@ class EmpModel extends Model
                         break;
                     }
                 }
+                return $result;
             }
         } catch (\Throwable $e) {
-            log_message('error', 'Gagal ambil kontak operator: ' . $e->getMessage());
+            log_message('error', 'Gagal ambil kontak operator dari second: ' . $e->getMessage());
         }
+
+        // Fallback lokal jika offline
+        try {
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                $row = $db->table('tbempinfa')->where('empid', $empid)->get()->getRowArray();
+                if ($row) {
+                    $fullName = trim(($row['firstname'] ?? '') . ' ' . ($row['midname'] ?? '') . ' ' . ($row['lastname'] ?? ''));
+                    $result['name'] = preg_replace('/\s+/', ' ', $fullName);
+                    if (!empty($row['email'])) {
+                        $result['email'] = strtolower(trim((string)$row['email']));
+                    }
+                    return $result;
+                }
+            }
+        } catch (\Throwable $e) {}
 
         return $result;
     }
@@ -245,10 +318,30 @@ class EmpModel extends Model
                   )
             ";
 
-            return (array) $db->query($sql)->getResultArray();
+            $res = (array) $db->query($sql)->getResultArray();
+            if (!empty($res)) {
+                return $res;
+            }
         } catch (\Throwable $e) {
-            log_message('error', 'Gagal ambil email foreman: ' . $e->getMessage());
-            return [];
+            log_message('error', 'Gagal ambil email foreman dari second: ' . $e->getMessage());
         }
+
+        // Fallback lokal jika offline
+        try {
+            $db = \Config\Database::connect('default');
+            if ($db->tableExists('tbempinfa')) {
+                return (array) $db->table('tbempinfa')
+                    ->where('empstsid <>', '3,Not Active')
+                    ->groupStart()
+                        ->like('positionid', '14')
+                        ->orLike('positionid', 'FOREMAN')
+                        ->orLike('positionid', 'Foreman')
+                    ->groupEnd()
+                    ->get()
+                    ->getResultArray();
+            }
+        } catch (\Throwable $e) {}
+
+        return [];
     }
 }
