@@ -175,27 +175,23 @@
       $('#fldb1, #slcs, #submit').hide();
 
       // perubahan Process/Doc. Type ditangani fillDocType() lalu memicu change pada #process
-      $('#ModelName, #lotNo, #machno, #process, #revisiSelect').change(function(e) {
-        if (e.target.id === 'process') {
-          updateRevisiList();
-          updateMachine();
-          updateModel();
-        }
-        updateDocNo();
-        updateTable();
-      });
-
       $('#process').change(function() {
         updateRevisiList();
         updateMachine();
         updateModel();
       });
+
+      $('#ModelName, #lotNo, #machno, #revisiSelect').change(function() {
+        updateDocNo();
+        updateTable();
+      });
     });
 
     // Tarik daftar versi Revisi setiap kali Process berganti
     function updateRevisiList() {
-      var processCode = document.getElementById("process").value;
-      var docType     = document.getElementById("type-process").value;
+      var processEl   = document.getElementById("process");
+      var processCode = processEl ? processEl.value : '';
+      var docType     = getDocType();
       var revSelect   = $('#revisiSelect');
 
       revSelect.empty();
@@ -234,7 +230,8 @@
     }
 
     function updateMachine() {
-      var processCode = document.getElementById("process").value;
+      var processEl   = document.getElementById("process");
+      var processCode = processEl ? processEl.value : '';
       var machineSelect = $('#machno');
 
       // Kosongkan dropdown dan pasang opsi default di urutan paling atas
@@ -247,7 +244,7 @@
 
       // Kirim processCode langsung karena MachineModel::getMachineByProcess() sudah menangani mapping prosesnya
       $.ajax({
-        url: "<?php echo base_url(); ?>machine/list?process=" + processCode,
+        url: "<?php echo base_url(); ?>machine/list?process=" + encodeURIComponent(processCode),
         dataType: 'JSON',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
@@ -276,10 +273,9 @@
     }
 
     function updateModel() {
-      var processEl = document.getElementById("process");
-      var docTypeEl = document.getElementById("type-process");
+      var processEl   = document.getElementById("process");
       var processCode = processEl ? processEl.value : '';
-      var docType = docTypeEl ? docTypeEl.value : '';
+      var docType     = getDocType();
       var modelSelect = $('#ModelName');
 
       modelSelect.empty();
@@ -316,13 +312,13 @@
     function doUpdateTable(retryCount) {
       retryCount = retryCount || 0;
 
-      var checkProcess = document.getElementById("process").value;
-      if (!checkProcess || checkProcess === "") {
+      let processEl = document.getElementById("process");
+      let process = processEl ? processEl.value : '';
+      if (!process || process === "") {
         return;
       }
 
       let resDate = convertDate();
-      let process = document.getElementById("process").value;
       let model   = $('#ModelName').val();
       let lotNo   = $('#lotNo').val();
       let revisi  = $('#revisiSelect').val() || '';
@@ -332,7 +328,7 @@
       machno = encodeURIComponent(machno);
 
       let device = "";
-let typeProcess = getDocType();
+      let typeProcess = getDocType();
 
       if (process != null && process !== "") {
         device = process.split("-")[0];
@@ -395,7 +391,8 @@ let typeProcess = getDocType();
     function updateDocNo() {
       var processValue = document.getElementById("process");
       var selectedRev = $('#revisiSelect').val();
-      var baseDoc = $('#process option:selected').data('docno') || '-';
+      var selOpt = $('#process option:selected');
+      var baseDoc = selOpt.data('docno') || selOpt.attr('data-docno') || '-';
 
       if (baseDoc !== '-' && selectedRev && selectedRev !== '' && selectedRev !== 'ALL') {
         var parts = baseDoc.split('-');
@@ -409,17 +406,33 @@ let typeProcess = getDocType();
 
     // Tipe dokumen (production/startup/foregoing) diambil dari opsi Doc. Type yang dipilih
     function getDocType() {
-      return $('#process option:selected').data('type') || '';
+      var selOpt = $('#process option:selected');
+      var type = selOpt.data('type') || selOpt.attr('data-type');
+      if (type) return String(type).toLowerCase();
+      var processCode = ($('#process').val() || '').toLowerCase();
+      var seg = (processCode.split('-')[1] || '');
+      if (seg.charAt(0) === 's') return 'startup';
+      if (seg.charAt(0) === 'p') return 'production';
+      if (seg.charAt(0) === 'f') return 'foregoing';
+      return '';
     }
 
     function convertDate() {
-      const date = $('#daterange span').html().split(" - ");
-      var map = { "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6, "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12 };
-      const date0 = date[0]; const date1 = date[1];
+      var drp = $('#daterange').data('daterangepicker');
+      if (drp && drp.startDate && drp.endDate) {
+        return {
+          dateStart: drp.startDate.format('YYYY-MM-DD'),
+          dateEnd: drp.endDate.format('YYYY-MM-DD')
+        };
+      }
+      const rawSpan = $('#daterange span').html() || '';
+      const date = rawSpan.split(" - ");
+      var map = { "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6, "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12, "Januari": 1, "Februari": 2, "Maret": 3, "Mei": 5, "Juni": 6, "Juli": 7, "Agustus": 8, "Oktober": 10, "Desember": 12 };
+      const date0 = date[0] || ''; const date1 = date[1] || '';
       const splitDate0 = date0.split(" "); const splitDate1 = date1.split(" ");
-      const dateStart = splitDate0[2] + "-" + map[splitDate0[1]] + "-" + splitDate0[0];
-      const dateEnd = splitDate1[2] + "-" + map[splitDate1[1]] + "-" + splitDate1[0];
-      return { dateStart, dateEnd };
+      const dateStart = (splitDate0[2] || '') + "-" + (map[splitDate0[1]] || '01') + "-" + (splitDate0[0] || '01');
+      const dateEnd = (splitDate1[2] || '') + "-" + (map[splitDate1[1]] || '01') + "-" + (splitDate1[0] || '01');
+      return { dateStart: dateStart, dateEnd: dateEnd };
     }
 
     var processRows = [];
@@ -512,10 +525,16 @@ let typeProcess = getDocType();
       $.each(rows, function(i, r) {
         var variant = splitName(r.process_name || r.name).variant;
         var label = stripRevision(r.docno) + ' (' + (TYPE_LABEL[r.type] || r.type) + ')' + (variant ? ' - ' + variant : '');
-        var opt = new Option(label, r.process_code);
+        var isSingle = (rows.length === 1);
+        var opt = new Option(label, r.process_code, isSingle, isSingle);
         $(opt).attr('data-type', r.type).attr('data-docno', r.docno);
+        $(opt).data('type', r.type).data('docno', r.docno);
         $sel.append(opt);
       });
+
+      if (rows.length === 1) {
+        $sel.val(rows[0].process_code);
+      }
 
       if (rows.length === 0) {
         $('#table').empty();
@@ -525,7 +544,9 @@ let typeProcess = getDocType();
     }
 
     function copy_clipboard() {
-      var table = document.getElementById(document.getElementById("process").value) || document.getElementById("table1");
+      let processEl = document.getElementById("process");
+      let processVal = processEl ? processEl.value : '';
+      var table = document.getElementById(processVal) || document.getElementById("table1");
       var range, selection;
       if (document.createRange && window.getSelection) {
         range = document.createRange(); selection = window.getSelection(); selection.removeAllRanges();
@@ -545,7 +566,8 @@ let typeProcess = getDocType();
         return;
       }
 
-      let process = document.getElementById("process").value;
+      let processEl = document.getElementById("process");
+      let process = processEl ? processEl.value : '';
       let model   = $('#ModelName').val();
       let lotNo   = $('#lotNo').val();
       let revisi  = $('#revisiSelect').val() || '';
@@ -582,7 +604,8 @@ let typeProcess = getDocType();
           return;
       }
 
-      let process = document.getElementById("process").value;
+      let processEl = document.getElementById("process");
+      let process = processEl ? processEl.value : '';
       let model   = $('#ModelName').val();
       let lotNo   = $('#lotNo').val();
       let revisi  = $('#revisiSelect').val() || '';
