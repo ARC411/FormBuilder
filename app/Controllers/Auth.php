@@ -41,9 +41,6 @@ class Auth extends BaseController
     /**
      * Memproses Data Form Login dari view (POST)
      */
-    /**
-     * Memproses Data Form Login dari view (POST)
-     */
     public function login()
     {
         // 1. Log bahwa fungsi login mulai dipanggil
@@ -75,8 +72,7 @@ class Auth extends BaseController
             
             $isAdmin = $this->AdminModel->getById($empid);
             if ($isAdmin) {
-                $result['isadmin'] = true;
-                $result['role']    = 'all';
+                $result['isadmin'] = $isAdmin;
                 log_message('info', 'Status User: ADMIN.');
             } else {
                 log_message('info', 'Status User: BUKAN ADMIN.');
@@ -92,7 +88,7 @@ class Auth extends BaseController
         }
         
         // 5. Log gagal karena data tidak cocok
-        log_message('error', 'Pencocokan GAGAL. ID atau password salah di database.');
+        log_message('error', 'Pencocokan GAGAL. ID atau password salah di database lokal.');
         return redirect()->to(base_url('login'))
             ->with('message', 'Invalid credentials, please check your Employee ID and Password.');
     }
@@ -111,43 +107,11 @@ class Auth extends BaseController
 
     public function cek_role()
     {
-        echo "<style>body { font-family: monospace; padding: 20px; line-height: 1.5; }</style>";
-        echo "<h2>=== DIAGNOSTIK KONEKSI DATABASE SECOND (.130) ===</h2>";
-
-        // 1. Cek Ekstensi Driver PHP
-        $hasSrv = function_exists('sqlsrv_connect') || extension_loaded('sqlsrv');
-        $hasPdo = extension_loaded('pdo_sqlsrv');
-        echo "<b>1. Driver PHP SQLSRV:</b> " . ($hasSrv ? "<span style='color:green; font-weight:bold;'>AKTIF (sqlsrv)</span>" : "<span style='color:red; font-weight:bold;'>TIDAK AKTIF (ekstensi php_sqlsrv belum terpasang/aktif di php.ini server ini)</span>");
-        echo " | PDO: " . ($hasPdo ? "<span style='color:green; font-weight:bold;'>AKTIF (pdo_sqlsrv)</span>" : "<span style='color:orange;'>TIDAK AKTIF</span>") . "<br><br>";
-
-        // 2. Cek Konfigurasi Database 'second'
-        $config = config('Database');
-        $secConf = $config->second ?? [];
-        echo "<b>2. Konfigurasi Database 'second':</b><br>";
-        echo "   - Hostname : " . ($secConf['hostname'] ?? '-') . "<br>";
-        echo "   - Port     : " . ($secConf['port'] ?? '-') . "<br>";
-        echo "   - Database : " . ($secConf['database'] ?? '-') . "<br>";
-        echo "   - Username : " . ($secConf['username'] ?? '-') . "<br>";
-        echo "   - DBDriver : " . ($secConf['DBDriver'] ?? '-') . "<br><br>";
-
-        // 3. Tes Eksekusi Query ke Database 'second'
-        echo "<b>3. Mencoba Query ke Database Second (192.168.132.130):</b><br>";
-        try {
-            $db2 = \Config\Database::connect('second');
-            $rows = $db2->query("SELECT TOP 10 empid, firstname, lastname, deptid, positionid, empstsid FROM tbempinfa")->getResultArray();
-
-            echo "<span style='color:green; font-weight:bold;'>&#10004; KONEKSI BERHASIL! Berhasil menarik " . count($rows) . " data karyawan dari tbempinfa:</span><br>";
-            echo "<pre>";
-            print_r($rows);
-            echo "</pre>";
-        } catch (\Throwable $e) {
-            echo "<span style='color:red; font-weight:bold;'>&#10008; GAGAL TERHUBUNG KE DATABASE SECOND!</span><br>";
-            echo "<div style='background:#ffebee; border:1px solid #f44336; padding:12px; margin-top:10px; color:#c62828;'>";
-            echo "<b>Detail Error:</b> " . htmlspecialchars($e->getMessage()) . "<br><br>";
-            echo "<b>File:</b> " . htmlspecialchars($e->getFile()) . " (Baris " . $e->getLine() . ")<br>";
-            echo "</div>";
-        }
-
+        $data_karyawan = $this->EmpModel->testing();
+        
+        echo "<pre>";
+        print_r($data_karyawan);
+        echo "</pre>";
         die();
     }
 }
