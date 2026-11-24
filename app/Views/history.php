@@ -394,7 +394,8 @@ let typeProcess = getDocType();
     function updateDocNo() {
       var processValue = document.getElementById("process");
       var selectedRev = $('#revisiSelect').val();
-      var baseDoc = $('#process option:selected').data('docno') || '-';
+      var selOpt = $('#process option:selected');
+      var baseDoc = selOpt.data('docno') || selOpt.attr('data-docno') || '-';
 
       if (baseDoc !== '-' && selectedRev && selectedRev !== '' && selectedRev !== 'ALL') {
         var parts = baseDoc.split('-');
@@ -519,10 +520,16 @@ let typeProcess = getDocType();
       $.each(rows, function(i, r) {
         var variant = splitName(r.process_name || r.name).variant;
         var label = stripRevision(r.docno) + ' (' + (TYPE_LABEL[r.type] || r.type) + ')' + (variant ? ' - ' + variant : '');
-        var opt = new Option(label, r.process_code);
+        var isSingle = (rows.length === 1);
+        var opt = new Option(label, r.process_code, isSingle, isSingle);
         $(opt).attr('data-type', r.type).attr('data-docno', r.docno);
+        $(opt).data('type', r.type).data('docno', r.docno);
         $sel.append(opt);
       });
+
+      if (rows.length === 1) {
+        $sel.val(rows[0].process_code);
+      }
 
       if (rows.length === 0) {
         $('#table').empty();
