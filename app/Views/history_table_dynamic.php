@@ -576,8 +576,9 @@ $lenData      = count($alldata ?? []);
             }
         }
         $showAutoTimeCols = ($kategori_form === 'production' && !$hasTimeInTree);
+        $showFinishCols   = !empty($show_finish_cols) && ($kategori_form === 'production');
 
-        $metaColCount   = ($kategori_form === 'production') ? 7 : (($kategori_form === 'startup_horizontal') ? 6 : 7);
+        $metaColCount   = ($kategori_form === 'production') ? ($showFinishCols ? 9 : 7) : (($kategori_form === 'startup_horizontal') ? 6 : 7);
         $extraTimeCols  = $showAutoTimeCols ? 2 : 0;
         $extraLabelCol  = !empty($gridRowNames) ? 1 : 0;
         $totalTableCols = $metaColCount + $extraTimeCols + $extraLabelCol + count($headerLeaves);
@@ -594,8 +595,15 @@ $lenData      = count($alldata ?? []);
                         <?php if ($level === 0): ?>
                             <?php if ($kategori_form === 'production'): ?>
                                 <th rowspan="<?= $headerMaxDepth ?>">No.</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Operator</th>
-                                <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
+                                <?php if ($showFinishCols): ?>
+                                    <th rowspan="<?= $headerMaxDepth ?>">Operator Start</th>
+                                    <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
+                                    <th rowspan="<?= $headerMaxDepth ?>">Operator Finish</th>
+                                    <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
+                                <?php else: ?>
+                                    <th rowspan="<?= $headerMaxDepth ?>">Operator</th>
+                                    <th rowspan="<?= $headerMaxDepth ?>">Shift/Group</th>
+                                <?php endif; ?>
                                 <th rowspan="<?= $headerMaxDepth ?>">Mch. No.</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Model</th>
                                 <th rowspan="<?= $headerMaxDepth ?>">Lot No.</th>
@@ -664,39 +672,50 @@ $lenData      = count($alldata ?? []);
                                 $op1Raw = !empty($row['empid']) ? $row['empid'] : (!empty($row['name']) ? $row['name'] : ($row['operator'] ?? '-'));
                                 $op1Emp = histResolveEmpId($op1Raw);
 
+                                // Pertahankan logic Operator Finish & Shift/Group Finish
                                 $op2Raw = !empty($row['empid2']) ? $row['empid2'] : ($row['name2'] ?? '');
                                 $op2Emp = ($op2Raw !== '' && $op2Raw !== '-') ? histResolveEmpId($op2Raw) : '';
-
-                                $opDisplay = ($op2Emp !== '' && $op2Emp !== '-') ? ($op1Emp . ' / ' . $op2Emp) : $op1Emp;
+                                $hasOpFinish = ($op2Emp !== '' && $op2Emp !== '-');
 
                                 $shiftVal = trim((string)($row['shift'] ?? ''));
                                 $groupVal = trim((string)($row['group'] ?? ''));
-                                $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
-                                    ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
+                                $shiftGroupStartStr = ($shiftVal !== '' && $shiftVal !== '-')
+                                    ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-'))
                                     : ($groupVal !== '' ? $groupVal : '-');
 
                                 $shift2Val = trim((string)($row['shift2'] ?? ''));
                                 $group2Val = trim((string)($row['group2'] ?? ''));
-                                if ($shift2Val !== '' && $shift2Val !== '-') {
-                                    $sg2 = $shift2Val . ' / ' . ($group2Val !== '' ? $group2Val : '-');
-                                    if ($sg2 !== $shiftGroupStr) {
-                                        $shiftGroupStr .= ' / ' . $sg2;
-                                    }
+                                if ($shift2Val === '1') $shift2Val = 'A';
+                                elseif ($shift2Val === '2') $shift2Val = 'B';
+                                elseif ($shift2Val === '3') $shift2Val = 'C';
+
+                                $shiftGroupFinishStr = '-';
+                                if ($hasOpFinish && (($shift2Val !== '' && $shift2Val !== '-') || ($group2Val !== '' && $group2Val !== '-'))) {
+                                    $shiftGroupFinishStr = ($shift2Val !== '' && $shift2Val !== '-')
+                                        ? ($shift2Val . ($group2Val !== '' && $group2Val !== '-' ? ' / ' . $group2Val : ''))
+                                        : $group2Val;
                                 }
 
                                 $createdRaw = trim((string)($row['created_at'] ?? ''));
                                 $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
                                 $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
+
+                                $timeInStr  = (!empty($row['par008']) && $row['par008'] !== '-') ? date('H:i', strtotime((string)$row['par008'])) : '-';
+                                $timeOutStr = ($hasOpFinish && !empty($row['par009']) && $row['par009'] !== '-') ? date('H:i', strtotime((string)$row['par009'])) : '-';
                                 ?>
-                                <td align="center"><?= esc($opDisplay) ?></td>
-                                <td align="center"><?= esc($shiftGroupStr) ?></td>
+                                <td align="center"><?= esc($op1Emp) ?></td>
+                                <td align="center"><?= esc($shiftGroupStartStr) ?></td>
+                                <?php if ($showFinishCols): ?>
+                                    <td align="center"><?= esc($hasOpFinish ? $op2Emp : '-') ?></td>
+                                    <td align="center"><?= esc($shiftGroupFinishStr) ?></td>
+                                <?php endif; ?>
                                 <td align="center"><?= esc((string)($row['machno'] ?? '-')) ?></td>
                                 <td align="center"><?= esc((string)($row['model'] ?? '-')) ?></td>
                                 <td align="center"><?= esc((string)($row['lotno'] ?? '-')) ?></td>
                                 <td align="center"><?= $dateStr ?></td>
                                 <?php if ($showAutoTimeCols): ?>
-                                    <td align="center"><?= (!empty($row['par008']) && $row['par008'] !== '-') ? date('H:i', strtotime((string)$row['par008'])) : '-' ?></td>
-                                    <td align="center"><?= (!empty($row['par009']) && $row['par009'] !== '-') ? date('H:i', strtotime((string)$row['par009'])) : '-' ?></td>
+                                    <td align="center"><?= $timeInStr ?></td>
+                                    <td align="center"><?= $timeOutStr ?></td>
                                 <?php endif; ?>
                             <?php elseif ($kategori_form === 'startup_horizontal'): ?>
                                 <td align="center"><?= (!empty($row['created_at']) && $row['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$row['created_at'])) : '-' ?></td>
@@ -755,39 +774,50 @@ $lenData      = count($alldata ?? []);
                                         $op1Raw = !empty($baseRow['empid']) ? $baseRow['empid'] : (!empty($baseRow['name']) ? $baseRow['name'] : ($baseRow['operator'] ?? '-'));
                                         $op1Emp = histResolveEmpId($op1Raw);
 
+                                        // Pertahankan logic Operator Finish & Shift/Group Finish
                                         $op2Raw = !empty($baseRow['empid2']) ? $baseRow['empid2'] : ($baseRow['name2'] ?? '');
                                         $op2Emp = ($op2Raw !== '' && $op2Raw !== '-') ? histResolveEmpId($op2Raw) : '';
-
-                                        $opDisplay = ($op2Emp !== '' && $op2Emp !== '-') ? ($op1Emp . ' / ' . $op2Emp) : $op1Emp;
+                                        $hasOpFinish = ($op2Emp !== '' && $op2Emp !== '-');
 
                                         $shiftVal = trim((string)($baseRow['shift'] ?? ''));
                                         $groupVal = trim((string)($baseRow['group'] ?? ''));
-                                        $shiftGroupStr = ($shiftVal !== '' && $shiftVal !== '-') 
-                                            ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-')) 
+                                        $shiftGroupStartStr = ($shiftVal !== '' && $shiftVal !== '-')
+                                            ? ($shiftVal . ' / ' . ($groupVal !== '' ? $groupVal : '-'))
                                             : ($groupVal !== '' ? $groupVal : '-');
 
                                         $shift2Val = trim((string)($baseRow['shift2'] ?? ''));
                                         $group2Val = trim((string)($baseRow['group2'] ?? ''));
-                                        if ($shift2Val !== '' && $shift2Val !== '-') {
-                                            $sg2 = $shift2Val . ' / ' . ($group2Val !== '' ? $group2Val : '-');
-                                            if ($sg2 !== $shiftGroupStr) {
-                                                $shiftGroupStr .= ' / ' . $sg2;
-                                            }
+                                        if ($shift2Val === '1') $shift2Val = 'A';
+                                        elseif ($shift2Val === '2') $shift2Val = 'B';
+                                        elseif ($shift2Val === '3') $shift2Val = 'C';
+
+                                        $shiftGroupFinishStr = '-';
+                                        if ($hasOpFinish && (($shift2Val !== '' && $shift2Val !== '-') || ($group2Val !== '' && $group2Val !== '-'))) {
+                                            $shiftGroupFinishStr = ($shift2Val !== '' && $shift2Val !== '-')
+                                                ? ($shift2Val . ($group2Val !== '' && $group2Val !== '-' ? ' / ' . $group2Val : ''))
+                                                : $group2Val;
                                         }
 
                                         $createdRaw = trim((string)($baseRow['created_at'] ?? ''));
                                         $tsCreated  = ($createdRaw !== '' && $createdRaw !== '-') ? strtotime($createdRaw) : false;
                                         $dateStr    = $tsCreated ? date('d/m/Y', $tsCreated) : '-';
+
+                                        $timeInStr  = (!empty($baseRow['par008']) && $baseRow['par008'] !== '-') ? date('H:i', strtotime((string)$baseRow['par008'])) : '-';
+                                        $timeOutStr = ($hasOpFinish && !empty($baseRow['par009']) && $baseRow['par009'] !== '-') ? date('H:i', strtotime((string)$baseRow['par009'])) : '-';
                                         ?>
-                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($opDisplay) ?></td>
-                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($shiftGroupStr) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($op1Emp) ?></td>
+                                        <td rowspan="<?= $gridCount ?>" align="center"><?= esc($shiftGroupStartStr) ?></td>
+                                        <?php if ($showFinishCols): ?>
+                                            <td rowspan="<?= $gridCount ?>" align="center"><?= esc($hasOpFinish ? $op2Emp : '-') ?></td>
+                                            <td rowspan="<?= $gridCount ?>" align="center"><?= esc($shiftGroupFinishStr) ?></td>
+                                        <?php endif; ?>
                                         <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['machno'] ?? '-')) ?></td>
                                         <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['model'] ?? '-')) ?></td>
                                         <td rowspan="<?= $gridCount ?>" align="center"><?= esc((string)($baseRow['lotno'] ?? '-')) ?></td>
                                         <td rowspan="<?= $gridCount ?>" align="center"><?= $dateStr ?></td>
                                         <?php if ($showAutoTimeCols): ?>
-                                            <td rowspan="<?= $gridCount ?>" align="center"><?= (!empty($baseRow['par008']) && $baseRow['par008'] !== '-') ? date('H:i', strtotime((string)$baseRow['par008'])) : '-' ?></td>
-                                            <td rowspan="<?= $gridCount ?>" align="center"><?= (!empty($baseRow['par009']) && $baseRow['par009'] !== '-') ? date('H:i', strtotime((string)$baseRow['par009'])) : '-' ?></td>
+                                            <td rowspan="<?= $gridCount ?>" align="center"><?= $timeInStr ?></td>
+                                            <td rowspan="<?= $gridCount ?>" align="center"><?= $timeOutStr ?></td>
                                         <?php endif; ?>
                                     <?php elseif ($kategori_form === 'startup_horizontal'): ?>
                                         <td rowspan="<?= $gridCount ?>" align="center"><?= (!empty($baseRow['created_at']) && $baseRow['created_at'] !== '-') ? date('d/m/Y', strtotime((string)$baseRow['created_at'])) : '-' ?></td>

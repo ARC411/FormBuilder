@@ -170,13 +170,16 @@ class Production extends BaseController
 
         try {
             $fb = new \App\Controllers\FormBuilder();
-            return $fb->renderDetailTableByRows($rows[0]['process'], 'production', $rows);
+            return $fb->renderDetailTableByRows($rows[0]['process'], 'production', $rows, true);
         } catch (\Throwable $e) {
             $device  = $this->safeSegment($rows[0]['device']);
             $process = $this->safeSegment($rows[0]['process']);
             $viewPath = '/layout/' . $device . '/history/production/' . $process;
 
-            $html = view($viewPath, ['alldata' => $rows]);
+            $html = view($viewPath, [
+                'alldata'          => $rows,
+                'show_finish_cols' => true,
+            ]);
 
             try {
                 $doc = new \DOMDocument();
@@ -194,8 +197,9 @@ class Production extends BaseController
                     return trim($finalHtml);
                 }
 
-                // Cari Header <th> Shift/Group (Start) di seluruh baris <thead>
+                // Cari Header <th> Operator & Shift/Group (Start) di seluruh baris <thead>
                 $thShift = null;
+                $thOpStart = null;
                 $shiftIndex = -1;
 
                 $trs = $xpath->query('//thead/tr');
@@ -204,6 +208,9 @@ class Production extends BaseController
                     foreach ($tr->childNodes as $th) {
                         if ($th->nodeName === 'th' || $th->nodeName === 'td') {
                             $txt = trim(strtolower($th->textContent));
+                            if (strpos($txt, 'operator') !== false && strpos($txt, 'finish') === false) {
+                                $thOpStart = $th;
+                            }
                             if ((strpos($txt, 'shift') !== false || strpos($txt, 'group') !== false) && strpos($txt, 'finish') === false) {
                                 $thShift = $th;
                                 $shiftIndex = $colIndex;
@@ -222,6 +229,7 @@ class Production extends BaseController
                             if ($th->nodeName === 'th' || $th->nodeName === 'td') {
                                 $txt = trim(strtolower($th->textContent));
                                 if (strpos($txt, 'operator') !== false || strpos($txt, 'op') !== false) {
+                                    $thOpStart = $th;
                                     $thShift = $th;
                                     $shiftIndex = $colIndex;
                                     break 2;
@@ -234,15 +242,19 @@ class Production extends BaseController
 
                 // Jika ditemukan kolom anchor (Shift/Group atau Operator), sisipkan Header & Kolom Finish
                 if ($thShift && $shiftIndex >= 0) {
+                    if ($thOpStart && stripos($thOpStart->textContent, 'start') === false) {
+                        $thOpStart->nodeValue = 'Operator Start';
+                    }
+
                     $rowspan = $thShift->hasAttribute('rowspan') ? $thShift->getAttribute('rowspan') : '1';
 
-                    $newThOpFin = $doc->createElement('th', "Operator\nFinish");
+                    $newThOpFin = $doc->createElement('th', 'Operator Finish');
                     $newThOpFin->setAttribute('rowspan', $rowspan);
-                    $newThOpFin->setAttribute('style', 'vertical-align:middle; text-align:center; white-space:pre-line;');
+                    $newThOpFin->setAttribute('style', 'vertical-align:middle; text-align:center;');
 
-                    $newThShFin = $doc->createElement('th', "Shift/Grp\nFinish");
+                    $newThShFin = $doc->createElement('th', 'Shift/Group');
                     $newThShFin->setAttribute('rowspan', $rowspan);
-                    $newThShFin->setAttribute('style', 'vertical-align:middle; text-align:center; white-space:pre-line;');
+                    $newThShFin->setAttribute('style', 'vertical-align:middle; text-align:center;');
 
                     // Urutan Inject: Sisipkan Op Finish setelah Shift Start, lalu Shift Finish setelah Op Finish
                     $thShift->parentNode->insertBefore($newThOpFin, $thShift->nextSibling);

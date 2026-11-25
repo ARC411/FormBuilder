@@ -167,6 +167,7 @@ $routes->post('form-builder/add-table', 'FormBuilder::addTable');
 $routes->post('form-builder/delete-table', 'FormBuilder::deleteTable');
 $routes->post('form-builder/import-csv', 'FormBuilder::importCsv');
 $routes->get('form-builder/export-csv', 'FormBuilder::exportCsv');
+$routes->get('form-builder/export-hardcode', 'FormBuilder::exportHardcode');
 $routes->match(['GET', 'POST'], 'form-builder/render-input', 'FormBuilder::renderOperatorForm');
 
 // ==========================================================

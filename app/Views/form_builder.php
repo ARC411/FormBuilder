@@ -100,6 +100,9 @@
                         <button type="button" class="btn btn-outline-info btn-sm" id="btnOpenSopNote" title="Atur Catatan SOP & Mode Layout Form">
                             <i class="fas fa-sticky-note"></i> Catatan SOP & Layout
                         </button>
+                        <button type="button" class="btn btn-dark btn-sm" id="btnOpenExportHardcode" title="Lihat, Salin, atau Download Hard Code PHP (Input & History) tanpa mengubah file project">
+                            <i class="fas fa-code text-warning"></i> Export / Salin Hard Code
+                        </button>
                         <button type="button" class="btn btn-outline-success btn-sm" id="btnExportCsv" title="Download Template CSV atau Export Parameter Saat Ini">
                             <i class="fas fa-file-csv"></i> Download CSV
                         </button>
@@ -486,6 +489,81 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 7: EXPORT / SALIN HARD CODE PHP (INPUT & HISTORY) -->
+    <div class="modal fade" id="modalExportHardcode" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fas fa-code text-warning me-2"></i>Export / Salin Hard Code PHP &mdash;
+                        <span id="lblHardcodeProc" class="badge bg-warning text-dark">-</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body bg-light">
+                    <div class="alert alert-secondary py-2 px-3 small mb-3 border-start border-4 border-dark">
+                        <i class="fas fa-shield-alt text-dark me-1"></i>
+                        <b>Aman (Read-Only):</b> Fitur ini <b>tidak mengubah atau menimpa file apa pun</b> di dalam folder project Anda. Anda dapat menyalin kode atau mendownload file <code>.php</code> secara manual jika dibutuhkan.
+                    </div>
+
+                    <ul class="nav nav-tabs" id="hardcodeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold" id="tab-hc-input" data-bs-toggle="tab" data-bs-target="#pane-hc-input" type="button" role="tab">
+                                <i class="fas fa-keyboard text-primary me-1"></i> 1. Hard Code Form Input
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold" id="tab-hc-history" data-bs-toggle="tab" data-bs-target="#pane-hc-history" type="button" role="tab">
+                                <i class="fas fa-table text-success me-1"></i> 2. Hard Code Tabel History
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content bg-white border border-top-0 p-3 rounded-bottom shadow-sm">
+                        <!-- TAB 1: INPUT CODE -->
+                        <div class="tab-pane fade show active" id="pane-hc-input" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <div class="small text-muted">
+                                    Referensi lokasi file: <code id="lblInputRefPath" class="fw-bold text-dark">-</code>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold" id="btnCopyInputCode">
+                                        <i class="fas fa-copy"></i> Salin Kode Input
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnDownloadInputCode">
+                                        <i class="fas fa-download"></i> Download File Input (.php)
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="txtHardcodeInput" class="form-control font-monospace bg-dark text-light" rows="17" readonly spellcheck="false" style="font-size: 12px; line-height: 1.45;"></textarea>
+                        </div>
+
+                        <!-- TAB 2: HISTORY CODE -->
+                        <div class="tab-pane fade" id="pane-hc-history" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <div class="small text-muted">
+                                    Referensi lokasi file: <code id="lblHistoryRefPath" class="fw-bold text-dark">-</code>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-success btn-sm fw-bold" id="btnCopyHistoryCode">
+                                        <i class="fas fa-copy"></i> Salin Kode History
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-sm fw-bold" id="btnDownloadHistoryCode">
+                                        <i class="fas fa-download"></i> Download File History (.php)
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="txtHardcodeHistory" class="form-control font-monospace bg-dark text-light" rows="17" readonly spellcheck="false" style="font-size: 12px; line-height: 1.45;"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1546,6 +1624,91 @@ $(document).ready(function() {
                 alert("Gagal menyimpan Catatan SOP! Cek tab Console.");
             }
         });
+    });
+
+    // ==========================================================
+    // FITUR EXPORT / SALIN HARD CODE PHP (INPUT & HISTORY)
+    // ==========================================================
+
+    function copyTextFromTextarea(textareaId, btnEl, defaultHtml) {
+        let txtEl = document.getElementById(textareaId);
+        if (!txtEl) return;
+        let content = txtEl.value || '';
+
+        let showCopied = function() {
+            $(btnEl).html('<i class="fas fa-check"></i> Berhasil Disalin!').addClass('btn-warning text-dark');
+            setTimeout(function() {
+                $(btnEl).html(defaultHtml).removeClass('btn-warning text-dark');
+            }, 1800);
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(content).then(showCopied).catch(function() {
+                txtEl.focus();
+                txtEl.select();
+                document.execCommand('copy');
+                showCopied();
+            });
+        } else {
+            txtEl.focus();
+            txtEl.select();
+            document.execCommand('copy');
+            showCopied();
+        }
+    }
+
+    $('#btnOpenExportHardcode').click(function() {
+        if (!currentRevisionId) {
+            alert("Pilih dan muat form terlebih dahulu!");
+            return;
+        }
+
+        $('#lblHardcodeProc').text(($('#processSelect').val() || '-').toUpperCase());
+        $('#lblInputRefPath').text('Memuat...');
+        $('#lblHistoryRefPath').text('Memuat...');
+        $('#txtHardcodeInput').val('// Meng-generate hard code PHP Input...');
+        $('#txtHardcodeHistory').val('// Meng-generate hard code PHP History...');
+        $('#modalExportHardcode').modal('show');
+
+        $.ajax({
+            url: "<?= base_url('form-builder/export-hardcode') ?>",
+            type: "GET",
+            data: { revision_id: currentRevisionId },
+            dataType: "json",
+            success: function(res) {
+                if (res.status === 'success') {
+                    $('#lblHardcodeProc').text((res.process_code || '').toUpperCase() + ' - Rev ' + (res.revisi || '00'));
+                    $('#lblInputRefPath').text(res.input_ref_path || '-');
+                    $('#lblHistoryRefPath').text(res.history_ref_path || '-');
+                    $('#txtHardcodeInput').val(res.input_code || '');
+                    $('#txtHardcodeHistory').val(res.history_code || '');
+                } else {
+                    alert(res.message || 'Gagal meng-generate hard code.');
+                }
+            },
+            error: function(xhr) {
+                console.error("Export hardcode error:", xhr.responseText);
+                alert("Gagal memuat hard code PHP! Cek tab Console.");
+            }
+        });
+    });
+
+    $('#btnCopyInputCode').click(function() {
+        copyTextFromTextarea('txtHardcodeInput', this, '<i class="fas fa-copy"></i> Salin Kode Input');
+    });
+
+    $('#btnCopyHistoryCode').click(function() {
+        copyTextFromTextarea('txtHardcodeHistory', this, '<i class="fas fa-copy"></i> Salin Kode History');
+    });
+
+    $('#btnDownloadInputCode').click(function() {
+        if (!currentRevisionId) return;
+        window.location.href = "<?= base_url('form-builder/export-hardcode') ?>?revision_id=" + currentRevisionId + "&download=input";
+    });
+
+    $('#btnDownloadHistoryCode').click(function() {
+        if (!currentRevisionId) return;
+        window.location.href = "<?= base_url('form-builder/export-hardcode') ?>?revision_id=" + currentRevisionId + "&download=history";
     });
 
     // ==========================================================

@@ -689,6 +689,59 @@ class FormBuilder extends BaseController
         ]);
     }
 
+    // --- FITUR EXPORT / SALIN HARD CODE PHP (TANPA MENGUBAH FILE PROJECT) ---
+
+    public function exportHardcode()
+    {
+        $revisionId = (int)$this->request->getGet('revision_id');
+        if (!$revisionId) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status'  => 'error',
+                'message' => 'Parameter revision_id tidak ditemukan.',
+            ]);
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        if (!$revRow) {
+            return $this->response->setStatusCode(404)->setJSON([
+                'status'  => 'error',
+                'message' => 'Data revisi tidak ditemukan.',
+            ]);
+        }
+
+        $procCode  = (string)($revRow['process_code'] ?? '');
+        $rawParams = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
+        $treeParams = $this->buildTree($rawParams);
+        $procInfo   = $this->processModel->where('process_code', $procCode)->first();
+
+        $generator = new \App\Libraries\HardcodeGenerator();
+        $result    = $generator->generateAll(
+            $revRow,
+            $treeParams,
+            $procCode,
+            (string)($procInfo['name'] ?? $procCode)
+        );
+
+        $downloadType = strtolower(trim((string)$this->request->getGet('download')));
+        if ($downloadType === 'input' || $downloadType === 'history') {
+            $codeContent = ($downloadType === 'input') ? $result['input_code'] : $result['history_code'];
+            $fileName    = $result['filename'];
+
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            header('Content-Type: application/octet-stream; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="' . $fileName . '"');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            echo $codeContent;
+            exit();
+        }
+
+        return $this->response->setJSON(array_merge(['status' => 'success'], $result));
+    }
+
     // --- FITUR IMPORT & EXPORT CSV UNTUK REGENERASI REVISI PARAMETER ---
 
     public function exportCsv()
@@ -1557,7 +1610,7 @@ class FormBuilder extends BaseController
     /**
      * Helper publik untuk merender Tabel Detail (History per Number) di Modal Operations (Production, Startup, Foregoing)
      */
-    public function renderDetailTableByRows(string $processCode, string $typeProcess, array $alldata): string
+    public function renderDetailTableByRows(string $processCode, string $typeProcess, array $alldata, bool $showFinishCols = false): string
     {
         $rowRevisi = isset($alldata[0]['revisi']) ? trim((string)$alldata[0]['revisi']) : '';
         $revs      = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->findAll();
@@ -1598,14 +1651,15 @@ class FormBuilder extends BaseController
         $revLabel   = str_pad((string)($activeRevRow['revisi'] ?? '0'), 2, '0', STR_PAD_LEFT);
 
         return view('history_table_dynamic', [
-            'process_code'  => $processCode,
-            'judul_proses'  => $procInfo['name'] ?? $processCode,
-            'kategori_form' => $activeRevRow['kategori_form'] ?? $typeProcess,
-            'revisi_label'  => $revLabel,
-            'revision'      => $activeRevRow,
-            'treeParams'    => $treeParams,
-            'alldata'       => $alldata,
-            'is_export'     => false
+            'process_code'     => $processCode,
+            'judul_proses'     => $procInfo['name'] ?? $processCode,
+            'kategori_form'    => $activeRevRow['kategori_form'] ?? $typeProcess,
+            'revisi_label'     => $revLabel,
+            'revision'         => $activeRevRow,
+            'treeParams'       => $treeParams,
+            'alldata'          => $alldata,
+            'is_export'        => false,
+            'show_finish_cols' => $showFinishCols
         ]);
     }
 
