@@ -797,6 +797,9 @@ function updateDocNo() {
 }
 
 function findNoteInput() {
+    var $explicit = $('#form-input [data-is-note="1"]').first();
+    if ($explicit.length) return $explicit;
+
     var $trs = $('#form-input table tbody tr');
     var $targetTr = $trs.filter(function() {
         var labelText = $(this).children('td:not(:last-child)').text().toLowerCase();
@@ -804,15 +807,15 @@ function findNoteInput() {
     }).last();
 
     if ($targetTr.length) {
-        var $inp = $targetTr.find('input[type="text"], textarea');
+        var $inp = $targetTr.find('input[type="text"], textarea').not('.dyn-auto-judgment');
         if ($inp.length) return $inp;
     }
 
     var $lastTr = $trs.last();
-    var $lastInp = $lastTr.find('input[type="text"], textarea');
+    var $lastInp = $lastTr.find('input[type="text"], textarea').not('.dyn-auto-judgment');
     if ($lastInp.length) return $lastInp;
 
-    return $('#form-input input[type="text"]').last();
+    return $('#form-input input[type="text"], #form-input textarea').not('.dyn-auto-judgment').last();
 }
 
 function applyStandbyMode(isActive) {
@@ -828,7 +831,10 @@ function applyStandbyMode(isActive) {
         $form.find('input, select, textarea').each(function() {
             var $el = $(this);
 
-            if ($el.attr('type') === 'hidden' && (!$el.attr('name') || $el.attr('name').indexOf('par') !== 0)) {
+            if ($el.attr('type') === 'hidden') {
+                if ($el.attr('name') && $el.attr('name').indexOf('par') === 0) {
+                    $el.val('-');
+                }
                 return;
             }
 
@@ -845,9 +851,13 @@ function applyStandbyMode(isActive) {
                 return;
             }
 
-            if ($el.is('input[type="number"], input[type="text"], textarea')) {
-                if ($el.attr('type') === 'number') {
-                    $el.data('orig-type', 'number');
+            if ($el.is('input[type="number"], input[type="text"], input[type="time"], input[type="date"], textarea')) {
+                if ($el.data('orig-readonly') === undefined) {
+                    $el.data('orig-readonly', $el.prop('readonly') ? true : false);
+                }
+                var curType = ($el.attr('type') || '').toLowerCase();
+                if (curType === 'number' || curType === 'time' || curType === 'date') {
+                    $el.data('orig-type', curType);
                     $el.attr('type', 'text');
                 }
                 if ($el.prop('required')) {
@@ -894,8 +904,17 @@ function applyStandbyMode(isActive) {
         $form.find('input, select, textarea').each(function() {
             var $el = $(this);
 
+            if ($el.attr('type') === 'hidden') {
+                if ($el.attr('name') && $el.attr('name').indexOf('par') === 0 && $el.val() === '-') {
+                    $el.val('');
+                }
+                return;
+            }
+
             if ($note && $el.is($note)) {
-                $el.prop('required', false);
+                if ($el.attr('data-is-required') !== '1') {
+                    $el.prop('required', false);
+                }
                 if ($el.val() === 'Mesin Stand By') {
                     $el.val('');
                 }
@@ -906,28 +925,33 @@ function applyStandbyMode(isActive) {
                 return;
             }
 
-            if ($el.data('orig-type') === 'number') {
-                $el.attr('type', 'number');
+            if ($el.val() === '-' && !$el.is('select')) {
+                $el.val('');
+            }
+            if ($el.data('orig-type')) {
+                $el.attr('type', $el.data('orig-type'));
                 $el.removeData('orig-type');
             }
-            if ($el.data('orig-required')) {
+            var wasOrigRo = ($el.data('orig-readonly') === true || $el.hasClass('dyn-auto-judgment') || $el.attr('data-formula-type'));
+            $el.prop('readonly', !!wasOrigRo);
+            if (!wasOrigRo && ($el.data('orig-required') || $el.attr('data-is-required') === '1')) {
                 $el.prop('required', true);
                 $el.removeData('orig-required');
             }
-            if ($el.val() === '-') {
-                $el.val('');
-            }
-            $el.prop('readonly', false);
             $el.css({
-                'background-color': '',
+                'background-color': wasOrigRo ? '#e9ecef' : '',
                 'color': ''
             });
 
             if ($el.is('select')) {
                 $el.find('.standby-temp-opt').remove();
                 $el.css('pointer-events', '');
-                if ($el.val() === '-') {
+                if ($el.val() === '-' && !$el.find('option[value="-"]').length) {
                     $el.val('');
+                }
+                if ($el.data('orig-required') || $el.attr('data-is-required') === '1') {
+                    $el.prop('required', true);
+                    $el.removeData('orig-required');
                 }
             }
         });

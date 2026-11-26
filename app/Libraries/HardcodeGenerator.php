@@ -131,16 +131,72 @@ class HardcodeGenerator
         }
     }
 
+    private function isStartupNoteNode(array $node): bool
+    {
+        $nm = strtolower(trim((string)($node['nama_parameter'] ?? '')));
+        return (strpos($nm, 'note') !== false || strpos($nm, 'catatan') !== false);
+    }
+
+    private function isStartupJudgmentNode(array $node): bool
+    {
+        if (($node['tipe_input'] ?? '') === 'auto_judgment') {
+            return true;
+        }
+        $nm = strtolower(trim((string)($node['nama_parameter'] ?? '')));
+        return (bool)preg_match('/\bjudg(e|ment|ement)\b/', $nm);
+    }
+
+    private function collectStartupHistoryMeta(array $nodes, ?string &$judgDbCol, ?string &$noteDbCol, array &$regularCols, bool $parentIsJudg = false, bool $parentIsNote = false): void
+    {
+        foreach ($nodes as $n) {
+            $curJudg = $parentIsJudg || $this->isStartupJudgmentNode($n);
+            $curNote = $parentIsNote || $this->isStartupNoteNode($n);
+            if (!empty($n['children'])) {
+                $this->collectStartupHistoryMeta($n['children'], $judgDbCol, $noteDbCol, $regularCols, $curJudg, $curNote);
+                continue;
+            }
+            $col = strtolower(trim((string)($n['kolom_db'] ?? '')));
+            if ($curNote) {
+                if ($col !== '' && $noteDbCol === null) {
+                    $noteDbCol = $col;
+                }
+            } elseif ($curJudg) {
+                if ($col !== '' && $judgDbCol === null) {
+                    $judgDbCol = $col;
+                }
+            } elseif ($col !== '') {
+                $regularCols[] = $col;
+            }
+        }
+    }
+
+    private function pruneStartupFooterNodes(array $nodes): array
+    {
+        $cleaned = [];
+        foreach ($nodes as $n) {
+            if ($this->isStartupNoteNode($n) || $this->isStartupJudgmentNode($n)) {
+                continue;
+            }
+            if (!empty($n['children'])) {
+                $n['children'] = $this->pruneStartupFooterNodes($n['children']);
+                if (empty($n['children'])) {
+                    continue;
+                }
+            }
+            $cleaned[] = $n;
+        }
+        return $cleaned;
+    }
+
     private function buildStartupRows(array $nodes, int $currentCol, int $maxDepth, array &$verticalRows, int &$rowIndex, bool $isRootLevel = false, bool $skipNotes = false): void
     {
         $no = 1;
         foreach ($nodes as $node) {
+            if ($skipNotes && ($this->isStartupNoteNode($node) || $this->isStartupJudgmentNode($node))) {
+                continue;
+            }
             if (!isset($verticalRows[$rowIndex])) {
                 $verticalRows[$rowIndex] = [];
-            }
-
-            if ($skipNotes && empty($node['children']) && (stripos($node['nama_parameter'] ?? '', 'note') !== false || stripos($node['nama_parameter'] ?? '', 'catatan') !== false)) {
-                continue;
             }
 
             $rowspan  = $this->countLeaves($node);
@@ -499,16 +555,23 @@ class HardcodeGenerator
 
     private function renderInputHeaderTitleHtml(array $node): string
     {
+        $reqStar   = '';
+        $isGridReq = (!empty($node['children'][0]['posisi_grid']) && !empty($node['children'][0]['is_required']) && empty($node['children'][0]['is_readonly']));
+        $isLeafReq = (empty($node['children']) && !empty($node['is_required']) && empty($node['is_readonly']));
+        if ($isLeafReq || $isGridReq) {
+            $reqStar = ' <span class="text-danger fw-bold" title="Wajib diisi">*</span>';
+        }
+
         if (!empty($node['standar_dinamis'])) {
             $dyn = is_string($node['standar_dinamis']) ? json_decode($node['standar_dinamis'], true) : $node['standar_dinamis'];
             if (is_array($dyn) && !empty($dyn['options'])) {
                 $prefix = $dyn['prefix_text'] ?? 'Min: ';
                 $suffix = $dyn['suffix_text'] ?? ' N';
                 $domId  = 'dynstd_' . $node['id'];
-                return $this->h($prefix) . '<span id="lbl_' . $this->h($domId) . '" class="fw-bold text-danger">-</span>' . $this->h($suffix);
+                return $this->h($prefix) . '<span id="lbl_' . $this->h($domId) . '" class="fw-bold text-danger">-</span>' . $this->h($suffix) . $reqStar;
             }
         }
-        return $this->h($node['nama_parameter'] ?? '');
+        return $this->h($node['nama_parameter'] ?? '') . $reqStar;
     }
 
     private function compileInputElement(array $leaf, string $kategoriForm, int $rowIdx, array $exclusiveMap, array $dynamicStdTargetMap, string $colHeaderName): string
@@ -556,12 +619,17 @@ class HardcodeGenerator
             }
         }
 
-        $stepVal = (!empty($leaf['step_value']) && $leaf['step_value'] !== 'any') ? (string)$leaf['step_value'] : 'any';
-        $rgJson  = !empty($leaf['rentang_ganda']) ? (is_string($leaf['rentang_ganda']) ? $leaf['rentang_ganda'] : json_encode($leaf['rentang_ganda'], JSON_UNESCAPED_UNICODE)) : '';
-        $rgAttr  = $rgJson ? ' data-rentang-ganda="' . $this->h($rgJson) . '"' : '';
+        $stepVal    = (!empty($leaf['step_value']) && $leaf['step_value'] !== 'any') ? (string)$leaf['step_value'] : 'any';
+        $rgJson     = !empty($leaf['rentang_ganda']) ? (is_string($leaf['rentang_ganda']) ? $leaf['rentang_ganda'] : json_encode($leaf['rentang_ganda'], JSON_UNESCAPED_UNICODE)) : '';
+        $rgAttr     = $rgJson ? ' data-rentang-ganda="' . $this->h($rgJson) . '"' : '';
 
-        $roAttr  = $isReadonly ? ' readonly' : '';
-        $roStyle = $isReadonly ? 'background-color: #e9ecef;' : '';
+        $roAttr     = $isReadonly ? ' readonly' : '';
+        $roStyle    = $isReadonly ? 'background-color: #e9ecef;' : '';
+        $isRequired = (!$isReadonly && !empty($leaf['is_required']));
+        $reqAttr    = $isRequired ? ' required data-is-required="1"' : '';
+        $leafNameLw = strtolower(trim((string)($leaf['nama_parameter'] ?? $colHeaderName)));
+        $noteAttr   = (strpos($leafNameLw, 'note') !== false || strpos($leafNameLw, 'catatan') !== false) ? ' data-is-note="1"' : '';
+        $reqAttr   .= $noteAttr;
 
         $valExpr = 'hcGetInputVal($alldata ?? null, ' . $rowIdx . ', ' . $this->phpStr($colDb) . ')';
         $tipe    = $leaf['tipe_input'] ?? 'text';
@@ -569,23 +637,29 @@ class HardcodeGenerator
         if ($tipe === 'dropdown_ok_ng') {
             if ($kategoriForm === 'startup') {
                 return '<?php $v = ' . $valExpr . '; ?>'
-                    . '<select class="form-control form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '"' . $exclAttr . '>'
+                    . '<select class="form-control form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '"' . $exclAttr . $reqAttr . '>'
                     . '<option value="">-- Pilih --</option>'
                     . '<option value="✔" <?= in_array($v, [\'✔\', \'OK\', \'V\'], true) ? \'selected\' : \'\' ?>>✔ (OK)</option>'
                     . '<option value="✖" <?= in_array($v, [\'✖\', \'NG\', \'X\'], true) ? \'selected\' : \'\' ?>>✖ (NG)</option>'
                     . '</select>';
             }
             if ($kategoriForm === 'startup_horizontal') {
+                $firstOpt = $isRequired
+                    ? '<option value="" <?= ($v === \'\') ? \'selected\' : \'\' ?>>-- Pilih --</option><?php if ($v === \'-\'): ?><option value="-" selected>-</option><?php endif; ?>'
+                    : '<option value="-" <?= ($v === \'-\' || $v === \'\') ? \'selected\' : \'\' ?>>-</option>';
                 return '<?php $v = ' . $valExpr . '; ?>'
-                    . '<select class="form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" style="min-width: 85px;"' . $exclAttr . '>'
-                    . '<option value="-" <?= ($v === \'-\' || $v === \'\') ? \'selected\' : \'\' ?>>-</option>'
+                    . '<select class="form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" style="min-width: 85px;"' . $exclAttr . $reqAttr . '>'
+                    . $firstOpt
                     . '<option value="V" <?= in_array($v, [\'V\', \'OK\', \'✔\'], true) ? \'selected\' : \'\' ?>>V</option>'
                     . '<option value="X" <?= in_array($v, [\'X\', \'NG\', \'✖\'], true) ? \'selected\' : \'\' ?>>X</option>'
                     . '</select>';
             }
+            $firstOpt = $isRequired
+                ? '<option value="" <?= ($v === \'\') ? \'selected\' : \'\' ?>>-- Pilih --</option><?php if ($v === \'-\'): ?><option value="-" selected>-</option><?php endif; ?>'
+                : '<option value="-" <?= ($v === \'-\' || $v === \'\') ? \'selected\' : \'\' ?>>-</option>';
             return '<?php $v = ' . $valExpr . '; ?>'
-                . '<select class="form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" style="min-width: 85px;"' . $exclAttr . '>'
-                . '<option value="-" <?= ($v === \'-\' || $v === \'\') ? \'selected\' : \'\' ?>>-</option>'
+                . '<select class="form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" style="min-width: 85px;"' . $exclAttr . $reqAttr . '>'
+                . $firstOpt
                 . '<option value="OK" <?= ($v === \'OK\') ? \'selected\' : \'\' ?>>OK</option>'
                 . '<option value="NG" <?= ($v === \'NG\') ? \'selected\' : \'\' ?>>NG</option>'
                 . '</select>';
@@ -598,7 +672,7 @@ class HardcodeGenerator
                 $customOpts = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', (string)$leaf['opsi_dropdown'])));
             }
             $out = '<?php $v = ' . $valExpr . '; ?>'
-                . '<select class="form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" style="min-width: 95px;"' . $exclAttr . '>'
+                . '<select class="form-select dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" style="min-width: 95px;"' . $exclAttr . $reqAttr . '>'
                 . '<option value="">-- Pilih --</option>';
             foreach ($customOpts as $cOpt) {
                 $optVal = is_array($cOpt) ? (string)($cOpt['value'] ?? $cOpt['label'] ?? '') : (string)$cOpt;
@@ -619,15 +693,15 @@ class HardcodeGenerator
         }
 
         if ($tipe === 'time') {
-            return '<input type="time" class="form-control text-center dyn-input-el" style="min-width: 105px; ' . $roStyle . '" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc(' . $valExpr . ') ?>"' . $roAttr . $exclAttr . '>';
+            return '<input type="time" class="form-control text-center dyn-input-el" style="min-width: 105px; ' . $roStyle . '" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc(' . $valExpr . ') ?>"' . $roAttr . $exclAttr . $reqAttr . '>';
         }
 
         if ($tipe === 'date') {
-            return '<input type="date" class="form-control text-center dyn-input-el" style="min-width: 130px; ' . $roStyle . '" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc(' . $valExpr . ') ?>"' . $roAttr . $exclAttr . '>';
+            return '<input type="date" class="form-control text-center dyn-input-el" style="min-width: 130px; ' . $roStyle . '" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc(' . $valExpr . ') ?>"' . $roAttr . $exclAttr . $reqAttr . '>';
         }
 
         if ($tipe === 'textarea') {
-            return '<textarea class="form-control dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" rows="4" style="min-width: 160px; ' . $roStyle . '"' . $roAttr . $exclAttr . '><?= esc(' . $valExpr . ') ?></textarea>';
+            return '<textarea class="form-control dyn-input-el" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" rows="4" style="min-width: 160px; ' . $roStyle . '"' . $roAttr . $exclAttr . $reqAttr . '><?= esc(' . $valExpr . ') ?></textarea>';
         }
 
         if ($tipe === 'number') {
@@ -636,7 +710,7 @@ class HardcodeGenerator
                 $out     = '<?php $rawU = trim(' . $valExpr . '); $uParts = $rawU !== \'\' ? explode(\' \', $rawU, 2) : [\'\', \'\']; $uNum = $uParts[0] ?? \'\'; $uCur = ($uParts[1] ?? \'\') ?: ' . $this->phpStr($defUnit) . '; ?>';
                 $out    .= '<div class="input-group" style="min-width: 165px;">';
                 $out    .= '<input type="hidden" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc($rawU) ?>">';
-                $out    .= '<input type="number" step="' . $this->h($stepVal) . '" class="form-control text-center dyn-input-el dyn-unit-val" id="' . $this->h($colDb) . '_val" data-target-col="' . $this->h($colDb) . '" value="<?= esc($uNum) ?>" style="' . $roStyle . '"' . $roAttr . $exclAttr . $dynStdAttr . $rgAttr . '>';
+                $out    .= '<input type="number" step="' . $this->h($stepVal) . '" class="form-control text-center dyn-input-el dyn-unit-val" id="' . $this->h($colDb) . '_val" data-target-col="' . $this->h($colDb) . '" value="<?= esc($uNum) ?>" style="' . $roStyle . '"' . $roAttr . $exclAttr . $dynStdAttr . $rgAttr . $reqAttr . '>';
                 $out    .= '<select class="form-select dyn-unit-sel" id="' . $this->h($colDb) . '_unit" data-target-col="' . $this->h($colDb) . '" style="max-width: 88px; padding-left: 6px; padding-right: 20px;">';
                 foreach ($units as $u) {
                     $uName = (string)($u['unit'] ?? '');
@@ -688,10 +762,10 @@ class HardcodeGenerator
 
             return '<input type="number" step="' . $this->h($stepVal) . '" class="form-control text-center dyn-input-el dyn-number-input" '
                 . 'style="min-width: 95px; ' . $roStyle . '" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc(' . $valExpr . ') ?>"'
-                . $attrs . $exclAttr . $dynStdAttr . $formulaAttr . $rgAttr . $roAttr . $legacyEvents . '>' . $stdLabel;
+                . $attrs . $exclAttr . $dynStdAttr . $formulaAttr . $rgAttr . $roAttr . $reqAttr . $legacyEvents . '>' . $stdLabel;
         }
 
-        return '<input type="text" class="form-control dyn-input-el" style="min-width: 110px; ' . $roStyle . '" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc(' . $valExpr . ') ?>"' . $roAttr . $exclAttr . '>';
+        return '<input type="text" class="form-control dyn-input-el" style="min-width: 110px; ' . $roStyle . '" id="' . $this->h($colDb) . '" name="' . $this->h($colDb) . '" value="<?= esc(' . $valExpr . ') ?>"' . $roAttr . $exclAttr . $reqAttr . '>';
     }
 
     private function getInputValidationScript(string $processCode): string
@@ -850,7 +924,8 @@ class HardcodeGenerator
                 let val = (inp.value || '').trim();
                 if (inp.dataset.hasError === '1' || inp.style.backgroundColor === '#ffcccc' || inp.style.backgroundColor === 'rgb(255, 204, 204)') hasNg = true;
                 if (val === '✖' || val === 'X' || val.toUpperCase().indexOf('NG') !== -1) hasNg = true;
-                if (!inp.getAttribute('data-exclusive-group') && val === '' && !inp.hasAttribute('readonly')) allFilled = false;
+                let isOptNote = (inp.getAttribute('data-is-note') === '1' && inp.getAttribute('data-is-required') !== '1');
+                if (!inp.getAttribute('data-exclusive-group') && val === '' && !inp.hasAttribute('readonly') && !isOptNote) allFilled = false;
             });
 
             if (hasNg) {
@@ -910,7 +985,21 @@ class HardcodeGenerator
         el.addEventListener('input', function() { enforceExclusiveGroups(); evaluateAutoJudgments(); });
     });
 
+    function syncStandbyRequired() {
+        let isStandby = !!(document.getElementById('is-standby') && document.getElementById('is-standby').checked);
+        container.querySelectorAll('[data-is-required="1"]').forEach(function(el) {
+            if (isStandby) el.removeAttribute('required');
+            else if (!el.disabled && !el.hasAttribute('readonly')) el.setAttribute('required', 'required');
+        });
+    }
+
+    let standbyEl = document.getElementById('is-standby');
+    if (standbyEl) {
+        standbyEl.addEventListener('change', function() { syncStandbyRequired(); evaluateAutoJudgments(); });
+    }
+
     enforceExclusiveGroups();
+    syncStandbyRequired();
     recalculateFormulas();
     evaluateAutoJudgments();
 })();
@@ -946,8 +1035,14 @@ JS;
         $lines[] = '    <input type="hidden" id="cnt-table" value="1">';
 
         if ($kategoriForm === 'startup') {
+            $judgDbCol   = null;
+            $noteDbCol   = null;
+            $regularCols = [];
+            $this->collectStartupHistoryMeta($preparedTree, $judgDbCol, $noteDbCol, $regularCols);
+            $startupBodyTree = $this->pruneStartupFooterNodes($preparedTree);
+
             $maxDepth = 2;
-            foreach ($preparedTree as $n) {
+            foreach ($startupBodyTree as $n) {
                 $d = $this->getSubtreeDepth($n);
                 if ($d > $maxDepth) {
                     $maxDepth = $d;
@@ -957,15 +1052,10 @@ JS;
 
             $verticalRows = [];
             $rowIndex     = 0;
-            $this->buildStartupRows($preparedTree, 0, $maxDepth, $verticalRows, $rowIndex, true, true);
-
-            $noteDbCol = '';
-            foreach ($preparedTree as $n) {
-                if ((stripos($n['nama_parameter'] ?? '', 'note') !== false || stripos($n['nama_parameter'] ?? '', 'catatan') !== false) && !empty($n['kolom_db'])) {
-                    $noteDbCol = $n['kolom_db'];
-                    break;
-                }
-            }
+            $this->buildStartupRows($startupBodyTree, 0, $maxDepth, $verticalRows, $rowIndex, true, true);
+            $noteDbCol = (string)($noteDbCol ?? '');
+            $judgDbColStr = (string)($judgDbCol ?? '');
+            $regColsPhp   = '[' . implode(', ', array_map(fn($c) => $this->phpStr($c), array_unique($regularCols))) . ']';
 
             $lines[] = '    <?php $dataColsSpan = max(1, $lenData); ?>';
             $lines[] = '    <table class="table table-bordered table-hover" id="table1">';
@@ -1016,7 +1106,7 @@ JS;
             $lines[] = '            <tr>';
             $lines[] = '                <td colspan="' . $identityCols . '"><strong>Judgment Start Up *</strong></td>';
             $lines[] = '                <?php if ($lenData > 0): for ($i = 0; $i < $lenData; $i++): ?>';
-            $lines[] = '                    <td align="center"><?= hcFormatStartupJudgment($alldata[$i], $isExportMode) ?></td>';
+            $lines[] = '                    <td align="center"><?= hcFormatStartupJudgment($alldata[$i], $isExportMode, ' . $this->phpStr($judgDbColStr) . ', ' . $regColsPhp . ') ?></td>';
             $lines[] = '                <?php endfor; else: ?><td align="center">-</td><?php endif; ?>';
             $lines[] = '            </tr>';
             $lines[] = '            <tr>';
@@ -1033,8 +1123,8 @@ JS;
             $lines[] = '            </tr>';
             $lines[] = '            <tr>';
             $lines[] = '                <td colspan="' . $identityCols . '">Note #</td>';
-            $lines[] = '                <?php if ($lenData > 0): for ($i = 0; $i < $lenData; $i++): $nv = $alldata[$i][\'note\'] ?? ' . ($noteDbCol !== '' ? '$alldata[$i][' . $this->phpStr($noteDbCol) . '] ?? ' : '') . '$alldata[$i][\'par030\'] ?? $alldata[$i][\'par023\'] ?? \'-\'; ?>';
-            $lines[] = '                    <td align="center"><?= esc($nv !== \'\' ? $nv : \'-\') ?></td>';
+            $lines[] = '                <?php if ($lenData > 0): for ($i = 0; $i < $lenData; $i++): ?>';
+            $lines[] = '                    <td align="center"><?= esc(hcFormatStartupNote($alldata[$i], ' . $this->phpStr($noteDbCol) . ', ' . $regColsPhp . ')) ?></td>';
             $lines[] = '                <?php endfor; else: ?><td align="center">-</td><?php endif; ?>';
             $lines[] = '            </tr>';
             $lines[] = '        </tbody>';
@@ -1480,22 +1570,53 @@ if (!function_exists('hcFormatNumberCell')) {
 }
 
 if (!function_exists('hcFormatStartupJudgment')) {
-    function hcFormatStartupJudgment(array $row, bool $isExport = false): string {
-        $judg = trim((string)($row['par025'] ?? $row['judgment'] ?? ''));
-        if ($judg === '' || $judg === '-') {
-            $hasNg = false;
-            foreach ($row as $k => $v) {
-                if (str_starts_with((string)$k, 'par')) {
-                    $vu = strtoupper(trim((string)$v));
-                    if ($vu === 'NG' || $vu === '✖' || $vu === 'X') { $hasNg = true; break; }
-                }
-            }
-            $judg = $hasNg ? '✖' : '✔';
+    function hcFormatStartupJudgment(array $row, bool $isExport = false, string $judgDbCol = '', array $regularCols = []): string {
+        $judg = '';
+        if ($judgDbCol !== '' && isset($row[$judgDbCol])) {
+            $judg = trim((string)$row[$judgDbCol]);
         }
-        $isOk = ($judg === '✔' || strtoupper($judg) === 'OK');
+        if ($judg === '' && isset($row['judgment'])) {
+            $judg = trim((string)$row['judgment']);
+        }
+        if ($judg === '' && $judgDbCol === '' && !in_array('par025', $regularCols, true) && isset($row['par025'])) {
+            $cand = trim((string)$row['par025']);
+            if (in_array(strtoupper($cand), ['OK', 'NG', '✔', '✖', 'V', 'X', '-'], true)) {
+                $judg = $cand;
+            }
+        }
+        if ($judg === '') {
+            $hasNg = false;
+            $hasVal = false;
+            $keys = !empty($regularCols) ? $regularCols : array_keys($row);
+            foreach ($keys as $k) {
+                if (!str_starts_with((string)$k, 'par') || $k === 'par000') continue;
+                $raw = trim((string)($row[$k] ?? ''));
+                if ($raw === '' || $raw === '-') continue;
+                $hasVal = true;
+                $vu = strtoupper($raw);
+                if ($vu === 'NG' || $vu === '✖' || $vu === 'X') { $hasNg = true; break; }
+            }
+            $judg = !$hasVal ? '-' : ($hasNg ? '✖' : '✔');
+        }
+        if ($judg === '-') return '-';
+        $isOk = ($judg === '✔' || in_array(strtoupper($judg), ['OK', 'V'], true));
         return $isOk
             ? ($isExport ? 'OK (✔)' : '<strong style="color: #198754; font-size: 1.1rem;">&#10004;</strong>')
             : ($isExport ? 'NG (✖)' : '<strong style="color: #dc3545; font-size: 1.1rem;">&#10008;</strong>');
+    }
+}
+
+if (!function_exists('hcFormatStartupNote')) {
+    function hcFormatStartupNote(array $row, string $noteDbCol = '', array $regularCols = []): string {
+        $nv = trim((string)($row['note'] ?? $row['catatan'] ?? ''));
+        if (($nv === '' || $nv === '-') && $noteDbCol !== '' && isset($row[$noteDbCol])) {
+            $nv = trim((string)$row[$noteDbCol]);
+        }
+        if (($nv === '' || $nv === '-') && $noteDbCol === '') {
+            if (!in_array('par030', $regularCols, true) && !empty($row['par030'])) $nv = trim((string)$row['par030']);
+            elseif (!in_array('par023', $regularCols, true) && !empty($row['par023'])) $nv = trim((string)$row['par023']);
+        }
+        return $nv !== '' ? $nv : '-';
     }
 }
 PHP;

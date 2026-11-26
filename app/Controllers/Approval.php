@@ -289,7 +289,7 @@ class Approval extends BaseController
             ->where('startup.weekly_id', $weeklyId)
             ->orderBy('startup.device', 'ASC')
             ->orderBy('startup.machno', 'ASC')
-            ->orderBy('COALESCE(startup.work_date, DATE(startup.created_at))', 'ASC')
+            ->orderBy('COALESCE(startup.work_date, DATE(startup.created_at))', 'ASC', false)
             ->orderBy('startup.created_at', 'ASC')
             ->get()->getResultArray();
 

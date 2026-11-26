@@ -166,7 +166,7 @@ if (!function_exists('histGetSubtreeDepth')) {
 }
 
 if (!function_exists('histFormatCellValue')) {
-    function histFormatCellValue($row, $leaf, $isExport = false) {
+    function histFormatCellValue($row, $leaf, $isExport = false, $peerLeavesMap = []) {
         // Jika kolom teks statis (header_only seperti pada Burn In)
         if (($leaf['tipe_input'] ?? '') === 'header_only') {
             return !empty($leaf['standar_nilai']) ? nl2br(esc($leaf['standar_nilai'])) : '-';
@@ -188,10 +188,23 @@ if (!function_exists('histFormatCellValue')) {
         }
 
         $rawVal = isset($row[$colDb]) ? trim((string)$row[$colDb]) : '';
-        if ($rawVal === '') return '-';
 
-        // Format Tampilan Auto Judgment di History
+        // Format Tampilan Auto Judgment di History (juga verifikasi jika ada kolom target di baris yang merah/NG)
         if (($leaf['tipe_input'] ?? '') === 'auto_judgment') {
+            if (!empty($peerLeavesMap) && function_exists('histIsLeafValueNg')) {
+                $tEval = trim((string)($leaf['target_evaluasi'] ?? '*')) ?: '*';
+                $checkKeys = ($tEval === '*')
+                    ? array_keys($peerLeavesMap)
+                    : array_values(array_intersect(array_keys($peerLeavesMap), array_filter(array_map(fn($s) => strtolower(trim($s)), explode(',', $tEval)))));
+                foreach ($checkKeys as $ck) {
+                    $peerVal = trim((string)($row[$ck] ?? ''));
+                    if ($peerVal !== '' && $peerVal !== '-' && histIsLeafValueNg($peerVal, $peerLeavesMap[$ck])) {
+                        $rawVal = '✖';
+                        break;
+                    }
+                }
+            }
+            if ($rawVal === '') return '-';
             if ($rawVal === '✔' || $rawVal === 'OK') {
                 return $isExport ? 'OK (✔)' : '<span class="badge bg-success text-white" style="font-size: 0.95rem;">✔</span>';
             } elseif ($rawVal === '✖' || $rawVal === 'NG' || $rawVal === 'X') {
@@ -199,6 +212,8 @@ if (!function_exists('histFormatCellValue')) {
             }
             return esc($rawVal);
         }
+
+        if ($rawVal === '') return '-';
 
         if (!$isExport && ($leaf['tipe_input'] ?? '') === 'number' && $rawVal !== '-') {
             $min = ($leaf['batas_min'] !== null && $leaf['batas_min'] !== '') ? (float)$leaf['batas_min'] : null;
@@ -262,17 +277,145 @@ if (!function_exists('histFormatCellValue')) {
     }
 }
 
+if (!function_exists('histIsStartupJudgmentNode')) {
+    function histIsStartupJudgmentNode($node) {
+        if (($node['tipe_input'] ?? '') === 'auto_judgment') return true;
+        $nm = strtolower(trim((string)($node['nama_parameter'] ?? '')));
+        return (bool)preg_match('/\bjudg(e|ment|ement)\b/', $nm);
+    }
+}
+
+if (!function_exists('histIsStartupNoteNode')) {
+    function histIsStartupNoteNode($node) {
+        $nm = strtolower(trim((string)($node['nama_parameter'] ?? '')));
+        return (strpos($nm, 'note') !== false || strpos($nm, 'catatan') !== false);
+    }
+}
+
+if (!function_exists('histIsLeafValueNg')) {
+    function histIsLeafValueNg($rawVal, $leaf) {
+        $rawVal = trim((string)$rawVal);
+        if ($rawVal === '' || $rawVal === '-') return false;
+        $vUpper = strtoupper($rawVal);
+        if ($vUpper === 'NG' || $rawVal === '✖' || $vUpper === 'X') return true;
+
+        if (($leaf['tipe_input'] ?? '') === 'number') {
+            $min = ($leaf['batas_min'] !== null && $leaf['batas_min'] !== '') ? (float)$leaf['batas_min'] : null;
+            $max = ($leaf['batas_max'] !== null && $leaf['batas_max'] !== '') ? (float)$leaf['batas_max'] : null;
+
+            $parts    = explode(' ', $rawVal, 2);
+            $numPart  = $parts[0] ?? '';
+            $unitPart = isset($parts[1]) ? trim($parts[1]) : '';
+
+            if (!empty($leaf['satuan_opsi'])) {
+                $units = is_string($leaf['satuan_opsi']) ? json_decode($leaf['satuan_opsi'], true) : $leaf['satuan_opsi'];
+                if (is_array($units) && !empty($units)) {
+                    $matchedUnit = null;
+                    if ($unitPart !== '') {
+                        foreach ($units as $u) {
+                            if (isset($u['unit']) && strtolower(trim((string)$u['unit'])) === strtolower($unitPart)) {
+                                $matchedUnit = $u;
+                                break;
+                            }
+                        }
+                    }
+                    if ($matchedUnit === null) {
+                        $matchedUnit = $units[0];
+                    }
+                    if (isset($matchedUnit['min']) && $matchedUnit['min'] !== null && $matchedUnit['min'] !== '') {
+                        $min = (float)$matchedUnit['min'];
+                    }
+                    if (isset($matchedUnit['max']) && $matchedUnit['max'] !== null && $matchedUnit['max'] !== '') {
+                        $max = (float)$matchedUnit['max'];
+                    }
+                }
+            }
+
+            if (is_numeric($numPart)) {
+                $fVal = (float)$numPart;
+                if (!empty($leaf['rentang_ganda'])) {
+                    $rgParts = [];
+                    try {
+                        $rgRaw = $leaf['rentang_ganda'];
+                        if (is_string($rgRaw) && (str_starts_with($rgRaw, '[') || str_starts_with($rgRaw, '{'))) {
+                            $parsedRg = json_decode($rgRaw, true);
+                            if (is_array($parsedRg) && count($parsedRg) >= 2) {
+                                $rgParts = [
+                                    (float)$parsedRg[0]['min'], (float)$parsedRg[0]['max'],
+                                    (float)$parsedRg[1]['min'], (float)$parsedRg[1]['max']
+                                ];
+                            }
+                        } elseif (is_string($rgRaw)) {
+                            $rgParts = array_map('floatval', explode(',', $rgRaw));
+                        }
+                    } catch (\Throwable $e) {}
+
+                    if (count($rgParts) === 4) {
+                        return !(($fVal >= $rgParts[0] && $fVal <= $rgParts[1]) || ($fVal >= $rgParts[2] && $fVal <= $rgParts[3]));
+                    }
+                }
+                if (($min !== null && $fVal < $min) || ($max !== null && $fVal > $max)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+
+if (!function_exists('histCollectStartupMeta')) {
+    function histCollectStartupMeta($nodes, &$judgDbCol, &$noteDbCol, &$regularLeafMap, $parentIsJudg = false, $parentIsNote = false, &$judgTargetEval = null) {
+        foreach ($nodes as $n) {
+            $curIsJudg = $parentIsJudg || histIsStartupJudgmentNode($n);
+            $curIsNote = $parentIsNote || histIsStartupNoteNode($n);
+            if (!empty($n['children'])) {
+                histCollectStartupMeta($n['children'], $judgDbCol, $noteDbCol, $regularLeafMap, $curIsJudg, $curIsNote, $judgTargetEval);
+                continue;
+            }
+            $col = strtolower(trim((string)($n['kolom_db'] ?? '')));
+            if ($curIsNote) {
+                if ($col !== '' && $noteDbCol === null) {
+                    $noteDbCol = $col;
+                }
+            } elseif ($curIsJudg) {
+                if ($col !== '' && $judgDbCol === null) {
+                    $judgDbCol = $col;
+                    $judgTargetEval = trim((string)($n['target_evaluasi'] ?? '*')) ?: '*';
+                }
+            } elseif ($col !== '') {
+                $regularLeafMap[$col] = $n;
+            }
+        }
+    }
+}
+
+if (!function_exists('histPruneStartupFooterNodes')) {
+    function histPruneStartupFooterNodes($nodes) {
+        $cleaned = [];
+        foreach ($nodes as $n) {
+            if (histIsStartupNoteNode($n) || histIsStartupJudgmentNode($n)) {
+                continue;
+            }
+            if (!empty($n['children'])) {
+                $n['children'] = histPruneStartupFooterNodes($n['children']);
+                if (empty($n['children'])) {
+                    continue;
+                }
+            }
+            $cleaned[] = $n;
+        }
+        return $cleaned;
+    }
+}
+
 if (!function_exists('histBuildStartupRows')) {
     function histBuildStartupRows($nodes, $currentCol, $maxDepth, &$verticalRows, &$rowIndex, $isRootLevel = false) {
         $no = 1;
         foreach ($nodes as $node) {
-            if (!isset($verticalRows[$rowIndex])) $verticalRows[$rowIndex] = [];
-
-            $isNoteRow = (empty($node['children']) && (stripos($node['nama_parameter'], 'note') !== false || stripos($node['nama_parameter'], 'catatan') !== false));
-            if ($isNoteRow) {
-                // Note diposisikan selalu di baris paling bawah tabel, jangan dirender di tengah-tengah parameter
+            if (histIsStartupNoteNode($node) || histIsStartupJudgmentNode($node)) {
                 continue;
             }
+            if (!isset($verticalRows[$rowIndex])) $verticalRows[$rowIndex] = [];
 
             $rowspan  = histCountLeaves($node);
             $subDepth = histGetSubtreeDepth($node);
@@ -345,7 +488,7 @@ $lenData      = count($alldata ?? []);
 ?>
 
 <div class="table-responsive mt-3" id="<?= esc($process_code) ?>">
-    <?= csrf_field(); ?>
+    <?= !is_cli() ? csrf_field() : ''; ?>
     <input type="hidden" id="cnt-table" value="1">
 
     <?php if ($kategori_form === 'startup'): ?>
@@ -353,8 +496,15 @@ $lenData      = count($alldata ?? []);
         <!-- TABEL HISTORY 1: STARTUP MENURUN (VERTIKAL)                       -->
         <!-- ================================================================= -->
         <?php
+        $judgDbCol = null;
+        $noteDbCol = null;
+        $judgTargetEval = '*';
+        $regularLeafMap = [];
+        histCollectStartupMeta($preparedTree, $judgDbCol, $noteDbCol, $regularLeafMap, false, false, $judgTargetEval);
+        $startupBodyTree = histPruneStartupFooterNodes($preparedTree);
+
         $maxDepth = 0;
-        foreach ($preparedTree as $n) {
+        foreach ($startupBodyTree as $n) {
             $d = histGetSubtreeDepth($n);
             if ($d > $maxDepth) $maxDepth = $d;
         }
@@ -364,7 +514,7 @@ $lenData      = count($alldata ?? []);
 
         $verticalRows = [];
         $rowIndex = 0;
-        histBuildStartupRows($preparedTree, 0, $maxDepth, $verticalRows, $rowIndex, true);
+        histBuildStartupRows($startupBodyTree, 0, $maxDepth, $verticalRows, $rowIndex, true);
 
         $totalVRows = count($verticalRows);
         for ($r = 0; $r < $totalVRows; $r++) {
@@ -396,14 +546,6 @@ $lenData      = count($alldata ?? []);
                         $anchorR = null;
                     }
                 }
-            }
-        }
-
-        $noteDbCol = null;
-        foreach ($preparedTree as $n) {
-            if ((stripos($n['nama_parameter'] ?? '', 'note') !== false || stripos($n['nama_parameter'] ?? '', 'catatan') !== false) && !empty($n['kolom_db'])) {
-                $noteDbCol = $n['kolom_db'];
-                break;
             }
         }
         ?>
@@ -459,22 +601,80 @@ $lenData      = count($alldata ?? []);
                 <tr>
                     <td colspan="<?= $identityCols ?>"><strong>Judgment Start Up *</strong></td>
                     <?php if ($lenData > 0): ?>
-                        <?php for ($i = 0; $i < $lenData; $i++): 
-                            $judg = $alldata[$i]['par025'] ?? $alldata[$i]['judgment'] ?? '';
-                            if ($judg === '' || $judg === '-') {
-                                $hasNg = false;
+                        <?php
+                        $targetEvalFilter = null;
+                        if (!empty($judgTargetEval) && $judgTargetEval !== '*') {
+                            $targetEvalFilter = array_values(array_filter(array_map(fn($s) => strtolower(trim($s)), explode(',', (string)$judgTargetEval))));
+                        }
+                        ?>
+                        <?php for ($i = 0; $i < $lenData; $i++):
+                            $judg = '';
+                            if (!empty($judgDbCol) && isset($alldata[$i][$judgDbCol])) {
+                                $judg = trim((string)$alldata[$i][$judgDbCol]);
+                            }
+                            if ($judg === '' && isset($alldata[$i]['judgment'])) {
+                                $judg = trim((string)$alldata[$i]['judgment']);
+                            }
+                            // Fallback legacy par025 HANYA jika par025 bukan milik parameter pengukuran reguler
+                            if ($judg === '' && empty($judgDbCol) && !isset($regularLeafMap['par025']) && isset($alldata[$i]['par025'])) {
+                                $cand25 = trim((string)$alldata[$i]['par025']);
+                                if (in_array(strtoupper($cand25), ['OK', 'NG', '✔', '✖', 'V', 'X', '-'], true)) {
+                                    $judg = $cand25;
+                                }
+                            }
+
+                            // Evaluasi selalu sel aktual (termasuk batas_min/max, satuan_opsi, rentang_ganda):
+                            // Jika ada minimal 1 parameter target yang merah/NG, Judgment WAJIB ✖ (NG), tidak boleh tetap ✔!
+                            $hasNg = false;
+                            $hasActualValue = false;
+                            $checkCols = !empty($regularLeafMap) ? array_keys($regularLeafMap) : [];
+                            if (!empty($targetEvalFilter)) {
+                                $checkCols = array_values(array_intersect($checkCols, $targetEvalFilter));
+                            }
+
+                            if (!empty($checkCols)) {
+                                foreach ($checkCols as $cKey) {
+                                    $rawCell = trim((string)($alldata[$i][$cKey] ?? ''));
+                                    if ($rawCell === '' || $rawCell === '-') continue;
+                                    $hasActualValue = true;
+                                    if (histIsLeafValueNg($rawCell, $regularLeafMap[$cKey])) {
+                                        $hasNg = true;
+                                        break;
+                                    }
+                                }
+                            } else {
                                 foreach ($alldata[$i] as $k => $v) {
-                                    if (str_starts_with($k, 'par')) {
-                                        $vUpper = strtoupper(trim((string)$v));
-                                        if ($vUpper === 'NG' || $vUpper === '✖' || $vUpper === 'X') {
+                                    if (str_starts_with((string)$k, 'par') && $k !== 'par000') {
+                                        $rawCell = trim((string)$v);
+                                        if ($rawCell === '' || $rawCell === '-') continue;
+                                        $hasActualValue = true;
+                                        $vUpper = strtoupper($rawCell);
+                                        if ($vUpper === 'NG' || $rawCell === '✖' || $vUpper === 'X') {
                                             $hasNg = true;
                                             break;
                                         }
                                     }
                                 }
-                                $judg = $hasNg ? '✖' : '✔';
                             }
-                            $judgDisplay = ($judg === '✔' || strtoupper($judg) === 'OK') ? ($isExportMode ? 'OK (✔)' : '<strong style="color: #198754; font-size: 1.1rem;">&#10004;</strong>') : ($isExportMode ? 'NG (✖)' : '<strong style="color: #dc3545; font-size: 1.1rem;">&#10008;</strong>');
+
+                            if ($hasNg) {
+                                $judg = '✖';
+                            } elseif ($judg === '') {
+                                $judg = !$hasActualValue ? '-' : '✔';
+                            } elseif (!$hasActualValue && $judg !== '✖' && strtoupper($judg) !== 'NG') {
+                                // Seluruh sel berisi "-" (Mesin Stand By) -> tampilkan "-"
+                                if (!empty($regularLeafMap)) {
+                                    $judg = '-';
+                                }
+                            }
+
+                            if ($judg === '-') {
+                                $judgDisplay = '-';
+                            } elseif ($judg === '✔' || in_array(strtoupper($judg), ['OK', 'V'], true)) {
+                                $judgDisplay = $isExportMode ? 'OK (✔)' : '<strong style="color: #198754; font-size: 1.1rem;">&#10004;</strong>';
+                            } else {
+                                $judgDisplay = $isExportMode ? 'NG (✖)' : '<strong style="color: #dc3545; font-size: 1.1rem;">&#10008;</strong>';
+                            }
                         ?>
                             <td align="center"><?= $judgDisplay ?></td>
                         <?php endfor; ?>
@@ -513,10 +713,17 @@ $lenData      = count($alldata ?? []);
                 <tr>
                     <td colspan="<?= $identityCols ?>">Note #</td>
                     <?php if ($lenData > 0): ?>
-                        <?php for ($i = 0; $i < $lenData; $i++): 
-                            $noteVal = $alldata[$i]['note'] ?? $alldata[$i]['par030'] ?? $alldata[$i]['par023'] ?? $alldata[$i]['catatan'] ?? '-';
-                            if (($noteVal === '' || $noteVal === '-') && !empty($noteDbCol)) {
-                                $noteVal = $alldata[$i][$noteDbCol] ?? '-';
+                        <?php for ($i = 0; $i < $lenData; $i++):
+                            $noteVal = trim((string)($alldata[$i]['note'] ?? $alldata[$i]['catatan'] ?? ''));
+                            if (($noteVal === '' || $noteVal === '-') && !empty($noteDbCol) && isset($alldata[$i][$noteDbCol])) {
+                                $noteVal = trim((string)$alldata[$i][$noteDbCol]);
+                            }
+                            if (($noteVal === '' || $noteVal === '-') && empty($noteDbCol)) {
+                                if (!isset($regularLeafMap['par030']) && !empty($alldata[$i]['par030'])) {
+                                    $noteVal = trim((string)$alldata[$i]['par030']);
+                                } elseif (!isset($regularLeafMap['par023']) && !empty($alldata[$i]['par023'])) {
+                                    $noteVal = trim((string)$alldata[$i]['par023']);
+                                }
                             }
                         ?>
                             <td align="center"><?= esc($noteVal !== '' ? $noteVal : '-') ?></td>
@@ -746,8 +953,17 @@ $lenData      = count($alldata ?? []);
                                 <td align="center"><?= $dateStr ?></td>
                             <?php endif; ?>
 
+                            <?php
+                            $horizPeerMap = [];
+                            foreach ($headerLeaves as $hlPeer) {
+                                $pCol = strtolower(trim((string)($hlPeer['kolom_db'] ?? '')));
+                                if ($pCol !== '' && ($hlPeer['tipe_input'] ?? '') !== 'auto_judgment' && ($hlPeer['tipe_input'] ?? '') !== 'header_only') {
+                                    $horizPeerMap[$pCol] = $hlPeer;
+                                }
+                            }
+                            ?>
                             <?php foreach ($headerLeaves as $leaf): ?>
-                                <td align="center"><?= histFormatCellValue($row, $leaf, $isExportMode) ?></td>
+                                <td align="center"><?= histFormatCellValue($row, $leaf, $isExportMode, $horizPeerMap) ?></td>
                             <?php endforeach; ?>
                         </tr>
                     <?php endfor; ?>

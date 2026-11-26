@@ -24,6 +24,7 @@ class FormParameterModel extends Model
         'posisi_grid',
         'satuan_opsi',
         'is_readonly',
+        'is_required',
         'is_exclusive',
         'rumus_otomatis',
         'standar_dinamis',

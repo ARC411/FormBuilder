@@ -133,6 +133,12 @@ if (!function_exists('opRenderActiveInput')) {
 
         $roAttr  = $isReadonly ? 'readonly' : '';
         $roStyle = $isReadonly ? 'background-color: #e9ecef;' : '';
+        $isRequired = (!$isReadonly && !empty($leaf['is_required']));
+        $reqAttr    = $isRequired ? 'required data-is-required="1"' : '';
+        $leafNameLw = strtolower(trim((string)($leaf['nama_parameter'] ?? $colHeaderName)));
+        $isNoteField = (strpos($leafNameLw, 'note') !== false || strpos($leafNameLw, 'catatan') !== false);
+        $noteAttr   = $isNoteField ? 'data-is-note="1"' : '';
+        $extraInputAttrs = trim($exclAttr . ' ' . $reqAttr . ' ' . $noteAttr);
 
         $html = '';
 
@@ -141,26 +147,32 @@ if (!function_exists('opRenderActiveInput')) {
             if ($kategori_form === 'startup') {
                 $selOk = ($val === '✔' || $val === 'OK' || $val === 'V') ? 'selected' : '';
                 $selNg = ($val === '✖' || $val === 'NG' || $val === 'X') ? 'selected' : '';
-                $html .= '<select class="form-control form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" '.$exclAttr.'>
+                $html .= '<select class="form-control form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" '.$extraInputAttrs.'>
                             <option value="">-- Pilih --</option>
                             <option value="✔" '.$selOk.'>✔ (OK)</option>
                             <option value="✖" '.$selNg.'>✖ (NG)</option>
                           </select>';
             } elseif ($kategori_form === 'startup_horizontal') {
-                $selMin = ($val === '-' || $val === '') ? 'selected' : '';
+                $selMin = ($val === '-' || (!$isRequired && $val === '')) ? 'selected' : '';
                 $selOk  = ($val === 'V' || $val === 'OK' || $val === '✔') ? 'selected' : '';
                 $selNg  = ($val === 'X' || $val === 'NG' || $val === '✖') ? 'selected' : '';
-                $html .= '<select class="form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" style="min-width: 85px;" '.$exclAttr.'>
-                            <option value="-" '.$selMin.'>-</option>
+                $optFirst = $isRequired
+                    ? '<option value="" '.($val === '' ? 'selected' : '').'>-- Pilih --</option>'.($val === '-' ? '<option value="-" selected>-</option>' : '')
+                    : '<option value="-" '.$selMin.'>-</option>';
+                $html .= '<select class="form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" style="min-width: 85px;" '.$extraInputAttrs.'>
+                            '.$optFirst.'
                             <option value="V" '.$selOk.'>V</option>
                             <option value="X" '.$selNg.'>X</option>
                           </select>';
             } else {
-                $selMin = ($val === '-' || $val === '') ? 'selected' : '';
+                $selMin = ($val === '-' || (!$isRequired && $val === '')) ? 'selected' : '';
                 $selOk  = ($val === 'OK') ? 'selected' : '';
                 $selNg  = ($val === 'NG') ? 'selected' : '';
-                $html .= '<select class="form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" style="min-width: 85px;" '.$exclAttr.'>
-                            <option value="-" '.$selMin.'>-</option>
+                $optFirst = $isRequired
+                    ? '<option value="" '.($val === '' ? 'selected' : '').'>-- Pilih --</option>'.($val === '-' ? '<option value="-" selected>-</option>' : '')
+                    : '<option value="-" '.$selMin.'>-</option>';
+                $html .= '<select class="form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" style="min-width: 85px;" '.$extraInputAttrs.'>
+                            '.$optFirst.'
                             <option value="OK" '.$selOk.'>OK</option>
                             <option value="NG" '.$selNg.'>NG</option>
                           </select>';
@@ -177,7 +189,7 @@ if (!function_exists('opRenderActiveInput')) {
                     $customOpts = array_filter(array_map('trim', explode(',', (string)$leaf['opsi_dropdown'])));
                 }
             }
-            $html .= '<select class="form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" style="min-width: 95px;" '.$exclAttr.'>';
+            $html .= '<select class="form-select dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" style="min-width: 95px;" '.$extraInputAttrs.'>';
             $html .= '<option value="">-- Pilih --</option>';
             foreach ($customOpts as $cOpt) {
                 $optVal = is_array($cOpt) ? ($cOpt['value'] ?? $cOpt['label'] ?? '') : $cOpt;
@@ -201,15 +213,15 @@ if (!function_exists('opRenderActiveInput')) {
         }
         // 4. TIPE WAKTU (TIME)
         elseif ($leaf['tipe_input'] === 'time') {
-            $html .= '<input type="time" class="form-control text-center dyn-input-el" style="min-width: 105px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$exclAttr.'>';
+            $html .= '<input type="time" class="form-control text-center dyn-input-el" style="min-width: 105px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$extraInputAttrs.'>';
         }
         // 5. TIPE TANGGAL (DATE)
         elseif ($leaf['tipe_input'] === 'date') {
-            $html .= '<input type="date" class="form-control text-center dyn-input-el" style="min-width: 130px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$exclAttr.'>';
+            $html .= '<input type="date" class="form-control text-center dyn-input-el" style="min-width: 130px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$extraInputAttrs.'>';
         }
         // 6. TIPE TEXTAREA
         elseif ($leaf['tipe_input'] === 'textarea') {
-            $html .= '<textarea class="form-control dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" rows="4" style="min-width: 160px; '.$roStyle.'" '.$roAttr.' '.$exclAttr.'>'.esc($val).'</textarea>';
+            $html .= '<textarea class="form-control dyn-input-el" id="'.esc($colDb).'" name="'.esc($colDb).'" rows="4" style="min-width: 160px; '.$roStyle.'" '.$roAttr.' '.$extraInputAttrs.'>'.esc($val).'</textarea>';
         }
         // 7. TIPE ANGKA (NUMBER)
         elseif ($leaf['tipe_input'] === 'number') {
@@ -222,7 +234,7 @@ if (!function_exists('opRenderActiveInput')) {
                 $html .= '<input type="hidden" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'">';
                 $html .= '<input type="number" step="'.esc($stepVal).'" class="form-control text-center dyn-input-el dyn-unit-val" '
                        . 'id="'.esc($colDb).'_val" data-target-col="'.esc($colDb).'" value="'.esc($numVal).'" '
-                       . 'style="'.$roStyle.'" '.$roAttr.' '.$exclAttr.' '.$dynStdAttr.' '.$rgAttr.'>';
+                       . 'style="'.$roStyle.'" '.$roAttr.' '.$extraInputAttrs.' '.$dynStdAttr.' '.$rgAttr.'>';
                 $html .= '<select class="form-select dyn-unit-sel" id="'.esc($colDb).'_unit" data-target-col="'.esc($colDb).'" style="max-width: 88px; padding-left: 6px; padding-right: 20px;">';
                 foreach ($units as $u) {
                     $uName = $u['unit'] ?? '';
@@ -249,7 +261,7 @@ if (!function_exists('opRenderActiveInput')) {
                 $html .= '<input type="number" step="'.esc($stepVal).'" class="form-control text-center dyn-input-el dyn-number-input" '
                        . 'style="min-width: 95px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '
                        . $dataMinAttr . ' ' . $dataMaxAttr . ' ' . $origMinAttr . ' ' . $origMaxAttr . ' ' . $dataColAttr . ' ' . $dataPosAttr . ' ' . $dataParamAttr . ' '
-                       . $exclAttr . ' ' . $dynStdAttr . ' ' . $formulaAttr . ' ' . $rgAttr . ' ' . $roAttr
+                       . $extraInputAttrs . ' ' . $dynStdAttr . ' ' . $formulaAttr . ' ' . $rgAttr . ' ' . $roAttr
                        . ($legacyEvents ? ' oninput="'.$legacyEvents.'" onchange="'.$legacyEvents.'"' : '') . '>';
 
                 if (!empty($rgJson)) {
@@ -272,7 +284,7 @@ if (!function_exists('opRenderActiveInput')) {
         }
         // 8. TIPE TEKS BEBAS
         else {
-            $html .= '<input type="text" class="form-control dyn-input-el" style="min-width: 110px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$exclAttr.'>';
+            $html .= '<input type="text" class="form-control dyn-input-el" style="min-width: 110px; '.$roStyle.'" id="'.esc($colDb).'" name="'.esc($colDb).'" value="'.esc($val).'" '.$roAttr.' '.$extraInputAttrs.'>';
         }
 
         return $html;
@@ -281,16 +293,23 @@ if (!function_exists('opRenderActiveInput')) {
 
 if (!function_exists('opRenderHeaderTitle')) {
     function opRenderHeaderTitle($node) {
+        $reqStar = '';
+        $isGridReq = (!empty($node['children'][0]['posisi_grid']) && !empty($node['children'][0]['is_required']) && empty($node['children'][0]['is_readonly']));
+        $isLeafReq = (empty($node['children']) && !empty($node['is_required']) && empty($node['is_readonly']));
+        if ($isLeafReq || $isGridReq) {
+            $reqStar = ' <span class="text-danger fw-bold" title="Wajib diisi">*</span>';
+        }
+
         if (!empty($node['standar_dinamis'])) {
             $dyn = is_string($node['standar_dinamis']) ? json_decode($node['standar_dinamis'], true) : $node['standar_dinamis'];
             if (is_array($dyn) && !empty($dyn['options'])) {
                 $prefix = $dyn['prefix_text'] ?? 'Min: ';
                 $suffix = $dyn['suffix_text'] ?? ' N';
                 $domId  = 'dynstd_' . $node['id'];
-                return esc($prefix) . '<span id="lbl_'.$domId.'" class="fw-bold text-danger">-</span>' . esc($suffix);
+                return esc($prefix) . '<span id="lbl_'.$domId.'" class="fw-bold text-danger">-</span>' . esc($suffix) . $reqStar;
             }
         }
-        return esc($node['nama_parameter']);
+        return esc($node['nama_parameter']) . $reqStar;
     }
 }
 
@@ -876,9 +895,10 @@ if ($kategori_form !== 'startup' && !empty($treeParams)) {
                     hasNg = true;
                 }
 
-                // Cek kelengkapan input umum (jika bukan anggota grup eksklusif)
+                // Cek kelengkapan input umum (jika bukan anggota grup eksklusif & bukan kolom Note opsional)
                 if (!inp.getAttribute('data-exclusive-group')) {
-                    if (val === '' && !inp.hasAttribute('readonly')) {
+                    let isOptionalNote = (inp.getAttribute('data-is-note') === '1' && inp.getAttribute('data-is-required') !== '1');
+                    if (val === '' && !inp.hasAttribute('readonly') && !isOptionalNote) {
                         allFilled = false;
                     }
                 }
@@ -959,12 +979,195 @@ if ($kategori_form !== 'startup' && !empty($treeParams)) {
         });
     });
 
+    // Sinkronisasi penuh Mode Mesin Stand By (mengisi "-" ke parameter & "Mesin Stand By" ke kolom Note)
+    function findContainerNoteElement() {
+        let explicit = container.querySelector('[data-is-note="1"]');
+        if (explicit) return explicit;
+
+        let rows = container.querySelectorAll('table tbody tr');
+        for (let i = rows.length - 1; i >= 0; i--) {
+            let cells = rows[i].querySelectorAll('td:not(:last-child), th');
+            let txt = '';
+            cells.forEach(function(c) { txt += ' ' + (c.textContent || '').toLowerCase(); });
+            if (txt.indexOf('note') !== -1 || txt.indexOf('catatan') !== -1) {
+                let candidate = rows[i].querySelector('textarea, input[type="text"]');
+                if (candidate && !candidate.classList.contains('dyn-auto-judgment')) return candidate;
+            }
+        }
+        return null;
+    }
+
+    function applyContainerStandbyMode(isActive) {
+        let noteEl = findContainerNoteElement();
+        let fallbackNoteBanner = container.querySelector('.dyn-standby-note-fallback');
+
+        if (isActive) {
+            container.querySelectorAll('input, select, textarea').forEach(function(el) {
+                let elType = (el.getAttribute('type') || '').toLowerCase();
+                let elName = el.getAttribute('name') || '';
+                if (elType === 'hidden') {
+                    if (elName.indexOf('par') === 0) {
+                        el.value = '-';
+                    }
+                    return;
+                }
+
+                if (noteEl && el === noteEl) {
+                    el.readOnly = false;
+                    el.disabled = false;
+                    el.required = true;
+                    if (!el.value.trim() || el.value.trim() === '-') {
+                        el.value = 'Mesin Stand By';
+                    }
+                    el.style.border = '2px solid #ffc107';
+                    el.style.backgroundColor = '#fffde7';
+                    return;
+                }
+
+                if (el.tagName === 'SELECT') {
+                    if (el.required) {
+                        el.dataset.origRequired = '1';
+                        el.required = false;
+                    }
+                    let hasDash = Array.from(el.options).some(function(o) { return o.value === '-'; });
+                    if (!hasDash) {
+                        let opt = document.createElement('option');
+                        opt.value = '-';
+                        opt.textContent = '-';
+                        opt.className = 'standby-temp-opt';
+                        el.appendChild(opt);
+                    }
+                    el.value = '-';
+                    el.style.pointerEvents = 'none';
+                    el.style.backgroundColor = '#f8f9fa';
+                    el.dataset.hasError = '0';
+                } else {
+                    if (!el.dataset.origReadonlySaved) {
+                        el.dataset.origReadonly = el.readOnly ? '1' : '0';
+                        el.dataset.origReadonlySaved = '1';
+                    }
+                    if (elType === 'number' || elType === 'time' || elType === 'date') {
+                        el.dataset.origType = elType;
+                        el.setAttribute('type', 'text');
+                    }
+                    if (el.required) {
+                        el.dataset.origRequired = '1';
+                        el.required = false;
+                    }
+                    el.value = '-';
+                    el.readOnly = true;
+                    el.style.backgroundColor = '#f8f9fa';
+                    el.style.color = '#495057';
+                    el.dataset.hasError = '0';
+                }
+            });
+
+            // Jika form Startup ini belum punya parameter Note di tabel, tampilkan simulasi catatan otomatis
+            if (!noteEl) {
+                if (!fallbackNoteBanner) {
+                    fallbackNoteBanner = document.createElement('div');
+                    fallbackNoteBanner.className = 'dyn-standby-note-fallback alert alert-warning py-2 px-3 mt-2 mb-0 small';
+                    fallbackNoteBanner.style.border = '2px solid #ffc107';
+                    fallbackNoteBanner.style.backgroundColor = '#fffde7';
+                    fallbackNoteBanner.innerHTML = '<i class="fas fa-pen-nib text-warning me-1"></i> <b>Note / Catatan Otomatis (Mesin Stand By):</b> <code>Mesin Stand By</code> <span class="text-muted">(Tambahkan parameter bernama <b>Note #</b> jika ingin dapat diedit langsung oleh operator di dalam tabel)</span>';
+                    container.appendChild(fallbackNoteBanner);
+                } else {
+                    fallbackNoteBanner.classList.remove('d-none');
+                }
+            }
+        } else {
+            if (fallbackNoteBanner) {
+                fallbackNoteBanner.classList.add('d-none');
+            }
+            container.querySelectorAll('input, select, textarea').forEach(function(el) {
+                let elType = (el.getAttribute('type') || '').toLowerCase();
+                let elName = el.getAttribute('name') || '';
+                if (elType === 'hidden') {
+                    if (elName.indexOf('par') === 0 && el.value === '-') {
+                        el.value = '';
+                    }
+                    return;
+                }
+
+                if (noteEl && el === noteEl) {
+                    if (el.getAttribute('data-is-required') !== '1') {
+                        el.required = false;
+                    }
+                    if (el.value === 'Mesin Stand By') {
+                        el.value = '';
+                    }
+                    el.style.border = '';
+                    el.style.backgroundColor = '';
+                    return;
+                }
+
+                if (el.tagName === 'SELECT') {
+                    el.querySelectorAll('.standby-temp-opt').forEach(function(o) { o.remove(); });
+                    el.style.pointerEvents = '';
+                    el.style.backgroundColor = '';
+                    if (el.value === '-') {
+                        let dashOpt = Array.from(el.options).find(function(o) { return o.value === '-'; });
+                        el.value = dashOpt ? '-' : '';
+                    }
+                    if (el.dataset.origRequired === '1' || el.getAttribute('data-is-required') === '1') {
+                        el.required = true;
+                        delete el.dataset.origRequired;
+                    }
+                } else {
+                    if (el.dataset.origType) {
+                        if (el.value === '-') el.value = '';
+                        el.setAttribute('type', el.dataset.origType);
+                        delete el.dataset.origType;
+                    } else if (el.value === '-') {
+                        el.value = '';
+                    }
+                    let wasOrigRo = (el.dataset.origReadonly === '1' || el.classList.contains('dyn-auto-judgment') || el.hasAttribute('data-formula-type'));
+                    el.readOnly = wasOrigRo;
+                    el.style.backgroundColor = wasOrigRo ? '#e9ecef' : '';
+                    el.style.color = '';
+                    if (!wasOrigRo && (el.dataset.origRequired === '1' || el.getAttribute('data-is-required') === '1')) {
+                        el.required = true;
+                        delete el.dataset.origRequired;
+                    }
+                }
+            });
+            enforceExclusiveGroups();
+            recalculateFormulas();
+        }
+        syncStandbyRequired();
+        evaluateAutoJudgments();
+    }
+
+    // Sinkronisasi atribut required saat mode Mesin Stand By aktif/nonaktif
+    function syncStandbyRequired() {
+        let isStandby = !!(document.getElementById('is-standby') && document.getElementById('is-standby').checked);
+        container.querySelectorAll('[data-is-required="1"]').forEach(function(el) {
+            if (isStandby) {
+                el.removeAttribute('required');
+            } else if (!el.disabled && !el.readOnly) {
+                el.setAttribute('required', 'required');
+            }
+        });
+    }
+
     let standbyEl = document.getElementById('is-standby');
     if (standbyEl) {
-        standbyEl.addEventListener('change', evaluateAutoJudgments);
+        standbyEl.addEventListener('change', function() {
+            if (!document.body.contains(container)) return;
+            if (!document.getElementById('form-input')) {
+                applyContainerStandbyMode(standbyEl.checked);
+            } else {
+                syncStandbyRequired();
+                evaluateAutoJudgments();
+            }
+        });
+        if (standbyEl.checked && !document.getElementById('form-input')) {
+            applyContainerStandbyMode(true);
+        }
     }
 
     enforceExclusiveGroups();
+    syncStandbyRequired();
     recalculateFormulas();
     evaluateAutoJudgments();
 })();

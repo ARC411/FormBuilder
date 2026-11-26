@@ -15,6 +15,8 @@ class FormBuilder extends BaseController
     protected $formRevModel;
     protected $formParamModel;
     protected $logActivityModel;
+    protected static bool $schemaChecked = false;
+    protected array $allocatedParNums = [];
 
     public function __construct()
     {
@@ -25,6 +27,9 @@ class FormBuilder extends BaseController
         $this->formParamModel   = new FormParameterModel();
         $this->logActivityModel = new LogActivityModel();
 
+        // Pastikan kolom skema terbaru (seperti is_required) tersedia otomatis tanpa perlu migrate manual
+        $this->ensureSchemaColumns();
+
         // 2. Pengecekan hak akses URL
         $uri   = service('uri');
         $seg1  = strtolower($uri->getTotalSegments() >= 1 ? (string)$uri->getSegment(1) : '');
@@ -34,9 +39,110 @@ class FormBuilder extends BaseController
         $isRenderInput            = ($seg2 === 'render-input');
 
         if ($isDirectFormBuilderRoute && !$isRenderInput && !session()->get('isadmin')) {
+            $req = service('request');
+            if ($req->isAJAX()) {
+                header('Content-Type: application/json; charset=UTF-8', true, 401);
+                echo json_encode([
+                    'status'   => 'unauthorized',
+                    'message'  => 'Sesi Admin telah berakhir atau akses ditolak. Silakan login kembali.',
+                    'redirect' => base_url('login')
+                ]);
+                exit;
+            }
             echo "<script>alert('Akses Ditolak! Khusus Admin/QC.'); window.location.href='" . base_url('home') . "';</script>";
             exit;
         }
+    }
+
+    /**
+     * Auto-check & auto-add kolom baru (is_required) pada tabel form_parameters
+     * agar server produksi tetap kompatibel saat git pull meskipun belum menjalankan spark migrate.
+     */
+    private function ensureSchemaColumns(): void
+    {
+        if (self::$schemaChecked) {
+            return;
+        }
+        self::$schemaChecked = true;
+
+        try {
+            $db = \Config\Database::connect();
+            if ($db->tableExists('form_parameters') && !$db->fieldExists('is_required', 'form_parameters')) {
+                $db->query('ALTER TABLE `form_parameters` ADD COLUMN `is_required` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_readonly`');
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'FormBuilder ensureSchemaColumns error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Aturan batas maksimum & kolom sistem terproteksi untuk tiap kategori form.
+     */
+    private function getParSlotRules(string $kategori): array
+    {
+        $kat = strtolower(trim($kategori));
+        if ($kat === 'production') {
+            // par001 = nomor blok sampel, par008 = Time IN, par009 = Time OUT, par044 = status approval, par045 = status Start/Complete
+            $reserved = [1, 8, 9, 44, 45];
+            $maxNum   = 43;
+        } elseif ($kat === 'foregoing') {
+            // par000 = nomor blok sampel, par001..par044 bebas dipakai parameter
+            $reserved = [];
+            $maxNum   = 44;
+        } else {
+            // startup & startup_horizontal: par001..par046
+            $reserved = [];
+            $maxNum   = 46;
+        }
+
+        $usableNums = [];
+        for ($i = 1; $i <= $maxNum; $i++) {
+            if (!in_array($i, $reserved, true)) {
+                $usableNums[] = $i;
+            }
+        }
+
+        return [
+            'kategori'      => $kat,
+            'max_num'       => $maxNum,
+            'reserved_nums' => $reserved,
+            'usable_nums'   => $usableNums,
+            'max_slots'     => count($usableNums),
+        ];
+    }
+
+    /**
+     * Hitung ringkasan pemakaian slot parXXX pada suatu revisi.
+     */
+    private function computeSlotStats(int $revisionId, string $kategori, ?array $rawParams = null): array
+    {
+        $rules = $this->getParSlotRules($kategori);
+        if ($rawParams === null) {
+            $rawParams = $this->formParamModel->where('revision_id', $revisionId)->findAll();
+        }
+
+        $usedBaseNums = [];
+        foreach ($rawParams as $p) {
+            if (!empty($p['kolom_db']) && preg_match('/^par(\d+)/i', trim((string)$p['kolom_db']), $m)) {
+                $num = (int)$m[1];
+                if ($num >= 1 && $num <= $rules['max_num'] && !in_array($num, $rules['reserved_nums'], true)) {
+                    $usedBaseNums[$num] = true;
+                }
+            }
+        }
+
+        $usedCount = count($usedBaseNums);
+        $maxSlots  = $rules['max_slots'];
+
+        return [
+            'used_slots'     => $usedCount,
+            'max_slots'      => $maxSlots,
+            'remaining'      => max(0, $maxSlots - $usedCount),
+            'max_par_label'  => 'par' . str_pad((string)$rules['max_num'], 3, '0', STR_PAD_LEFT),
+            'reserved_label' => !empty($rules['reserved_nums'])
+                ? implode(', ', array_map(fn($n) => 'par' . str_pad((string)$n, 3, '0', STR_PAD_LEFT), $rules['reserved_nums']))
+                : '-',
+        ];
     }
 
     public function index()
@@ -81,10 +187,11 @@ class FormBuilder extends BaseController
     // 3. AJAX Load Form & Parameter
     public function loadForm()
     {
-        $processCode  = trim((string)$this->request->getPost('process'));
-        $selectedType = trim((string)$this->request->getPost('doc_type'));
-        $forceReparse = $this->request->getPost('reparse');
-        $switchLayout = trim((string)$this->request->getPost('switch_layout'));
+        $processCode    = trim((string)$this->request->getPost('process'));
+        $selectedType   = trim((string)$this->request->getPost('doc_type'));
+        $forceReparse   = $this->request->getPost('reparse');
+        $switchLayout   = trim((string)$this->request->getPost('switch_layout'));
+        $requestedRevId = (int)$this->request->getPost('revision_id');
 
         if (!$processCode) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Pilih proses terlebih dahulu!']);
@@ -98,9 +205,9 @@ class FormBuilder extends BaseController
             $detectedKategori = ($typeKode === 's') ? 'startup' : (($typeKode === 'f') ? 'foregoing' : 'production');
         }
 
-        $revision = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->first();
+        $revisionsList = $this->formRevModel->where('process_code', $processCode)->orderBy('id', 'DESC')->findAll();
 
-        if (!$revision) {
+        if (empty($revisionsList)) {
             $procRow = $this->processModel->where('process_code', $processCode)->first();
             $revCode = $procRow['revisi'] ?? '0';
             $this->formRevModel->protect(false)->insert([
@@ -109,10 +216,26 @@ class FormBuilder extends BaseController
                 'kategori_form' => $detectedKategori,
                 'created_at'    => date('Y-m-d H:i:s')
             ]);
-            $revisionId = $this->formRevModel->getInsertID();
-            $revision = $this->formRevModel->find($revisionId);
+            $revisionId    = (int)$this->formRevModel->getInsertID();
+            $revision      = $this->formRevModel->find($revisionId);
+            $revisionsList = [$revision];
         } else {
-            $revisionId = $revision['id'];
+            $revision = $revisionsList[0];
+            if ($requestedRevId > 0) {
+                foreach ($revisionsList as $revCandidate) {
+                    if ((int)$revCandidate['id'] === $requestedRevId) {
+                        $revision = $revCandidate;
+                        break;
+                    }
+                }
+            }
+            $revisionId = (int)$revision['id'];
+        }
+
+        $latestRevision   = $revisionsList[0];
+        $isLatestRevision = ((int)$revisionId === (int)$latestRevision['id']);
+
+        if ($isLatestRevision || $switchLayout === 'true') {
             // Jika user secara eksplisit mengganti tipe layout (misal dari Startup Menurun <-> Startup Mendatar)
             if ($switchLayout === 'true' && in_array($detectedKategori, ['startup', 'startup_horizontal'])) {
                 $this->formRevModel->protect(false)->update($revisionId, ['kategori_form' => $detectedKategori]);
@@ -124,6 +247,8 @@ class FormBuilder extends BaseController
                 $this->formRevModel->protect(false)->update($revisionId, ['kategori_form' => $detectedKategori]);
                 $revision['kategori_form'] = $detectedKategori;
             }
+        } elseif (!empty($revision['kategori_form'])) {
+            $detectedKategori = $revision['kategori_form'];
         }
 
         $rawParams = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
@@ -169,21 +294,30 @@ class FormBuilder extends BaseController
             if ($d > $maxTableDepth) $maxTableDepth = $d;
         }
 
+        $slotStats = $this->computeSlotStats($revisionId, $detectedKategori, $rawParams);
+
         $data = [
-            'process_code'  => $processCode,
-            'revision'      => $revision,
-            'kategori_form' => $detectedKategori,
-            'treeParams'    => $treeParams,
-            'maxTableDepth' => max(1, $maxTableDepth)
+            'process_code'     => $processCode,
+            'revision'         => $revision,
+            'latestRevision'   => $latestRevision,
+            'isLatestRevision' => $isLatestRevision,
+            'revisionsList'    => $revisionsList,
+            'slotStats'        => $slotStats,
+            'kategori_form'    => $detectedKategori,
+            'treeParams'       => $treeParams,
+            'maxTableDepth'    => max(1, $maxTableDepth)
         ];
 
         $htmlUtuh = view('form_builder_visual', $data);
         return $this->response->setJSON([
-            'status'      => 'success',
-            'html'        => $htmlUtuh,
-            'revision'    => $revision,
-            'params_list' => $rawParams,
-            'tree_params' => $treeParams
+            'status'             => 'success',
+            'html'               => $htmlUtuh,
+            'revision'           => $revision,
+            'revisions_list'     => $revisionsList,
+            'is_latest_revision' => $isLatestRevision,
+            'slot_stats'         => $slotStats,
+            'params_list'        => $rawParams,
+            'tree_params'        => $treeParams
         ]);
     }
 
@@ -201,6 +335,11 @@ class FormBuilder extends BaseController
         $treeData = json_decode($treeJson, true);
         if (!is_array($treeData)) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Format struktur parameter tidak valid!']);
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        if (!$revRow) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Dokumen revisi tidak ditemukan!']);
         }
 
         // Ambil daftar baris matriks Foregoing (jika form ini adalah matriks Foregoing seperti X, Y, Z, θ)
@@ -226,8 +365,26 @@ class FormBuilder extends BaseController
             $this->collectSubtreeNonGridIds((int)$treeData['id'], $allExisting, $oldSubtreeIds);
         }
 
-        // Jalankan penyimpanan rekursif
-        $this->saveNodeRecursive($treeData, $revisionId, $rootParent, $keptIds, $gridRows, $hasSuffixMode);
+        // Validasi anti-bentrok & proteksi kolom sistem kolom_db sebelum menyentuh database
+        $validationError = $this->validateTreeKolomDb(
+            $treeData,
+            (string)($revRow['kategori_form'] ?? 'production'),
+            $allExisting,
+            $oldSubtreeIds,
+            !empty($gridRows)
+        );
+        if ($validationError !== null) {
+            return $this->response->setJSON(['status' => 'error', 'message' => $validationError]);
+        }
+
+        $this->allocatedParNums = [];
+
+        try {
+            // Jalankan penyimpanan rekursif
+            $this->saveNodeRecursive($treeData, $revisionId, $rootParent, $keptIds, $gridRows, $hasSuffixMode);
+        } catch (\RuntimeException $e) {
+            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+        }
 
         // Hapus node yang dibuang oleh Admin saat di dalam modal
         $toDelete = array_diff($oldSubtreeIds, $keptIds);
@@ -235,7 +392,6 @@ class FormBuilder extends BaseController
             $this->formParamModel->whereIn('id', $toDelete)->delete();
         }
 
-        $revRow    = $this->formRevModel->find($revisionId);
         $procCode  = $revRow['process_code'] ?? '';
         $revNum    = $revRow['revisi'] ?? '-';
         $namaUtama = $treeData['nama_parameter'] ?? 'Parameter';
@@ -254,6 +410,111 @@ class FormBuilder extends BaseController
         ]);
     }
 
+    /**
+     * Normalisasi penulisan kolom_db (contoh: PAR12 -> par012)
+     */
+    private function normalizeKolomDb(string $rawCol): string
+    {
+        $rawCol = strtolower(trim($rawCol));
+        if ($rawCol === '') {
+            return '';
+        }
+        if (preg_match('/^par(\d+)([a-z]?)$/i', $rawCol, $m)) {
+            return 'par' . str_pad((string)((int)$m[1]), 3, '0', STR_PAD_LEFT) . strtolower($m[2]);
+        }
+        return $rawCol;
+    }
+
+    /**
+     * Validasi pohon parameter agar tidak ada dua parameter memakai kolom_db yang sama
+     * dan tidak menimpa kolom sistem (par001, par008, par009, par044, par045 di Production).
+     */
+    private function validateTreeKolomDb(array &$node, string $kategori, array $allExisting, array $oldSubtreeIds, bool $hasGridRows): ?string
+    {
+        $rules = $this->getParSlotRules($kategori);
+
+        $existingById = [];
+        $occupiedCols = []; // col_lower => nama_parameter
+        $occupiedBase = []; // base_num => nama_parameter (khusus sel matriks bersuffix)
+
+        foreach ($allExisting as $ex) {
+            $exId = (int)$ex['id'];
+            $existingById[$exId] = $ex;
+
+            if (in_array($exId, $oldSubtreeIds, true)) {
+                continue;
+            }
+            if (!empty($ex['kolom_db'])) {
+                $normEx = $this->normalizeKolomDb((string)$ex['kolom_db']);
+                $occupiedCols[$normEx] = $ex['nama_parameter'] ?? ('ID ' . $exId);
+                if (!empty($ex['posisi_grid']) && preg_match('/^par(\d+)[a-z]$/i', $normEx, $mB)) {
+                    $occupiedBase[(int)$mB[1]] = $ex['nama_parameter'] ?? ('ID ' . $exId);
+                }
+            }
+        }
+
+        $seenInSubmission = [];
+
+        $walk = function (array &$curr) use (&$walk, &$seenInSubmission, $rules, $existingById, $occupiedCols, $occupiedBase, $hasGridRows): ?string {
+            $children    = (!empty($curr['children']) && is_array($curr['children'])) ? $curr['children'] : [];
+            $hasChildren = count($children) > 0;
+            $isGridCol   = (!$hasChildren && $hasGridRows && ($curr['jenis_elemen'] ?? 'input') === 'input');
+
+            if (!$hasChildren && ($curr['jenis_elemen'] ?? 'input') === 'input' && !$isGridCol) {
+                $rawCol = trim((string)($curr['kolom_db'] ?? ''));
+                if ($rawCol !== '') {
+                    $normCol = $this->normalizeKolomDb($rawCol);
+                    $curr['kolom_db'] = $normCol;
+
+                    if (!preg_match('/^par(\d+)([a-z]?)$/i', $normCol, $m)) {
+                        return "Format kode kolom DB '{$rawCol}' pada parameter '{$curr['nama_parameter']}' tidak valid! Gunakan format seperti par010 atau kosongkan agar diisi otomatis.";
+                    }
+
+                    $parNum = (int)$m[1];
+                    $nodeId = !empty($curr['id']) ? (int)$curr['id'] : 0;
+                    $prevCol = ($nodeId && isset($existingById[$nodeId]['kolom_db']))
+                        ? $this->normalizeKolomDb((string)$existingById[$nodeId]['kolom_db'])
+                        : '';
+                    $isUnchangedExisting = ($prevCol !== '' && $prevCol === $normCol);
+
+                    if (!$isUnchangedExisting) {
+                        if ($parNum < 1 || $parNum > $rules['max_num']) {
+                            $maxLbl = 'par' . str_pad((string)$rules['max_num'], 3, '0', STR_PAD_LEFT);
+                            return "Kode kolom '{$normCol}' pada parameter '{$curr['nama_parameter']}' berada di luar batas kolom tabel {$rules['kategori']} (par001 s/d {$maxLbl})!";
+                        }
+                        if (in_array($parNum, $rules['reserved_nums'], true)) {
+                            $resList = implode(', ', array_map(fn($n) => 'par' . str_pad((string)$n, 3, '0', STR_PAD_LEFT), $rules['reserved_nums']));
+                            return "Kode kolom '{$normCol}' dikunci untuk sistem Production ({$resList}: Blok Sampel / Time IN / Time OUT / Status). Silakan pilih nomor par lain atau kosongkan agar otomatis!";
+                        }
+                    }
+
+                    if (isset($seenInSubmission[$normCol])) {
+                        return "Terdeteksi duplikasi kode kolom '{$normCol}' antara parameter '{$seenInSubmission[$normCol]}' dan '{$curr['nama_parameter']}'!";
+                    }
+                    $seenInSubmission[$normCol] = $curr['nama_parameter'] ?? 'Parameter';
+
+                    if (isset($occupiedCols[$normCol]) || isset($occupiedBase[$parNum])) {
+                        $owner = $occupiedCols[$normCol] ?? $occupiedBase[$parNum];
+                        return "Kode kolom '{$normCol}' sudah digunakan oleh parameter '{$owner}' pada revisi ini! Kosongkan kolom DB agar dicarikan slot otomatis.";
+                    }
+                }
+            }
+
+            if ($hasChildren) {
+                foreach ($curr['children'] as &$ch) {
+                    $err = $walk($ch);
+                    if ($err !== null) {
+                        return $err;
+                    }
+                }
+            }
+
+            return null;
+        };
+
+        return $walk($node);
+    }
+
     private function collectSubtreeNonGridIds(int $rootId, array $allParams, array &$collected)
     {
         $collected[] = $rootId;
@@ -266,16 +527,32 @@ class FormBuilder extends BaseController
 
     private function generateNextParCode(int $revisionId, string $suffix = ''): string
     {
+        $revRow   = $this->formRevModel->find($revisionId);
+        $kategori = $revRow['kategori_form'] ?? 'production';
+        $rules    = $this->getParSlotRules((string)$kategori);
+
         $existingParams = $this->formParamModel->where('revision_id', $revisionId)->findAll();
-        $maxParNum = 0;
+        $usedNums = [];
         foreach ($existingParams as $ep) {
-            if (!empty($ep['kolom_db']) && preg_match('/^par(\d+)/i', $ep['kolom_db'], $matches)) {
-                $num = (int)$matches[1];
-                if ($num > $maxParNum) $maxParNum = $num;
+            if (!empty($ep['kolom_db']) && preg_match('/^par(\d+)/i', trim((string)$ep['kolom_db']), $matches)) {
+                $usedNums[(int)$matches[1]] = true;
             }
         }
-        $nextNum = $maxParNum + 1;
-        return 'par' . str_pad((string)$nextNum, 3, '0', STR_PAD_LEFT) . $suffix;
+        foreach ($this->allocatedParNums as $allocNum) {
+            $usedNums[(int)$allocNum] = true;
+        }
+
+        foreach ($rules['usable_nums'] as $candidateNum) {
+            if (!isset($usedNums[$candidateNum])) {
+                $this->allocatedParNums[] = $candidateNum;
+                return 'par' . str_pad((string)$candidateNum, 3, '0', STR_PAD_LEFT) . $suffix;
+            }
+        }
+
+        $maxLbl = 'par' . str_pad((string)$rules['max_num'], 3, '0', STR_PAD_LEFT);
+        throw new \RuntimeException(
+            "Kapasitas kolom database pada revisi ini sudah penuh ({$rules['max_slots']} slot maks {$maxLbl})! Hapus parameter yang tidak digunakan terlebih dahulu."
+        );
     }
 
     private function saveNodeRecursive(array $node, int $revisionId, $parentId, array &$keptIds, array $gridRows, bool $hasSuffixMode)
@@ -293,6 +570,7 @@ class FormBuilder extends BaseController
         $batasMax       = null;
         $satuanOpsi     = null;
         $isReadonly     = 0;
+        $isRequired     = 0;
         $rumusOtomatis  = null;
         $isExclusive    = !empty($node['is_exclusive']) ? 1 : 0;
         $standarDinamis = (!empty($node['standar_dinamis']) && is_array($node['standar_dinamis']))
@@ -304,7 +582,7 @@ class FormBuilder extends BaseController
 
         if (!$hasChildren && ($node['jenis_elemen'] ?? 'input') === 'input' && !$isForegoingLeafColumn) {
             $tipeInput  = $node['tipe_input'] ?: 'text';
-            $kolomDb    = !empty($node['kolom_db']) ? trim($node['kolom_db']) : $this->generateNextParCode($revisionId);
+            $kolomDb    = !empty($node['kolom_db']) ? $this->normalizeKolomDb((string)$node['kolom_db']) : $this->generateNextParCode($revisionId);
             $isReadonly = !empty($node['is_readonly']) ? 1 : 0;
 
             if ($tipeInput === 'number') {
@@ -329,6 +607,8 @@ class FormBuilder extends BaseController
                 $targetEvaluasi = !empty($node['target_evaluasi']) ? trim($node['target_evaluasi']) : '*';
                 $isReadonly = 1;
             }
+
+            $isRequired = (!$isReadonly && !empty($node['is_required'])) ? 1 : 0;
         }
 
         $urutan = !empty($node['urutan']) ? (int)$node['urutan'] : 0;
@@ -356,6 +636,7 @@ class FormBuilder extends BaseController
             'batas_max'       => $batasMax,
             'satuan_opsi'     => $satuanOpsi,
             'is_readonly'     => $isReadonly,
+            'is_required'     => $isRequired,
             'is_exclusive'    => $isExclusive,
             'rumus_otomatis'  => $rumusOtomatis,
             'standar_dinamis' => $standarDinamis,
@@ -425,6 +706,10 @@ class FormBuilder extends BaseController
             ? json_encode($colConfig['satuan_opsi'], JSON_UNESCAPED_UNICODE) : null;
         $rumusOtomatis = (!empty($colConfig['rumus_otomatis']) && is_array($colConfig['rumus_otomatis']) && !empty($colConfig['rumus_otomatis']['type']))
             ? json_encode($colConfig['rumus_otomatis'], JSON_UNESCAPED_UNICODE) : null;
+        if ($rumusOtomatis !== null) {
+            $isReadonly = 1;
+        }
+        $isRequired = (!$isReadonly && !empty($colConfig['is_required'])) ? 1 : 0;
 
         foreach ($gridRows as $rIdx => $rLabel) {
             $suffix = chr(97 + $rIdx); // a, b, c, d...
@@ -435,6 +720,7 @@ class FormBuilder extends BaseController
                     'batas_max'      => $batasMax,
                     'satuan_opsi'    => $satuanOpsi,
                     'is_readonly'    => $isReadonly,
+                    'is_required'    => $isRequired,
                     'rumus_otomatis' => $rumusOtomatis,
                 ]);
             } else {
@@ -450,6 +736,7 @@ class FormBuilder extends BaseController
                     'batas_max'      => $batasMax,
                     'satuan_opsi'    => $satuanOpsi,
                     'is_readonly'    => $isReadonly,
+                    'is_required'    => $isRequired,
                     'rumus_otomatis' => $rumusOtomatis,
                     'posisi_grid'    => $rLabel,
                     'urutan'         => $rIdx + 1
@@ -526,7 +813,9 @@ class FormBuilder extends BaseController
         }
         $newTableIdx = $maxTableIdx + 1;
         $nextUrutan  = $maxUrutan + 1;
+        $this->allocatedParNums = [];
 
+        try {
         if ($layoutType === 'matrix') {
             $matrixRows = [];
             if (is_array($matrixRowsRaw)) {
@@ -634,6 +923,9 @@ class FormBuilder extends BaseController
                 'tipe_input'     => $initialTipe ?: 'number',
                 'urutan'         => $nextUrutan++,
             ]);
+        }
+        } catch (\RuntimeException $e) {
+            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
 
         $this->catatLog(
@@ -785,6 +1077,7 @@ class FormBuilder extends BaseController
             'rumus_otomatis',
             'posisi_grid',
             'is_readonly',
+            'is_required',
             'is_exclusive'
         ];
 
@@ -836,17 +1129,18 @@ class FormBuilder extends BaseController
                     $rumusStr,
                     $p['posisi_grid'] ?? '',
                     $p['is_readonly'] ? '1' : '0',
+                    !empty($p['is_required']) ? '1' : '0',
                     $p['is_exclusive'] ? '1' : '0',
                 ];
                 fputcsv($output, $row);
             }
         } else {
-            fputcsv($output, ['1', '', 'Quantity', '', '', '', '', '', 'any', '', '', '', '', '', '', '0', '0']);
-            fputcsv($output, ['2', '1', 'IN', 'par013', 'number', '', '0', '', '1', '', '', '', '', '', '', '0', '0']);
-            fputcsv($output, ['3', '1', 'OUT', 'par014', 'number', '', '0', '', '1', '', '', '', '', '', '', '0', '0']);
-            fputcsv($output, ['4', '1', 'NG', 'par015', 'number', '', '', '', '1', '', '', '', '', 'ng:par013,par014', '', '1', '0']);
-            fputcsv($output, ['5', '1', 'Yield (%)', 'par016', 'number', '', '', '', '0.01', '', '', '', '', 'yield:par013,par014', '', '1', '0']);
-            fputcsv($output, ['6', '', 'Start up Check Item', 'par001', 'dropdown_ok_ng', 'Check Condition', '', '', 'any', '', '', '', '', '', '', '0', '0']);
+            fputcsv($output, ['1', '1', '', 'Quantity', '', '', '', '', '', 'any', '', '', '', '', '', '', '0', '0', '0']);
+            fputcsv($output, ['1', '2', '1', 'IN', 'par013', 'number', '', '0', '', '1', '', '', '', '', '', '', '0', '1', '0']);
+            fputcsv($output, ['1', '3', '1', 'OUT', 'par014', 'number', '', '0', '', '1', '', '', '', '', '', '', '0', '1', '0']);
+            fputcsv($output, ['1', '4', '1', 'NG', 'par015', 'number', '', '', '', '1', '', '', '', '', 'ng:par013,par014', '', '1', '0', '0']);
+            fputcsv($output, ['1', '5', '1', 'Yield (%)', 'par016', 'number', '', '', '', '0.01', '', '', '', '', 'yield:par013,par014', '', '1', '0', '0']);
+            fputcsv($output, ['1', '6', '', 'Start up Check Item', 'par002', 'dropdown_ok_ng', 'Check Condition', '', '', 'any', '', '', '', '', '', '', '0', '1', '0']);
         }
 
         fclose($output);
@@ -936,6 +1230,7 @@ class FormBuilder extends BaseController
         $idxRumusOtomatis  = $colKey(['rumus_otomatis', 'rumus', 'formula', 'auto_calc']);
         $idxPosisiGrid   = $colKey(['posisi_grid', 'posisi', 'grid_pos', 'pos', 'axis', 'sample']);
         $idxIsReadonly   = $colKey(['is_readonly', 'readonly', 'kunci', 'locked']);
+        $idxIsRequired   = $colKey(['is_required', 'required', 'wajib', 'mandatory']);
         $idxIsExclusive  = $colKey(['is_exclusive', 'exclusive', 'gray_out', 'saling_kunci']);
 
         if ($idxNamaParam === null) {
@@ -945,6 +1240,8 @@ class FormBuilder extends BaseController
         if ($importMode === 'replace') {
             $this->formParamModel->where('revision_id', $revisionId)->delete();
         }
+
+        $this->allocatedParNums = [];
 
         $startUrutan = 1;
         if ($importMode === 'append') {
@@ -992,6 +1289,7 @@ class FormBuilder extends BaseController
             $rawRumus   = $getVal($idxRumusOtomatis);
             $posisiGrid = $getVal($idxPosisiGrid) ?: null;
             $isReadonly = in_array(strtolower($getVal($idxIsReadonly)), ['1', 'true', 'yes', 'ya']) ? 1 : 0;
+            $isRequired = in_array(strtolower($getVal($idxIsRequired)), ['1', 'true', 'yes', 'ya']) ? 1 : 0;
             $isExclusive = in_array(strtolower($getVal($idxIsExclusive)), ['1', 'true', 'yes', 'ya']) ? 1 : 0;
 
             $rumusOtomatis = null;
@@ -1045,7 +1343,16 @@ class FormBuilder extends BaseController
             }
 
             if ($tipeInput !== '' && $tipeInput !== 'header_only' && empty($kolomDb)) {
-                $kolomDb = $this->generateNextParCode($revisionId);
+                try {
+                    $kolomDb = $this->generateNextParCode($revisionId);
+                } catch (\RuntimeException $e) {
+                    return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+                }
+            } elseif (!empty($kolomDb)) {
+                $kolomDb = $this->normalizeKolomDb($kolomDb);
+            }
+            if ($isReadonly) {
+                $isRequired = 0;
             }
 
             $parentId = null;
@@ -1071,6 +1378,7 @@ class FormBuilder extends BaseController
                 'batas_max'       => $batasMax,
                 'satuan_opsi'     => $satuanOpsi ?: null,
                 'is_readonly'     => $isReadonly,
+                'is_required'     => $isRequired,
                 'is_exclusive'    => $isExclusive,
                 'rumus_otomatis'  => $rumusOtomatis,
                 'opsi_dropdown'   => $opsiDropdown ?: null,
@@ -1274,35 +1582,41 @@ class FormBuilder extends BaseController
         }
 
         // Sisipkan sel baru di setiap kolom matriks dan rapikan urutan & akhiran huruf a, b, c, d
-        foreach ($gridColumns as $colParentId => $cells) {
-            $templateCell = $cells[0] ?? $this->formParamModel->find($colParentId);
-            $basePar = null;
-            foreach ($cells as $c) {
-                if (!empty($c['kolom_db']) && preg_match('/^(par\d+)[a-z]$/i', $c['kolom_db'], $m)) {
-                    $basePar = strtolower($m[1]);
-                    break;
+        $this->allocatedParNums = [];
+        try {
+            foreach ($gridColumns as $colParentId => $cells) {
+                $templateCell = $cells[0] ?? $this->formParamModel->find($colParentId);
+                $basePar = null;
+                foreach ($cells as $c) {
+                    if (!empty($c['kolom_db']) && preg_match('/^(par\d+)[a-z]$/i', $c['kolom_db'], $m)) {
+                        $basePar = strtolower($m[1]);
+                        break;
+                    }
                 }
+
+                $this->formParamModel->protect(false)->insert([
+                    'revision_id'    => $revisionId,
+                    'parent_id'      => $colParentId,
+                    'nama_parameter' => $rowLabel,
+                    'kolom_db'       => $basePar ? ($basePar . 'z') : $this->generateNextParCode($revisionId),
+                    'tipe_input'     => $templateCell['tipe_input'] ?: 'number',
+                    'batas_min'      => $templateCell['batas_min'] ?? null,
+                    'batas_max'      => $templateCell['batas_max'] ?? null,
+                    'satuan_opsi'    => $templateCell['satuan_opsi'] ?? null,
+                    'is_readonly'    => $templateCell['is_readonly'] ?? 0,
+                    'is_required'    => $templateCell['is_required'] ?? 0,
+                    'posisi_grid'    => $rowLabel,
+                    'urutan'         => 999
+                ]);
+
+                // Jika kolom induk tadinya memegang kolom_db sendiri, kosongkan agar murni menjadi header kolom
+                $this->formParamModel->protect(false)->update($colParentId, [
+                    'kolom_db'   => null,
+                    'tipe_input' => null
+                ]);
             }
-
-            $this->formParamModel->protect(false)->insert([
-                'revision_id'    => $revisionId,
-                'parent_id'      => $colParentId,
-                'nama_parameter' => $rowLabel,
-                'kolom_db'       => $basePar ? ($basePar . 'z') : $this->generateNextParCode($revisionId),
-                'tipe_input'     => $templateCell['tipe_input'] ?: 'number',
-                'batas_min'      => $templateCell['batas_min'] ?? null,
-                'batas_max'      => $templateCell['batas_max'] ?? null,
-                'satuan_opsi'    => $templateCell['satuan_opsi'] ?? null,
-                'is_readonly'    => $templateCell['is_readonly'] ?? 0,
-                'posisi_grid'    => $rowLabel,
-                'urutan'         => 999
-            ]);
-
-            // Jika kolom induk tadinya memegang kolom_db sendiri, kosongkan agar murni menjadi header kolom
-            $this->formParamModel->protect(false)->update($colParentId, [
-                'kolom_db'   => null,
-                'tipe_input' => null
-            ]);
+        } catch (\RuntimeException $e) {
+            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
 
         // Urutkan ulang urutan & huruf suffix (a, b, c, d) sesuai urutan baris terbaru
@@ -1465,14 +1779,16 @@ class FormBuilder extends BaseController
             log_message('error', 'Gagal update revisi di tabel proses: ' . $e->getMessage());
         }
 
-        // 3. Buat Revisi Baru di form_revisions
+        // 3. Buat Revisi Baru di form_revisions (salin juga layout_mode & catatan_sop dari revisi lama!)
         $this->formRevModel->protect(false)->insert([
             'process_code'  => $procCode,
             'revisi'        => (string)$newRevisiCode,
             'kategori_form' => $oldRevision['kategori_form'] ?? 'production',
+            'layout_mode'   => $oldRevision['layout_mode'] ?? 'standard',
+            'catatan_sop'   => $oldRevision['catatan_sop'] ?? null,
             'created_at'    => date('Y-m-d H:i:s')
         ]);
-        $newRevisionId = $this->formRevModel->getInsertID();
+        $newRevisionId = (int)$this->formRevModel->getInsertID();
 
         // 4. Gandakan struktur parameter ke revisi baru
         $oldParameters = $this->formParamModel->where('revision_id', $oldRevisionId)->orderBy('urutan', 'ASC')->findAll();
@@ -1503,8 +1819,568 @@ class FormBuilder extends BaseController
         );
 
         return $this->response->setJSON([
+            'status'          => 'success',
+            'new_revision_id' => $newRevisionId,
+            'new_revisi'      => (string)$newRevisiCode,
+            'message'         => "Revisi berhasil dinaikkan menjadi Revisi {$newRevisiCode}. Seluruh data riwayat sebelumnya telah dikunci pada Revisi {$oldRevisiCode}."
+        ]);
+    }
+
+    // =========================================================================
+    // 7B. FITUR BARU UPGRADE FORM BUILDER (GESER PANAH, PREVIEW, CLONE, RESTORE)
+    // =========================================================================
+
+    /**
+     * Geser urutan parameter (Kiri/Kanan atau Atas/Bawah) langsung dari Visual Builder dengan 1 klik.
+     */
+    public function moveParameter()
+    {
+        $id        = (int)$this->request->getPost('id');
+        $direction = strtolower(trim((string)$this->request->getPost('direction'))); // 'prev' atau 'next'
+
+        if (!$id || !in_array($direction, ['prev', 'next', 'up', 'down', 'left', 'right'], true)) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Parameter pemindahan tidak valid!']);
+        }
+
+        $target = $this->formParamModel->find($id);
+        if (!$target) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Parameter tidak ditemukan!']);
+        }
+
+        $revisionId = (int)$target['revision_id'];
+        $parentId   = !empty($target['parent_id']) ? (int)$target['parent_id'] : null;
+        $tableIndex = !empty($target['table_index']) ? (int)$target['table_index'] : 1;
+
+        $allParams = $this->formParamModel
+            ->where('revision_id', $revisionId)
+            ->orderBy('urutan', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->findAll();
+
+        $siblings = [];
+        foreach ($allParams as $p) {
+            if (!empty($p['posisi_grid'])) {
+                continue;
+            }
+            $pParent = !empty($p['parent_id']) ? (int)$p['parent_id'] : null;
+            if ($parentId !== null) {
+                if ($pParent === $parentId) {
+                    $siblings[] = $p;
+                }
+            } else {
+                $pTableIdx = !empty($p['table_index']) ? (int)$p['table_index'] : 1;
+                if ($pParent === null && $pTableIdx === $tableIndex) {
+                    $siblings[] = $p;
+                }
+            }
+        }
+
+        $currIdx = null;
+        foreach ($siblings as $idx => $s) {
+            if ((int)$s['id'] === $id) {
+                $currIdx = $idx;
+                break;
+            }
+        }
+
+        $isBackward = in_array($direction, ['prev', 'up', 'left'], true);
+        $swapIdx    = ($currIdx !== null) ? ($isBackward ? $currIdx - 1 : $currIdx + 1) : -1;
+
+        if ($currIdx === null || !isset($siblings[$swapIdx])) {
+            return $this->response->setJSON([
+                'status'  => 'error',
+                'message' => 'Parameter sudah berada di posisi paling ujung.'
+            ]);
+        }
+
+        $tmp                 = $siblings[$currIdx];
+        $siblings[$currIdx]  = $siblings[$swapIdx];
+        $siblings[$swapIdx]  = $tmp;
+
+        foreach ($siblings as $newOrderZero => $sibRow) {
+            $this->formParamModel->protect(false)->update((int)$sibRow['id'], [
+                'urutan' => $newOrderZero + 1
+            ]);
+        }
+
+        $revRow = $this->formRevModel->find($revisionId);
+        $arahLbl = $isBackward ? 'maju/kiri/atas' : 'mundur/kanan/bawah';
+        $this->catatLog(
+            'GESER PARAMETER',
+            "Menggeser urutan parameter '{$target['nama_parameter']}' ke {$arahLbl} pada Revisi " . ($revRow['revisi'] ?? '-'),
+            $revRow['process_code'] ?? ''
+        );
+
+        return $this->response->setJSON([
             'status'  => 'success',
-            'message' => "Revisi berhasil dinaikkan menjadi Revisi {$newRevisiCode}. Seluruh data riwayat sebelumnya telah dikunci pada Revisi {$oldRevisiCode}."
+            'message' => 'Urutan parameter berhasil diperbarui.'
+        ]);
+    }
+
+    /**
+     * Live Preview: Merender simulasi interaktif Form Input Operator & Tabel History secara instan.
+     */
+    public function previewForm()
+    {
+        $revisionId = (int)$this->request->getGet('revision_id');
+        if (!$revisionId) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Revision ID tidak valid!']);
+        }
+
+        $revision = $this->formRevModel->find($revisionId);
+        if (!$revision) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Data revisi tidak ditemukan!']);
+        }
+
+        $processCode  = (string)($revision['process_code'] ?? 'preview');
+        $kategoriForm = (string)($revision['kategori_form'] ?: 'production');
+        $rawParams    = $this->formParamModel->where('revision_id', $revisionId)->orderBy('urutan', 'ASC')->findAll();
+        $treeParams   = $this->buildTree($rawParams);
+
+        $maxTableDepth = 0;
+        foreach ($treeParams as $node) {
+            $d = $this->calculateDepth($node);
+            if ($d > $maxTableDepth) {
+                $maxTableDepth = $d;
+            }
+        }
+
+        $procInfo    = $this->processModel->where('process_code', $processCode)->first();
+        $processName = $procInfo['name'] ?? strtoupper($processCode);
+
+        // 1. Render HTML Form Input Operator (gunakan ID unik _preview agar JS validasi aktif tanpa bentrok DOM)
+        $inputHtml = view('form_input_dynamic', [
+            'process_code'  => $processCode . '_preview',
+            'process_name'  => $processName,
+            'revision'      => $revision,
+            'kategori_form' => $kategoriForm,
+            'treeParams'    => $treeParams,
+            'maxTableDepth' => max(1, $maxTableDepth),
+            'alldata'       => null,
+            'number'        => null,
+        ]);
+
+        // 2. Bangun data contoh realistis (dummy sample) untuk simulasi Tabel History
+        $sampleRows = $this->buildSampleHistoryRows($rawParams, $revision, $kategoriForm);
+        $revLabel   = str_pad((string)($revision['revisi'] ?? '0'), 2, '0', STR_PAD_LEFT);
+
+        $titlePrefix = ($kategoriForm === 'production')
+            ? 'PRODUCTION PROCESS CONTROL SHEET '
+            : (($kategoriForm === 'foregoing') ? 'FOREGOING CHECK SHEET ' : 'START UP CHECK SHEET ');
+        $judulProses = (stripos($processName, 'SHEET') !== false) ? $processName : ($titlePrefix . $processName);
+
+        $historyHtml = view('history_table_dynamic', [
+            'process_code'     => $processCode,
+            'judul_proses'     => $judulProses,
+            'kategori_form'    => $kategoriForm,
+            'revisi_label'     => $revLabel,
+            'revision'         => $revision,
+            'treeParams'       => $treeParams,
+            'alldata'          => $sampleRows,
+            'is_export'        => false,
+            'show_finish_cols' => false,
+        ]);
+
+        return $this->response->setJSON([
+            'status'        => 'success',
+            'process_code'  => $processCode,
+            'process_name'  => $processName,
+            'revisi'        => $revision['revisi'] ?? '0',
+            'kategori_form' => $kategoriForm,
+            'input_html'    => $inputHtml,
+            'history_html'  => $historyHtml,
+        ]);
+    }
+
+    /**
+     * Helper pembuat baris contoh realistis untuk Live Preview History.
+     */
+    private function buildSampleHistoryRows(array $rawParams, array $revision, string $kategoriForm): array
+    {
+        $gridRowNames  = [];
+        $hasSuffixCols = false;
+        foreach ($rawParams as $p) {
+            if (!empty($p['posisi_grid']) && !in_array($p['posisi_grid'], $gridRowNames, true)) {
+                $gridRowNames[] = $p['posisi_grid'];
+            }
+            if (!empty($p['kolom_db']) && preg_match('/^par\d+[a-z]$/i', (string)$p['kolom_db'])) {
+                $hasSuffixCols = true;
+            }
+        }
+
+        $makeLeafSampleVal = function (array $p, int $idx = 0) use ($kategoriForm): string {
+            $tipe  = strtolower((string)($p['tipe_input'] ?? ''));
+            $colDb = strtolower((string)($p['kolom_db'] ?? ''));
+            $pName = strtolower(trim((string)($p['nama_parameter'] ?? '')));
+
+            if (strpos($pName, 'note') !== false || strpos($pName, 'catatan') !== false) {
+                return '-';
+            }
+            if ($tipe === 'auto_judgment' || ($kategoriForm === 'startup' && preg_match('/\bjudg(e|ment|ement)\b/', $pName))) {
+                return '✔';
+            }
+
+            if ($kategoriForm === 'production' && $tipe === 'number') {
+                if ($colDb === 'par013') return '2000';
+                if ($colDb === 'par014') return $idx === 0 ? '2000' : '1998';
+            }
+
+            if (!empty($p['rumus_otomatis'])) {
+                $f = is_string($p['rumus_otomatis']) ? json_decode($p['rumus_otomatis'], true) : $p['rumus_otomatis'];
+                if (($f['type'] ?? '') === 'ng') return $idx === 0 ? '0' : '2';
+                if (($f['type'] ?? '') === 'yield') return $idx === 0 ? '100' : '99.9';
+            }
+
+            if ($tipe === 'dropdown_ok_ng') {
+                if ($kategoriForm === 'startup') return '✔';
+                if ($kategoriForm === 'startup_horizontal') return 'V';
+                return 'OK';
+            }
+            if ($tipe === 'dropdown_custom') {
+                if (!empty($p['opsi_dropdown'])) {
+                    $opts = is_string($p['opsi_dropdown']) ? json_decode($p['opsi_dropdown'], true) : $p['opsi_dropdown'];
+                    if (!is_array($opts)) {
+                        $opts = array_values(array_filter(array_map('trim', explode(',', (string)$p['opsi_dropdown']))));
+                    }
+                    $first = $opts[0] ?? 'OK';
+                    return is_array($first) ? (string)($first['value'] ?? $first['label'] ?? 'OK') : (string)$first;
+                }
+                return 'OK';
+            }
+            if ($tipe === 'auto_judgment') return '✔';
+            if ($tipe === 'time') return $idx === 0 ? '08:15' : '13:30';
+            if ($tipe === 'date') return date('Y-m-d');
+            if ($tipe === 'textarea') return 'Kondisi mesin normal (Simulasi Preview)';
+            if ($tipe === 'number') {
+                $min      = ($p['batas_min'] !== null && $p['batas_min'] !== '') ? (float)$p['batas_min'] : null;
+                $max      = ($p['batas_max'] !== null && $p['batas_max'] !== '') ? (float)$p['batas_max'] : null;
+                $unitStr  = '';
+
+                // 1. Cek jika batas min/max berada di dalam satuan_opsi (contoh: N 0.6~1.0, MPa 0.01~0.10, sec 0.01~0.15)
+                if (!empty($p['satuan_opsi'])) {
+                    $u = is_string($p['satuan_opsi']) ? json_decode($p['satuan_opsi'], true) : $p['satuan_opsi'];
+                    if (is_array($u) && !empty($u[0])) {
+                        $unitStr = trim((string)($u[0]['unit'] ?? ''));
+                        if (isset($u[0]['min']) && $u[0]['min'] !== null && $u[0]['min'] !== '') {
+                            $min = (float)$u[0]['min'];
+                        }
+                        if (isset($u[0]['max']) && $u[0]['max'] !== null && $u[0]['max'] !== '') {
+                            $max = (float)$u[0]['max'];
+                        }
+                    }
+                }
+
+                // 2. Cek jika menggunakan rentang_ganda (ambil rentang valid pertama)
+                if ($min === null && $max === null && !empty($p['rentang_ganda'])) {
+                    $rgRaw = $p['rentang_ganda'];
+                    if (is_string($rgRaw) && (str_starts_with($rgRaw, '[') || str_starts_with($rgRaw, '{'))) {
+                        $parsedRg = json_decode($rgRaw, true);
+                        if (is_array($parsedRg) && !empty($parsedRg[0])) {
+                            $min = isset($parsedRg[0]['min']) ? (float)$parsedRg[0]['min'] : null;
+                            $max = isset($parsedRg[0]['max']) ? (float)$parsedRg[0]['max'] : null;
+                        }
+                    } elseif (is_string($rgRaw)) {
+                        $rgParts = array_map('floatval', explode(',', $rgRaw));
+                        if (count($rgParts) >= 2) {
+                            $min = $rgParts[0];
+                            $max = $rgParts[1];
+                        }
+                    }
+                }
+
+                // 3. Hitung nilai contoh yang dijamin berada di dalam batas standar (mendukung angka negatif seperti -80 kPa!)
+                $stepRaw = trim((string)($p['step_value'] ?? 'any'));
+                $decimals = 2;
+                if ($stepRaw === '1') {
+                    $decimals = 0;
+                } elseif (is_numeric($stepRaw) && strpos($stepRaw, '.') !== false) {
+                    $decimals = min(4, strlen(explode('.', $stepRaw)[1] ?? '2'));
+                }
+
+                if ($min !== null && $max !== null) {
+                    $span = $max - $min;
+                    $ratio = ($idx % 2 === 0) ? 0.45 : 0.60;
+                    $val = ($span > 0) ? round($min + ($span * $ratio), max($decimals, ($span < 0.2 ? 3 : 2))) : $min;
+                    if ($val < $min) $val = $min;
+                    if ($val > $max) $val = $max;
+                } elseif ($min !== null) {
+                    $delta = ($min == 0.0) ? 1.0 : max(0.5, round(abs($min) * 0.1, 2));
+                    $val = round($min + $delta + ($idx * 0.2), $decimals);
+                } elseif ($max !== null) {
+                    // Jangan pernah di-clamp ke 0! Jika max = -80, maka nilai valid adalah <= -80 (misal -85)
+                    $delta = ($max == 0.0) ? 1.0 : max(0.5, round(abs($max) * 0.1, 2));
+                    $val = round($max - $delta - ($idx * 0.2), $decimals);
+                } else {
+                    $val = ($decimals === 0) ? (10 + $idx) : round(9.5 + ($idx * 0.2), $decimals);
+                }
+
+                return $unitStr !== '' ? ($val . ' ' . $unitStr) : (string)$val;
+            }
+            return 'OK';
+        };
+
+        $baseMeta = function (int $num, int $blockIdx, int $sampleSet = 0) use ($revision): array {
+            return [
+                'id'              => $num + $blockIdx,
+                'number'          => $num,
+                'revisi'          => (string)($revision['revisi'] ?? '0'),
+                'process'         => (string)($revision['process_code'] ?? ''),
+                'empid'           => $sampleSet === 0 ? '002234' : '002273',
+                'empid2'          => '000528',
+                'emp_id'          => $sampleSet === 0 ? '002234' : '002273',
+                'operator'        => $sampleSet === 0 ? '002234' : '002273',
+                'shift'           => $sampleSet === 0 ? 'A' : 'B',
+                'group'           => '3S4GW1',
+                'shift2'          => 'B',
+                'group2'          => '3S4GW2',
+                'machno'          => 'MC-01',
+                'mc_no'           => 'MC-01',
+                'machine'         => 'MC-01',
+                'model'           => 'GH06P25A2CC7',
+                'model_name'      => 'GH06P25A2CC7',
+                'lotno'           => $sampleSet === 0 ? 'L249GA0039A' : 'L249GA0040A',
+                'lot_no'          => $sampleSet === 0 ? 'L249GA0039A' : 'L249GA0040A',
+                'status'          => 'Approved',
+                'work_date'       => date('Y-m-d'),
+                'tanggal'         => date('Y-m-d'),
+                'created_at'      => date('Y-m-d H:i:s'),
+                'std_die_bond'    => '4.9',
+                'par000'          => (string)$blockIdx,
+                'par001'          => (string)$blockIdx,
+                'par008'          => $sampleSet === 0 ? '07:30' : '15:30',
+                'par009'          => $sampleSet === 0 ? '11:45' : '19:45',
+                'par044'          => 'Approved',
+                'par045'          => 'Process Complete',
+            ];
+        };
+
+        $rows = [];
+        if (!empty($gridRowNames) && $hasSuffixCols) {
+            foreach ($gridRowNames as $rIdx => $rLabel) {
+                $row = $baseMeta(99001, $rIdx + 1, 0);
+                foreach ($rawParams as $p) {
+                    if (empty($p['kolom_db'])) continue;
+                    $colDb   = strtolower(trim((string)$p['kolom_db']));
+                    $baseCol = preg_replace('/[a-z]$/i', '', $colDb);
+                    if (!empty($p['posisi_grid'])) {
+                        if ($p['posisi_grid'] === $rLabel) {
+                            $val = $makeLeafSampleVal($p, $rIdx);
+                            $row[$baseCol] = $val;
+                            $row[$colDb]   = $val;
+                        }
+                    } else {
+                        $row[$colDb] = $makeLeafSampleVal($p, 0);
+                    }
+                }
+                $rows[] = $row;
+            }
+        } else {
+            for ($s = 0; $s < 2; $s++) {
+                $row = $baseMeta(99001 + $s, 1, $s);
+                foreach ($rawParams as $p) {
+                    if (empty($p['kolom_db'])) continue;
+                    $colDb = strtolower(trim((string)$p['kolom_db']));
+                    $row[$colDb] = $makeLeafSampleVal($p, $s);
+                }
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Clone / Salin Struktur Parameter, Catatan SOP, & Mode Layout dari Proses Lain.
+     */
+    public function cloneFromProcess()
+    {
+        $targetRevisionId = (int)$this->request->getPost('target_revision_id');
+        $sourceProcess    = trim((string)$this->request->getPost('source_process'));
+        $sourceRevisionId = (int)$this->request->getPost('source_revision_id');
+
+        if (!$targetRevisionId || ($sourceProcess === '' && !$sourceRevisionId)) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Pilih proses sumber terlebih dahulu!']);
+        }
+
+        $targetRev = $this->formRevModel->find($targetRevisionId);
+        if (!$targetRev) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Revisi tujuan tidak ditemukan!']);
+        }
+
+        if ($sourceRevisionId > 0) {
+            $sourceRev = $this->formRevModel->find($sourceRevisionId);
+        } else {
+            $sourceRev = $this->formRevModel->where('process_code', $sourceProcess)->orderBy('id', 'DESC')->first();
+            if (!$sourceRev && $sourceProcess !== '') {
+                $srcProcRow = $this->processModel->where('process_code', $sourceProcess)->first();
+                $parts      = explode('-', strtolower($sourceProcess));
+                $srcKat     = (($parts[1] ?? 'p') === 's') ? 'startup' : ((($parts[1] ?? 'p') === 'f') ? 'foregoing' : 'production');
+                $this->formRevModel->protect(false)->insert([
+                    'process_code'  => $sourceProcess,
+                    'revisi'        => $srcProcRow['revisi'] ?? '0',
+                    'kategori_form' => $srcKat,
+                    'created_at'    => date('Y-m-d H:i:s'),
+                ]);
+                $newSrcRevId = (int)$this->formRevModel->getInsertID();
+                $this->parseSingleProcess($sourceProcess, $newSrcRevId, $srcKat);
+                $sourceRev = $this->formRevModel->find($newSrcRevId);
+            }
+        }
+
+        if (!$sourceRev) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Revisi proses sumber tidak ditemukan!']);
+        }
+
+        if ((int)$sourceRev['id'] === (int)$targetRev['id']) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Tidak dapat menyalin dari revisi yang sama persis!']);
+        }
+
+        $sourceParams = $this->formParamModel->where('revision_id', $sourceRev['id'])->orderBy('urutan', 'ASC')->findAll();
+        if (empty($sourceParams)) {
+            $this->parseSingleProcess($sourceRev['process_code'], $sourceRev['id'], $sourceRev['kategori_form'] ?? 'production');
+            $sourceParams = $this->formParamModel->where('revision_id', $sourceRev['id'])->orderBy('urutan', 'ASC')->findAll();
+        }
+
+        if (empty($sourceParams)) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Proses sumber belum memiliki parameter apa pun untuk disalin!']);
+        }
+
+        $targetKat   = (string)($targetRev['kategori_form'] ?? 'production');
+        $targetRules = $this->getParSlotRules($targetKat);
+
+        // Hapus parameter lama pada revisi tujuan, lalu salin metadata & pohon parameter dari sumber
+        $this->formParamModel->where('revision_id', $targetRevisionId)->delete();
+        $this->formRevModel->protect(false)->update($targetRevisionId, [
+            'layout_mode' => $sourceRev['layout_mode'] ?? 'standard',
+            'catatan_sop' => $sourceRev['catatan_sop'] ?? null,
+        ]);
+
+        $this->allocatedParNums = [];
+        $remappedBaseMap = []; // remap otomatis jika kolom sumber menabrak kolom sistem kategori tujuan
+
+        $tree = $this->buildTree($sourceParams);
+        $clonedCount = 0;
+
+        try {
+            $cloneRecursive = function (array $nodes, $newParentId = null) use (
+                &$cloneRecursive,
+                &$clonedCount,
+                &$remappedBaseMap,
+                $targetRevisionId,
+                $targetRules
+            ) {
+                foreach ($nodes as $node) {
+                    $children = $node['children'] ?? [];
+                    unset($node['id'], $node['children']);
+                    $node['revision_id'] = $targetRevisionId;
+                    $node['parent_id']   = $newParentId;
+
+                    if (!empty($node['kolom_db']) && preg_match('/^par(\d+)([a-z]?)$/i', (string)$node['kolom_db'], $m)) {
+                        $num = (int)$m[1];
+                        $suf = strtolower($m[2] ?? '');
+                        if ($num < 1 || $num > $targetRules['max_num'] || in_array($num, $targetRules['reserved_nums'], true)) {
+                            if (!isset($remappedBaseMap[$num])) {
+                                $remappedBaseMap[$num] = $this->generateNextParCode($targetRevisionId);
+                            }
+                            $node['kolom_db'] = $remappedBaseMap[$num] . $suf;
+                        } else {
+                            if (!in_array($num, $this->allocatedParNums, true)) {
+                                $this->allocatedParNums[] = $num;
+                            }
+                            $node['kolom_db'] = 'par' . str_pad((string)$num, 3, '0', STR_PAD_LEFT) . $suf;
+                        }
+                    }
+
+                    $this->formParamModel->protect(false)->insert($node);
+                    $insertedId = (int)$this->formParamModel->getInsertID();
+                    $clonedCount++;
+
+                    if (!empty($children)) {
+                        $cloneRecursive($children, $insertedId);
+                    }
+                }
+            };
+
+            $cloneRecursive($tree, null);
+        } catch (\RuntimeException $e) {
+            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+
+        $this->catatLog(
+            'CLONE STRUKTUR FORM',
+            "Menyalin {$clonedCount} parameter & Catatan SOP dari proses " . strtoupper($sourceRev['process_code']) . " (Revisi {$sourceRev['revisi']}) ke Revisi {$targetRev['revisi']}",
+            $targetRev['process_code'] ?? ''
+        );
+
+        return $this->response->setJSON([
+            'status'  => 'success',
+            'count'   => $clonedCount,
+            'message' => "Berhasil menyalin {$clonedCount} item parameter dari proses " . strtoupper($sourceRev['process_code']) . " (Revisi {$sourceRev['revisi']})!"
+        ]);
+    }
+
+    /**
+     * Pulihkan / Salin struktur dari Revisi Arsip Lama ke Revisi Aktif Terbaru (tanpa merusak kunci riwayat).
+     */
+    public function restoreRevision()
+    {
+        $sourceRevisionId = (int)$this->request->getPost('source_revision_id');
+        if (!$sourceRevisionId) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'ID revisi sumber tidak valid!']);
+        }
+
+        $sourceRev = $this->formRevModel->find($sourceRevisionId);
+        if (!$sourceRev) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Data revisi arsip tidak ditemukan!']);
+        }
+
+        $procCode  = (string)$sourceRev['process_code'];
+        $latestRev = $this->formRevModel->where('process_code', $procCode)->orderBy('id', 'DESC')->first();
+
+        if (!$latestRev || (int)$latestRev['id'] === (int)$sourceRev['id']) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Revisi ini sudah menjadi revisi aktif terbaru!']);
+        }
+
+        $latestRevId  = (int)$latestRev['id'];
+        $sourceParams = $this->formParamModel->where('revision_id', $sourceRevisionId)->orderBy('urutan', 'ASC')->findAll();
+        $tree         = $this->buildTree($sourceParams);
+
+        $this->formParamModel->where('revision_id', $latestRevId)->delete();
+        $this->formRevModel->protect(false)->update($latestRevId, [
+            'kategori_form' => $sourceRev['kategori_form'] ?? $latestRev['kategori_form'],
+            'layout_mode'   => $sourceRev['layout_mode'] ?? 'standard',
+            'catatan_sop'   => $sourceRev['catatan_sop'] ?? null,
+        ]);
+
+        $restoredCount = 0;
+        $dupRecursive = function (array $nodes, $newParentId = null) use (&$dupRecursive, &$restoredCount, $latestRevId) {
+            foreach ($nodes as $node) {
+                $children = $node['children'] ?? [];
+                unset($node['id'], $node['children']);
+                $node['revision_id'] = $latestRevId;
+                $node['parent_id']   = $newParentId;
+
+                $this->formParamModel->protect(false)->insert($node);
+                $insertedId = (int)$this->formParamModel->getInsertID();
+                $restoredCount++;
+
+                if (!empty($children)) {
+                    $dupRecursive($children, $insertedId);
+                }
+            }
+        };
+        $dupRecursive($tree, null);
+
+        $this->catatLog(
+            'PULIHKAN REVISI',
+            "Menyalin/memulihkan struktur dari Revisi {$sourceRev['revisi']} ({$restoredCount} item) ke Revisi Aktif (Revisi {$latestRev['revisi']})",
+            $procCode
+        );
+
+        return $this->response->setJSON([
+            'status'             => 'success',
+            'latest_revision_id' => $latestRevId,
+            'message'            => "Struktur dari Revisi {$sourceRev['revisi']} berhasil disalin ke Revisi Aktif (Revisi {$latestRev['revisi']})!"
         ]);
     }
 

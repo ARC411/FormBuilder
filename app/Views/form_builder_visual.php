@@ -35,6 +35,7 @@ if (!function_exists('prepareNodeForModal')) {
             $copy['batas_max']      = $firstCell['batas_max'];
             $copy['satuan_opsi']    = $firstCell['satuan_opsi'];
             $copy['is_readonly']    = $firstCell['is_readonly'];
+            $copy['is_required']    = $firstCell['is_required'] ?? 0;
             $copy['rumus_otomatis'] = $firstCell['rumus_otomatis'];
             $copy['is_grid_column'] = true;
             $copy['children']       = [];
@@ -52,6 +53,11 @@ if (!function_exists('prepareNodeForModal')) {
 if (!function_exists('renderRuleBadges')) {
     function renderRuleBadges($node) {
         $badges = '';
+        $isGridReq = (!empty($node['children'][0]['posisi_grid']) && !empty($node['children'][0]['is_required']) && empty($node['children'][0]['is_readonly']));
+        $isLeafReq = (empty($node['children']) && !empty($node['is_required']) && empty($node['is_readonly']));
+        if ($isLeafReq || $isGridReq) {
+            $badges .= '<span class="badge bg-danger text-white d-inline-block mt-1 me-1" style="font-size:10px;"><i class="fas fa-asterisk"></i> Wajib</span>';
+        }
         if (!empty($node['is_exclusive'])) {
             $badges .= '<span class="badge bg-info text-dark d-inline-block mt-1 me-1" style="font-size:10px;"><i class="fas fa-lock"></i> Isi Salah Satu</span>';
         }
@@ -65,12 +71,25 @@ if (!function_exists('renderRuleBadges')) {
 }
 
 if (!function_exists('renderActionButtons')) {
-    function renderActionButtons($node) {
+    function renderActionButtons($node, $canMovePrev = false, $canMoveNext = false, $isVertical = false) {
         $modalTree = prepareNodeForModal($node);
         $rawJson = htmlspecialchars(json_encode($modalTree), ENT_QUOTES, 'UTF-8');
+
+        $moveBtns = '';
+        if ($canMovePrev) {
+            $prevIcon  = $isVertical ? 'fa-arrow-up' : 'fa-arrow-left';
+            $prevTitle = $isVertical ? 'Geser Urutan ke Atas' : 'Geser Urutan ke Kiri';
+            $moveBtns .= '<button type="button" class="btn btn-sm btn-light border text-dark btn-move-param py-0 px-1 me-1" data-id="'.$node['id'].'" data-dir="prev" title="'.$prevTitle.'"><i class="fas '.$prevIcon.'" style="font-size:10px;"></i></button>';
+        }
+        if ($canMoveNext) {
+            $nextIcon  = $isVertical ? 'fa-arrow-down' : 'fa-arrow-right';
+            $nextTitle = $isVertical ? 'Geser Urutan ke Bawah' : 'Geser Urutan ke Kanan';
+            $moveBtns .= '<button type="button" class="btn btn-sm btn-light border text-dark btn-move-param py-0 px-1 me-1" data-id="'.$node['id'].'" data-dir="next" title="'.$nextTitle.'"><i class="fas '.$nextIcon.'" style="font-size:10px;"></i></button>';
+        }
+
         return '
         <div class="mt-1" style="white-space: nowrap;">
-            <button type="button" class="btn btn-sm btn-success btn-add-child py-0 px-1" data-id="'.$node['id'].'" data-name="'.esc($node['nama_parameter']).'" data-table-index="'.($node['table_index'] ?? 1).'" title="Tambah Sub-Parameter di Bawah Ini"><i class="fas fa-plus" style="font-size:10px;"></i></button>
+            '.$moveBtns.'<button type="button" class="btn btn-sm btn-success btn-add-child py-0 px-1" data-id="'.$node['id'].'" data-name="'.esc($node['nama_parameter']).'" data-table-index="'.($node['table_index'] ?? 1).'" title="Tambah Sub-Parameter di Bawah Ini"><i class="fas fa-plus" style="font-size:10px;"></i></button>
             <button type="button" class="btn btn-sm btn-warning btn-edit-tree text-dark py-0 px-1" data-tree=\''.$rawJson.'\' title="Edit Parameter & Sub-Bagiannya"><i class="fas fa-edit" style="font-size:10px;"></i></button>
             <button type="button" class="btn btn-sm btn-danger btn-delete py-0 px-1" data-id="'.$node['id'].'" title="Hapus"><i class="fas fa-trash-alt" style="font-size:10px;"></i></button>
         </div>';
@@ -145,7 +164,9 @@ if (!function_exists('renderInputPreview')) {
 if (!function_exists('buildStartupRows')) {
     function buildStartupRows($nodes, $currentCol, $maxDepth, &$verticalRows, &$rowIndex, $isRootLevel = false) {
         $no = 1;
-        foreach ($nodes as $node) {
+        $sibCount = count($nodes);
+        $nodesValues = array_values($nodes);
+        foreach ($nodesValues as $nIdx => $node) {
             if (!isset($verticalRows[$rowIndex])) $verticalRows[$rowIndex] = [];
 
             $rowspan  = countLeaves($node);
@@ -165,6 +186,8 @@ if (!function_exists('buildStartupRows')) {
                 'name'      => $node['nama_parameter'],
                 'rowspan'   => $rowspan,
                 'colspan'   => $colspan,
+                'can_prev'  => ($nIdx > 0),
+                'can_next'  => ($nIdx < $sibCount - 1),
                 'node_data' => $node
             ];
 
@@ -184,7 +207,9 @@ if (!function_exists('buildStartupRows')) {
 if (!function_exists('buildHorizontalHeaders')) {
     function buildHorizontalHeaders($nodes, $level, &$headerRows, &$headerLeaves, $maxDepth) {
         if (!isset($headerRows[$level])) $headerRows[$level] = [];
-        foreach ($nodes as $node) {
+        $sibCount = count($nodes);
+        $nodesValues = array_values($nodes);
+        foreach ($nodesValues as $nIdx => $node) {
             $hasGridChildren = (!empty($node['children']) && !empty($node['children'][0]['posisi_grid']));
             $isHeaderLeaf    = (empty($node['children']) || $hasGridChildren);
 
@@ -197,6 +222,8 @@ if (!function_exists('buildHorizontalHeaders')) {
                 'colspan'   => $colspan,
                 'rowspan'   => $rowspan,
                 'is_grid'   => $hasGridChildren,
+                'can_prev'  => ($nIdx > 0),
+                'can_next'  => ($nIdx < $sibCount - 1),
                 'node_data' => $node
             ];
 
@@ -211,19 +238,46 @@ if (!function_exists('buildHorizontalHeaders')) {
 ?>
 
 <div class="card border-primary shadow">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 class="m-0 font-weight-bold">
             <i class="fas fa-table"></i> Visual Builder - <?= strtoupper($process_code) ?> 
-            (Revisi <?= $revision['revisi'] ?>)
+            (Revisi <?= esc($revision['revisi']) ?>)
+            <?php if (isset($isLatestRevision) && !$isLatestRevision): ?>
+                <span class="badge bg-secondary ms-1">ARSIP</span>
+            <?php endif; ?>
         </h5>
-        <div>
-            <span class="badge bg-warning text-dark border border-dark me-2">
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <?php if (!empty($slotStats)): ?>
+                <?php $slotBadgeCls = ($slotStats['remaining'] <= 3) ? 'bg-danger text-white' : 'bg-light text-dark'; ?>
+                <span class="badge <?= $slotBadgeCls ?> border" title="Kapasitas kolom DB maks <?= esc($slotStats['max_par_label']) ?> (Kolom sistem terproteksi: <?= esc($slotStats['reserved_label']) ?>)">
+                    <i class="fas fa-database text-primary"></i> Slot DB: <?= (int)$slotStats['used_slots'] ?> / <?= (int)$slotStats['max_slots'] ?> Terpakai
+                </span>
+            <?php endif; ?>
+            <span class="badge bg-warning text-dark border border-dark">
                 Kategori: <?= strtoupper($kategori_form === 'startup_horizontal' ? 'STARTUP (MENDATAR)' : ($kategori_form === 'startup' ? 'STARTUP (MENURUN)' : $kategori_form)) ?>
             </span>
         </div>
     </div>
     
     <div class="card-body">
+        <?php if (isset($isLatestRevision) && !$isLatestRevision): ?>
+            <div class="alert alert-warning border-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <i class="fas fa-history me-1"></i>
+                    <b>Mode Lihat Revisi Arsip (Revisi <?= esc($revision['revisi']) ?>):</b>
+                    Anda sedang membuka versi revisi terdahulu. Revisi aktif terbaru saat ini adalah <b>Revisi <?= esc($latestRevision['revisi'] ?? '-') ?></b>.
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-warning fw-bold text-dark btn-restore-revision" data-source-id="<?= (int)$revision['id'] ?>" data-rev="<?= esc($revision['revisi']) ?>">
+                        <i class="fas fa-undo"></i> Salin Struktur Ini ke Revisi Aktif
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-dark btn-back-latest-rev" data-latest-id="<?= (int)($latestRevision['id'] ?? 0) ?>">
+                        <i class="fas fa-arrow-right"></i> Kembali ke Revisi Aktif
+                    </button>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <?php if (empty($treeParams)): ?>
             <div class="alert alert-warning text-center">
                 Belum ada parameter. Silakan klik tombol <b>"Tambah Parameter Utama"</b>.
@@ -261,7 +315,7 @@ if (!function_exists('buildHorizontalHeaders')) {
                                         <td rowspan="<?= $cell['rowspan'] ?>" colspan="<?= $cell['colspan'] ?>" class="p-2">
                                             <div class="fw-semibold"><?= esc($cell['name']) ?></div>
                                             <?= renderRuleBadges($cell['node_data']) ?>
-                                            <?= renderActionButtons($cell['node_data']) ?>
+                                            <?= renderActionButtons($cell['node_data'], !empty($cell['can_prev']), !empty($cell['can_next']), true) ?>
                                         </td>
                                     <?php elseif ($cell['type'] === 'input'): ?>
                                         <td class="p-2 bg-light">
@@ -377,7 +431,7 @@ if (!function_exists('buildHorizontalHeaders')) {
                                         <th colspan="<?= $col['colspan'] ?>" rowspan="<?= $col['rowspan'] ?>" class="p-2 align-middle">
                                             <?= esc($col['name']) ?>
                                             <?= renderRuleBadges($col['node_data']) ?>
-                                            <?= renderActionButtons($col['node_data']) ?>
+                                            <?= renderActionButtons($col['node_data'], !empty($col['can_prev']), !empty($col['can_next']), false) ?>
                                         </th>
                                     <?php
                                         $runningCol += $col['colspan'];

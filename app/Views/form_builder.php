@@ -68,10 +68,13 @@
                 <!-- 2. REVISION HEADER & ACTION -->
                 <div id="revisionHeader" class="d-none mb-3 p-3 bg-white border rounded shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
-                        <h5 class="m-0 font-weight-bold">
-                            Status Dokumen: <span id="lblRevisi" class="badge bg-danger fs-6">Revisi -</span>
-                        </h5>
-                        <small class="text-muted">Gunakan tombol di kanan untuk mengatur arah form, standar model, menambah kolom, atau menaikkan revisi.</small>
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <h5 class="m-0 font-weight-bold">
+                                Status Dokumen: <span id="lblRevisi" class="badge bg-danger fs-6">Revisi -</span>
+                            </h5>
+                            <select id="fbRevisionSelect" class="form-select form-select-sm border-secondary fw-semibold" style="width: auto; min-width: 175px;" title="Ganti / Lihat Versi Revisi Terdahulu"></select>
+                        </div>
+                        <small class="text-muted">Gunakan tombol panah pada tabel untuk menggeser urutan kolom, atau tombol di kanan untuk preview, clone, standar model, &amp; naik revisi.</small>
                     </div>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
                         <!-- PENGUBAH KATEGORI ARAH STARTUP (MENURUN VS MENDATAR) -->
@@ -97,6 +100,12 @@
                             </button>
                         </div>
 
+                        <button type="button" class="btn btn-info text-white btn-sm fw-bold" id="btnOpenLivePreview" title="Simulasi Langsung Tampilan Form Input Operator & Tabel History">
+                            <i class="fas fa-eye"></i> Live Preview
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnOpenCloneForm" title="Salin Struktur Parameter & SOP dari Proses Lain">
+                            <i class="fas fa-clone"></i> Clone dari Proses Lain
+                        </button>
                         <button type="button" class="btn btn-outline-info btn-sm" id="btnOpenSopNote" title="Atur Catatan SOP & Mode Layout Form">
                             <i class="fas fa-sticky-note"></i> Catatan SOP & Layout
                         </button>
@@ -567,6 +576,114 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL 8: LIVE PREVIEW INTERAKTIF (SIMULASI INPUT OPERATOR & TABEL HISTORY) -->
+    <div class="modal fade" id="modalLivePreview" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fas fa-eye me-2"></i>Live Preview Form &mdash;
+                        <span id="lblLivePreviewProc" class="badge bg-warning text-dark">-</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body bg-light">
+                    <ul class="nav nav-tabs" id="livePreviewTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold" id="tab-lp-input" data-bs-toggle="tab" data-bs-target="#pane-lp-input" type="button" role="tab">
+                                <i class="fas fa-keyboard text-primary me-1"></i> 1. Simulasi Form Input Operator
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold" id="tab-lp-history" data-bs-toggle="tab" data-bs-target="#pane-lp-history" type="button" role="tab">
+                                <i class="fas fa-table text-success me-1"></i> 2. Simulasi Tabel History (Data Contoh)
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content bg-white border border-top-0 p-3 rounded-bottom shadow-sm">
+                        <div class="tab-pane fade show active" id="pane-lp-input" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <div class="alert alert-info py-1 px-2 small mb-0 flex-grow-1">
+                                    <i class="fas fa-bolt me-1"></i> Anda dapat langsung mencoba mengetik angka (menguji warna merah Min/Max, rumus NG/Yield, kuncian <i>Isi Salah Satu</i>, hingga <i>Auto-Judgment</i>) tanpa menyimpan ke database produksi.
+                                </div>
+                                <div id="lpStandbyWrapper" class="form-check form-switch bg-warning bg-opacity-10 px-3 py-1 rounded border border-warning shadow-sm d-none">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="is-standby">
+                                    <label class="form-check-label small fw-bold text-dark" for="is-standby">
+                                        Simulasi Mode Mesin Stand By
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="livePreviewInputContainer" class="overflow-auto"></div>
+                        </div>
+                        <div class="tab-pane fade" id="pane-lp-history" role="tabpanel">
+                            <div class="alert alert-success py-1 px-2 small mb-2">
+                                <i class="fas fa-check-circle me-1"></i> Pratinjau keselarasan kolom header dan baris data pada halaman History, Export Excel, &amp; PDF.
+                            </div>
+                            <div id="livePreviewHistoryContainer" class="overflow-auto"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup Preview</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 9: CLONE / SALIN STRUKTUR PARAMETER DARI PROSES LAIN -->
+    <div class="modal fade" id="modalCloneForm" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="formCloneProcess">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title fw-bold">
+                            <i class="fas fa-clone me-2"></i>Clone Struktur dari Proses Lain
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body bg-light">
+                        <div class="alert alert-warning py-2 px-3 small mb-3">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <b>Perhatian:</b> Menyalin struktur akan menggantikan seluruh parameter &amp; Catatan SOP pada <b id="lblCloneTargetRev">Revisi Ini</b> dengan salinan dari proses sumber yang Anda pilih.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">1. Device: <span class="text-danger">*</span></label>
+                            <select id="cloneDeviceSelect" class="form-select" required>
+                                <option value="">-- Pilih Device --</option>
+                                <?php foreach ($devices as $d): ?>
+                                    <?php $devCode = $d['code'] ?? $d['device_code'] ?? ''; ?>
+                                    <option value="<?= esc($devCode) ?>"><?= esc($d['name'] ?? $devCode) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">2. Process: <span class="text-danger">*</span></label>
+                            <select id="cloneProcessNameSelect" class="form-select" required disabled>
+                                <option value="">-- Pilih Device Dulu --</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">3. Doc. Type: <span class="text-danger">*</span></label>
+                            <select id="cloneProcessSelect" class="form-select" required disabled>
+                                <option value="">-- Pilih Process Dulu --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-white">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary px-4" id="btnSubmitCloneForm" disabled>
+                            <i class="fas fa-copy"></i> Salin Struktur Sekarang
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </main>
 
 <!-- SCRIPT 1: FUNGSI GLOBAL DROPDOWN FILTER (Seragam dengan Input & History) -->
@@ -744,16 +861,33 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 $(document).ready(function() {
     let currentRevisionId = null;
+    let sessionAlertShown = false;
     window.currentParamsList = [];
     window.currentTreeParams = [];
     window.currentModelsList = [];
+
+    // Proteksi Global Sesi Berakhir (HTTP 401 JSON) pada seluruh request AJAX Form Builder
+    $(document).ajaxError(function(event, xhr) {
+        if (xhr && xhr.status === 401 && !sessionAlertShown) {
+            sessionAlertShown = true;
+            let msg = 'Sesi login Admin Anda telah berakhir. Halaman akan diarahkan ke halaman Login.';
+            let redirectUrl = "<?= base_url('login') ?>";
+            try {
+                let res = JSON.parse(xhr.responseText);
+                if (res && res.message) msg = res.message;
+                if (res && res.redirect) redirectUrl = res.redirect;
+            } catch (e) {}
+            alert(msg);
+            window.location.href = redirectUrl;
+        }
+    });
 
     $('.modal').on('hide.bs.modal', function () {
         if (document.activeElement) document.activeElement.blur();
     });
 
     // LOAD TABEL VISUAL BUILDER
-    function loadTableData(forceReparse = false) {
+    function loadTableData(forceReparse = false, specificRevisionId = null) {
         let processCode = $('#processSelect').val();
         let docType     = $('#docTypeSelect').val();
 
@@ -772,7 +906,8 @@ $(document).ready(function() {
             data: {
                 process: processCode,
                 doc_type: docType,
-                reparse: forceReparse ? 'true' : 'false'
+                reparse: forceReparse ? 'true' : 'false',
+                revision_id: specificRevisionId || ''
             },
             dataType: "json",
             success: function(response) {
@@ -784,7 +919,22 @@ $(document).ready(function() {
                     window.currentRevision   = response.revision || null;
                     currentRevisionId = response.revision.id;
 
-                    $('#lblRevisi').text('Revisi ' + response.revision.revisi);
+                    let isLatest = (response.is_latest_revision !== false);
+                    $('#lblRevisi')
+                        .text('Revisi ' + response.revision.revisi + (isLatest ? '' : ' (Arsip)'))
+                        .toggleClass('bg-danger', isLatest)
+                        .toggleClass('bg-secondary', !isLatest);
+
+                    // Isi dropdown riwayat revisi
+                    let revSel = $('#fbRevisionSelect');
+                    revSel.empty();
+                    let revsList = response.revisions_list || [response.revision];
+                    revsList.forEach(function(r, idx) {
+                        let tag = (idx === 0) ? ' (Aktif Terbaru)' : ' (Arsip)';
+                        let sel = (String(r.id) === String(currentRevisionId)) ? 'selected' : '';
+                        revSel.append('<option value="' + r.id + '" ' + sel + '>Revisi ' + r.revisi + tag + '</option>');
+                    });
+
                     $('#revisionHeader').removeClass('d-none');
                     $('#visualBuilderContainer').html(response.html);
 
@@ -804,6 +954,7 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 btn.html(originalText).prop('disabled', false);
+                if (xhr && xhr.status === 401) return;
                 console.error("Detail Error Server:", xhr.responseText);
                 alert("Gagal memuat form! Cek tab Console.");
             }
@@ -901,6 +1052,77 @@ $(document).ready(function() {
             '</div>';
     }
 
+    function getEvaluatableLeafOptions(excludeId) {
+        excludeId = excludeId ? String(excludeId) : '';
+        let items = [];
+        let seenCols = {};
+
+        function walk(nodes, prefix) {
+            (nodes || []).forEach(function(n) {
+                if (excludeId && String(n.id) === excludeId) return;
+                let curName = (n.nama_parameter || '').trim();
+                let fullPath = prefix ? (prefix + ' ➔ ' + curName) : curName;
+
+                let hasGridKids = (Array.isArray(n.children) && n.children.length > 0 && n.children[0].posisi_grid);
+                if (hasGridKids) {
+                    n.children.forEach(function(gc) {
+                        let cDb = (gc.kolom_db || '').trim().toLowerCase();
+                        if (cDb && !seenCols[cDb]) {
+                            seenCols[cDb] = true;
+                            items.push({
+                                col: cDb,
+                                label: fullPath + ' (' + gc.posisi_grid + ')'
+                            });
+                        }
+                    });
+                    return;
+                }
+
+                if (Array.isArray(n.children) && n.children.length > 0) {
+                    walk(n.children, fullPath);
+                    return;
+                }
+
+                let tipe = (n.tipe_input || '').toLowerCase();
+                let cDb  = (n.kolom_db || '').trim().toLowerCase();
+                let nmLw = curName.toLowerCase();
+                if (!cDb || tipe === 'header_only' || tipe === 'auto_judgment') return;
+                if (nmLw.indexOf('note') !== -1 || nmLw.indexOf('catatan') !== -1) return;
+
+                if (!seenCols[cDb]) {
+                    seenCols[cDb] = true;
+                    items.push({
+                        col: cDb,
+                        label: fullPath
+                    });
+                }
+            });
+        }
+
+        walk(window.currentTreeParams || [], '');
+        return items;
+    }
+
+    function syncEvalTargetBox(evalBox) {
+        let modeSel = evalBox.find('.sel-node-eval-mode').first();
+        let customWrap = evalBox.find('.box-eval-custom-picker').first();
+        let hiddenInp = evalBox.find('.inp-node-target-eval').first();
+        let countBadge = evalBox.find('.lbl-eval-selected-count').first();
+
+        if (modeSel.val() === '*') {
+            customWrap.addClass('d-none');
+            hiddenInp.val('*');
+        } else {
+            customWrap.removeClass('d-none');
+            let checkedCols = [];
+            customWrap.find('.chk-eval-col-item:checked').each(function() {
+                checkedCols.push($(this).val());
+            });
+            countBadge.text(checkedCols.length + ' parameter dipilih');
+            hiddenInp.val(checkedCols.length > 0 ? checkedCols.join(',') : '*');
+        }
+    }
+
     function parseJsonSafe(val) {
         if (!val) return null;
         if (typeof val === 'object') return val;
@@ -921,6 +1143,7 @@ $(document).ready(function() {
         let batasMin      = (nodeData.batas_min !== null && nodeData.batas_min !== undefined) ? nodeData.batas_min : '';
         let batasMax      = (nodeData.batas_max !== null && nodeData.batas_max !== undefined) ? nodeData.batas_max : '';
         let isReadonly    = parseInt(nodeData.is_readonly || 0) === 1;
+        let isRequired    = parseInt(nodeData.is_required || 0) === 1;
         let isExclusive   = parseInt(nodeData.is_exclusive || 0) === 1;
         let satuanOpsi    = parseJsonSafe(nodeData.satuan_opsi) || [];
         let rumusOtomatis = parseJsonSafe(nodeData.rumus_otomatis) || {};
@@ -1031,15 +1254,25 @@ $(document).ready(function() {
                                 <option value="header_only" ${isHeaderOnly ? 'selected' : ''}>Hanya Teks Statis / Label (Tanpa Input)</option>
                             </select>
                         </div>
-                        <div class="col-md-5">
-                            <label class="form-label fw-bold small mb-1">Isi Teks Statis / Keterangan Standar (Opsional)</label>
-                            <input type="text" class="form-control form-control-sm inp-node-standar" placeholder="Contoh: 7 ~ 10V / Measure battery Voltage" value="${standarNilai}">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small mb-1">Isi Teks Statis / Keterangan Standar</label>
+                            <input type="text" class="form-control form-control-sm inp-node-standar" placeholder="Contoh: 7 ~ 10V / Measure Voltage" value="${standarNilai}">
                         </div>
-                        <div class="col-md-3 pt-3">
-                            <div class="form-check mt-1">
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold small mb-1" title="Kosongkan agar sistem memilih slot parXXX kosong secara otomatis">Kode Kolom DB</label>
+                            <input type="text" class="form-control form-control-sm font-monospace inp-node-kolomdb" placeholder="Auto (parXXX)" value="${kolomDb}">
+                        </div>
+                        <div class="col-md-2 pt-2">
+                            <div class="form-check mb-1">
+                                <input class="form-check-input chk-node-required" type="checkbox" ${(!isReadonly && !isHeaderOnly && isRequired) ? 'checked' : ''} ${(isReadonly || isHeaderOnly) ? 'disabled' : ''}>
+                                <label class="form-check-label fw-bold small text-danger">
+                                    Wajib Diisi (*)
+                                </label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input chk-node-readonly" type="checkbox" ${isReadonly ? 'checked' : ''}>
                                 <label class="form-check-label fw-bold small text-secondary">
-                                    Read-Only (Terkunci)
+                                    Read-Only
                                 </label>
                             </div>
                         </div>
@@ -1119,10 +1352,34 @@ $(document).ready(function() {
                     <!-- BOX KHUSUS AUTO JUDGMENT -->
                     <div class="box-auto-judgment-extra mt-2 pt-2 border-top ${tipeInput === 'auto_judgment' ? '' : 'd-none'}">
                         <div class="alert alert-warning py-1 px-2 mb-2 small">
-                            <i class="fas fa-magic"></i> Kolom ini akan otomatis menghitung status kelulusan: Jika ada input merah/NG maka otomatis <b>✖ (NG)</b>, jika semua terisi dan benar maka otomatis <b>✔ (OK)</b>.
+                            <i class="fas fa-magic"></i> Kolom ini otomatis menentukan kelulusan: Jika ada parameter yang merah/NG maka otomatis <b>✖ (NG)</b>, jika semua parameter terisi sesuai standar maka otomatis <b>✔ (OK)</b>.
                         </div>
-                        <label class="form-label small fw-bold mb-1">Target Parameter Yang Dievaluasi:</label>
-                        <input type="text" class="form-control form-control-sm inp-node-target-eval" placeholder="Ketik * untuk seluruh form, atau sebutkan kolom: par001,par002,par003" value="${targetEvaluasi}">
+                        <label class="form-label small fw-bold mb-1">Cakupan Target Parameter Yang Dievaluasi:</label>
+                        <div class="d-flex gap-2 align-items-center mb-2">
+                            <select class="form-select form-select-sm sel-node-eval-mode">
+                                <option value="*" ${(targetEvaluasi === '*' || !targetEvaluasi) ? 'selected' : ''}>Semua Parameter Input pada Form Ini (Otomatis — Default)</option>
+                                <option value="custom" ${(targetEvaluasi && targetEvaluasi !== '*') ? 'selected' : ''}>Pilih Parameter Tertentu Saja (Checklist)...</option>
+                            </select>
+                            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap btn-eval-set-all" title="Gunakan semua parameter di form ini">
+                                <i class="fas fa-globe"></i> Semua Parameter
+                            </button>
+                        </div>
+                        <input type="hidden" class="inp-node-target-eval" value="${targetEvaluasi || '*'}">
+
+                        <div class="box-eval-custom-picker p-2 bg-white border rounded ${(targetEvaluasi && targetEvaluasi !== '*') ? '' : 'd-none'}">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-2 pb-1 border-bottom">
+                                <span class="badge bg-primary lbl-eval-selected-count">0 parameter dipilih</span>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-xs btn-outline-success py-0 px-2 btn-eval-check-all">
+                                        <i class="fas fa-check-double"></i> Centang Semua
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-eval-uncheck-all">
+                                        <i class="fas fa-eraser"></i> Reset Pilihan
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="eval-checklist-container small" style="max-height: 180px; overflow-y: auto;"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1131,6 +1388,32 @@ $(document).ready(function() {
         </div>`;
 
         let card = $(cardHtml);
+
+        // Isi daftar parameter untuk fitur Target Evaluasi Auto-Judgment
+        let evalBox = card.find('.box-auto-judgment-extra').first();
+        let evalChecklist = evalBox.find('.eval-checklist-container').first();
+        let availTargets = getEvaluatableLeafOptions(id);
+        let preSelectedCols = (targetEvaluasi && targetEvaluasi !== '*')
+            ? targetEvaluasi.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean)
+            : [];
+
+        if (availTargets.length === 0) {
+            evalChecklist.html('<div class="text-muted fst-italic py-1">Belum ada parameter lain yang tersimpan di revisi ini. Mode "Semua Parameter" akan otomatis mengevaluasi semua parameter nantinya.</div>');
+        } else {
+            availTargets.forEach(function(item, idx) {
+                let chkId = 'chk_eval_' + (id || 'new') + '_' + idx + '_' + Math.floor(Math.random() * 10000);
+                let isChecked = preSelectedCols.includes(item.col) ? 'checked' : '';
+                evalChecklist.append(
+                    '<div class="form-check py-1 border-bottom border-light">' +
+                    '<input class="form-check-input chk-eval-col-item" type="checkbox" id="' + chkId + '" value="' + item.col + '" ' + isChecked + '>' +
+                    '<label class="form-check-label d-flex justify-content-between align-items-center w-100" for="' + chkId + '" style="cursor:pointer;">' +
+                    '<span>' + $('<div>').text(item.label).html() + '</span>' +
+                    '<code class="ms-2 text-primary">[' + item.col + ']</code>' +
+                    '</label></div>'
+                );
+            });
+        }
+        syncEvalTargetBox(evalBox);
 
         let unitContainer = card.find('.unit-rows-container').first();
         if (Array.isArray(satuanOpsi) && satuanOpsi.length > 0) {
@@ -1194,6 +1477,22 @@ $(document).ready(function() {
 
         if (val === 'auto_judgment') {
             leaf.find('.chk-node-readonly').prop('checked', true);
+            leaf.find('.chk-node-required').prop('checked', false).prop('disabled', true);
+        } else if (val === 'header_only') {
+            leaf.find('.chk-node-required').prop('checked', false).prop('disabled', true);
+        } else if (!leaf.find('.chk-node-readonly').is(':checked')) {
+            leaf.find('.chk-node-required').prop('disabled', false);
+        }
+    });
+
+    $(document).on('change', '.chk-node-readonly', function() {
+        let leaf = $(this).closest('.node-leaf-settings');
+        let isRo = $(this).is(':checked');
+        let isHdr = (leaf.find('.sel-node-tipe').val() === 'header_only');
+        if (isRo || isHdr) {
+            leaf.find('.chk-node-required').prop('checked', false).prop('disabled', true);
+        } else {
+            leaf.find('.chk-node-required').prop('disabled', false);
         }
     });
 
@@ -1203,10 +1502,40 @@ $(document).ready(function() {
         let formulaColsBox = leafBox.find('.box-formula-cols').first();
         if ($(this).val() !== '') {
             formulaColsBox.removeClass('d-none');
-            leafBox.find('.chk-node-readonly').first().prop('checked', true);
+            leafBox.find('.chk-node-readonly').first().prop('checked', true).trigger('change');
         } else {
             formulaColsBox.addClass('d-none');
         }
+    });
+
+    $(document).on('change', '.sel-node-eval-mode', function() {
+        let evalBox = $(this).closest('.box-auto-judgment-extra');
+        if ($(this).val() === 'custom' && evalBox.find('.chk-eval-col-item:checked').length === 0) {
+            evalBox.find('.chk-eval-col-item').prop('checked', true);
+        }
+        syncEvalTargetBox(evalBox);
+    });
+
+    $(document).on('click', '.btn-eval-set-all', function() {
+        let evalBox = $(this).closest('.box-auto-judgment-extra');
+        evalBox.find('.sel-node-eval-mode').val('*');
+        syncEvalTargetBox(evalBox);
+    });
+
+    $(document).on('click', '.btn-eval-check-all', function() {
+        let evalBox = $(this).closest('.box-auto-judgment-extra');
+        evalBox.find('.chk-eval-col-item').prop('checked', true);
+        syncEvalTargetBox(evalBox);
+    });
+
+    $(document).on('click', '.btn-eval-uncheck-all', function() {
+        let evalBox = $(this).closest('.box-auto-judgment-extra');
+        evalBox.find('.chk-eval-col-item').prop('checked', false);
+        syncEvalTargetBox(evalBox);
+    });
+
+    $(document).on('change', '.chk-eval-col-item', function() {
+        syncEvalTargetBox($(this).closest('.box-auto-judgment-extra'));
     });
 
     $(document).on('change', '.chk-node-dynstd', function() {
@@ -1296,13 +1625,20 @@ $(document).ready(function() {
             }
         }
 
-        let selTipe      = leafSettings.find('.sel-node-tipe').first().val();
-        let jenisElemen  = (hasChildren || selTipe === 'header_only') ? 'header' : 'input';
-        let tipeInput    = hasChildren ? null : selTipe;
-        let standarNilai = leafSettings.find('.inp-node-standar').first().val().trim();
-        let isReadonly   = leafSettings.find('.chk-node-readonly').first().is(':checked') ? 1 : 0;
-        let batasMin     = leafSettings.find('.inp-node-min').first().val();
-        let batasMax     = leafSettings.find('.inp-node-max').first().val();
+        let selTipe       = leafSettings.find('.sel-node-tipe').first().val();
+        let jenisElemen   = (hasChildren || selTipe === 'header_only') ? 'header' : 'input';
+        let tipeInput     = hasChildren ? null : selTipe;
+        let standarNilai  = leafSettings.find('.inp-node-standar').first().val().trim();
+        let manualKolomDb = (leafSettings.find('.inp-node-kolomdb').first().val() || '').trim();
+        if (jenisElemen === 'input') {
+            kolomDb = manualKolomDb !== '' ? manualKolomDb : null;
+        } else {
+            kolomDb = null;
+        }
+        let isReadonly    = leafSettings.find('.chk-node-readonly').first().is(':checked') ? 1 : 0;
+        let isRequired    = (!isReadonly && jenisElemen === 'input' && leafSettings.find('.chk-node-required').first().is(':checked')) ? 1 : 0;
+        let batasMin      = leafSettings.find('.inp-node-min').first().val();
+        let batasMax      = leafSettings.find('.inp-node-max').first().val();
 
         let satuanOpsi = [];
         if (jenisElemen === 'input' && tipeInput === 'number') {
@@ -1354,6 +1690,7 @@ $(document).ready(function() {
             batas_min: batasMin,
             batas_max: batasMax,
             is_readonly: isReadonly,
+            is_required: isReadonly ? 0 : isRequired,
             is_exclusive: isExclusive,
             satuan_opsi: satuanOpsi.length > 0 ? satuanOpsi : null,
             rumus_otomatis: rumusOtomatis,
@@ -1440,7 +1777,7 @@ $(document).ready(function() {
                 btn.prop('disabled', false).html('<i class="fas fa-save"></i> Simpan Seluruh Struktur');
                 if (res.status === 'success') {
                     $('#modalForm').modal('hide');
-                    loadTableData(false);
+                    loadTableData(false, currentRevisionId);
                 } else {
                     alert(res.message || 'Gagal menyimpan struktur parameter.');
                 }
@@ -1455,16 +1792,270 @@ $(document).ready(function() {
 
     $(document).on('click', '.btn-delete', function() {
         if (confirm('Yakin ingin menghapus parameter ini? Jika ini adalah Induk, semua sub-bagian di bawahnya juga akan ikut terhapus!')) {
-            let id = $(this).data('id');$.ajax({
+            let id = $(this).data('id');
+            $.ajax({
                 url: "<?= base_url('form-builder/delete') ?>",
                 type: "POST",
                 data: { id: id },
                 dataType: "json",
                 success: function() {
-                    loadTableData(false);
+                    loadTableData(false, currentRevisionId);
                 }
             });
         }
+    });
+
+    // ==========================================================
+    // FITUR BARU: GESER PANAH CEPAT, REVISION SWITCHER, PREVIEW, & CLONE
+    // ==========================================================
+
+    // 1. Geser urutan parameter 1-klik (Panah Kiri/Kanan atau Atas/Bawah)
+    $(document).on('click', '.btn-move-param', function() {
+        let btn = $(this);
+        let id  = btn.data('id');
+        let dir = btn.data('dir');
+        if (!id || !dir) return;
+
+        btn.prop('disabled', true);
+        $.ajax({
+            url: "<?= base_url('form-builder/param-move') ?>",
+            type: "POST",
+            data: { id: id, direction: dir },
+            dataType: "json",
+            success: function(res) {
+                if (res.status === 'success') {
+                    loadTableData(false, currentRevisionId);
+                } else {
+                    btn.prop('disabled', false);
+                    alert(res.message || 'Gagal menggeser urutan parameter.');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false);
+                if (xhr && xhr.status === 401) return;
+                alert('Gagal menggeser parameter!');
+            }
+        });
+    });
+
+    // 2. Dropdown Pengganti Versi Revisi & Tombol Pulihkan Revisi Arsip
+    $('#fbRevisionSelect').on('change', function() {
+        let targetRevId = $(this).val();
+        if (targetRevId) {
+            loadTableData(false, targetRevId);
+        }
+    });
+
+    $(document).on('click', '.btn-back-latest-rev', function() {
+        let latestId = $(this).data('latest-id');
+        loadTableData(false, latestId || null);
+    });
+
+    $(document).on('click', '.btn-restore-revision', function() {
+        let srcId  = $(this).data('source-id');
+        let revLbl = $(this).data('rev');
+        if (!srcId) return;
+
+        if (!confirm('Salin seluruh struktur parameter & Catatan SOP dari Revisi ' + revLbl + ' ke Revisi Aktif terbaru?\n\n(Data riwayat pada Revisi ' + revLbl + ' tetap aman dan tidak berubah.)')) {
+            return;
+        }
+
+        let btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Menyalin...');
+
+        $.ajax({
+            url: "<?= base_url('form-builder/restore-revisi') ?>",
+            type: "POST",
+            data: { source_revision_id: srcId },
+            dataType: "json",
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="fas fa-undo"></i> Salin Struktur Ini ke Revisi Aktif');
+                if (res.status === 'success') {
+                    alert(res.message);
+                    loadTableData(false, res.latest_revision_id || null);
+                } else {
+                    alert(res.message || 'Gagal memulihkan revisi.');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="fas fa-undo"></i> Salin Struktur Ini ke Revisi Aktif');
+                if (xhr && xhr.status === 401) return;
+                alert('Gagal memulihkan revisi!');
+            }
+        });
+    });
+
+    // 3. Live Preview Modal (Simulasi Input Operator & Tabel History)
+    $('#btnOpenLivePreview').on('click', function() {
+        if (!currentRevisionId) {
+            alert('Pilih dan muat form terlebih dahulu!');
+            return;
+        }
+
+        $('#is-standby').prop('checked', false);
+        let curKat = (window.currentRevision && window.currentRevision.kategori_form) ? window.currentRevision.kategori_form : $('#docTypeSelect').val();
+        let isStartupKat = (curKat === 'startup' || curKat === 'startup_horizontal');
+        $('#lpStandbyWrapper').toggleClass('d-none', !isStartupKat);
+
+        $('#lblLivePreviewProc').text(($('#processSelect').val() || '-').toUpperCase());
+        $('#livePreviewInputContainer').html('<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><br>Menyiapkan simulasi Form Input Operator...</div>');
+        $('#livePreviewHistoryContainer').html('<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><br>Menyiapkan simulasi Tabel History...</div>');
+        $('#modalLivePreview').modal('show');
+
+        $.ajax({
+            url: "<?= base_url('form-builder/preview') ?>",
+            type: "GET",
+            data: { revision_id: currentRevisionId },
+            dataType: "json",
+            success: function(res) {
+                if (res.status === 'success') {
+                    let resKat = res.kategori_form || curKat;
+                    $('#lpStandbyWrapper').toggleClass('d-none', !(resKat === 'startup' || resKat === 'startup_horizontal'));
+                    $('#lblLivePreviewProc').text((res.process_code || '').toUpperCase() + ' - Revisi ' + (res.revisi || '0'));
+                    $('#livePreviewInputContainer').html(res.input_html || '');
+                    $('#livePreviewHistoryContainer').html(res.history_html || '');
+                } else {
+                    $('#livePreviewInputContainer').html('<div class="alert alert-danger">' + (res.message || 'Gagal memuat preview.') + '</div>');
+                }
+            },
+            error: function(xhr) {
+                if (xhr && xhr.status === 401) return;
+                $('#livePreviewInputContainer').html('<div class="alert alert-danger">Gagal memuat Live Preview dari server.</div>');
+            }
+        });
+    });
+
+    // 4. Clone / Salin Struktur dari Proses Lain (Filter 3 Tingkat: Device -> Process -> Doc. Type)
+    let cloneProcessRows = [];
+
+    $('#btnOpenCloneForm').on('click', function() {
+        if (!currentRevisionId) {
+            alert('Pilih dan muat form tujuan terlebih dahulu!');
+            return;
+        }
+        let revNum = (window.currentRevision && window.currentRevision.revisi) ? window.currentRevision.revisi : '-';
+        let procCd = ($('#processSelect').val() || '').toUpperCase();
+        $('#lblCloneTargetRev').text(procCd + ' (Revisi ' + revNum + ')');
+        cloneProcessRows = [];
+        $('#cloneDeviceSelect').val('');
+        $('#cloneProcessNameSelect').html('<option value="">-- Pilih Device Dulu --</option>').prop('disabled', true);
+        $('#cloneProcessSelect').html('<option value="">-- Pilih Process Dulu --</option>').prop('disabled', true);
+        $('#btnSubmitCloneForm').prop('disabled', true);
+        $('#modalCloneForm').modal('show');
+    });
+
+    $('#cloneDeviceSelect').on('change', function() {
+        let dev = $(this).val();
+        let procNameSel = $('#cloneProcessNameSelect');
+        let docTypeSel  = $('#cloneProcessSelect');
+        cloneProcessRows = [];
+        $('#btnSubmitCloneForm').prop('disabled', true);
+
+        docTypeSel.html('<option value="">-- Pilih Process Dulu --</option>').prop('disabled', true);
+
+        if (!dev) {
+            procNameSel.html('<option value="">-- Pilih Device Dulu --</option>').prop('disabled', true);
+            return;
+        }
+        procNameSel.html('<option value="">Loading daftar proses...</option>').prop('disabled', true);
+
+        $.getJSON("<?= base_url('process/list') ?>", { device: dev }, function(rows) {
+            cloneProcessRows = rows || [];
+            let names = [];
+            cloneProcessRows.forEach(function(r) {
+                let base = splitName(r.process_name || r.name).base;
+                if (base && names.indexOf(base) === -1) names.push(base);
+            });
+            names.sort();
+
+            if (names.length === 0) {
+                procNameSel.html('<option value="">-- Data Kosong --</option>').prop('disabled', true);
+                return;
+            }
+            procNameSel.empty().append('<option value="">-- Pilih Process --</option>');
+            names.forEach(function(n) {
+                procNameSel.append($('<option>', { value: n, text: n }));
+            });
+            procNameSel.prop('disabled', false);
+        });
+    });
+
+    $('#cloneProcessNameSelect').on('change', function() {
+        let selectedBase = $(this).val();
+        let docTypeSel   = $('#cloneProcessSelect');
+        $('#btnSubmitCloneForm').prop('disabled', true);
+
+        if (!selectedBase) {
+            docTypeSel.html('<option value="">-- Pilih Process Dulu --</option>').prop('disabled', true);
+            return;
+        }
+
+        let matchedRows = cloneProcessRows.filter(function(r) {
+            return splitName(r.process_name || r.name).base === selectedBase;
+        });
+        matchedRows.sort(function(a, b) {
+            return (TYPE_ORDER[a.type] || 99) - (TYPE_ORDER[b.type] || 99);
+        });
+
+        if (matchedRows.length === 0) {
+            docTypeSel.html('<option value="">-- Tidak Ada Dokumen --</option>').prop('disabled', true);
+            return;
+        }
+
+        docTypeSel.empty().append('<option value="">-- Pilih Dokumen / Doc Type --</option>');
+        matchedRows.forEach(function(r) {
+            let variant = splitName(r.process_name || r.name).variant;
+            let label = stripRevision(r.docno) + ' (' + (TYPE_LABEL[r.type] || r.type) + ')' + (variant ? ' - ' + variant : '');
+            docTypeSel.append($('<option>', {
+                value: r.process_code,
+                text: label
+            }));
+        });
+        docTypeSel.prop('disabled', false);
+    });
+
+    $('#cloneProcessSelect').on('change', function() {
+        $('#btnSubmitCloneForm').prop('disabled', !$(this).val());
+    });
+
+    $('#formCloneProcess').on('submit', function(e) {
+        e.preventDefault();
+        let srcProc = $('#cloneProcessSelect').val();
+        if (!srcProc) {
+            alert('Pilih proses sumber terlebih dahulu!');
+            return;
+        }
+        if (!confirm('PERINGATAN: Seluruh parameter pada revisi aktif saat ini akan diganti dengan struktur dari proses "' + srcProc.toUpperCase() + '".\n\nLanjutkan proses Clone?')) {
+            return;
+        }
+
+        let btn = $('#btnSubmitCloneForm');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Menyalin Struktur...');
+
+        $.ajax({
+            url: "<?= base_url('form-builder/clone-from') ?>",
+            type: "POST",
+            data: {
+                target_revision_id: currentRevisionId,
+                source_process: srcProc
+            },
+            dataType: "json",
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="fas fa-copy"></i> Salin Struktur Sekarang');
+                if (res.status === 'success') {
+                    $('#modalCloneForm').modal('hide');
+                    alert(res.message);
+                    loadTableData(false, currentRevisionId);
+                } else {
+                    alert(res.message || 'Gagal menyalin struktur proses.');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="fas fa-copy"></i> Salin Struktur Sekarang');
+                if (xhr && xhr.status === 401) return;
+                alert('Terjadi kesalahan saat menyalin struktur form.');
+            }
+        });
     });
 
     $(document).on('click', '.btn-add-matrix-row', function() {

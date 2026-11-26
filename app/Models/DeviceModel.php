@@ -41,16 +41,24 @@ class DeviceModel extends Model {
         $add = $this->insert($data);
 
         if ($add) {
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1), 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/history', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/history/foregoing', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/history/production', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/history/startup', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/input', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/input/foregoing', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/input/production', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/input/startup', 0777, true);
-            $tes = mkdir('../app/Views/layout'.'/'.substr($code,1,-1).'/note', 0777, true);
+            $devSlug = substr($code, 1, -1);
+            $dirs = [
+                '../app/Views/layout/' . $devSlug,
+                '../app/Views/layout/' . $devSlug . '/history',
+                '../app/Views/layout/' . $devSlug . '/history/foregoing',
+                '../app/Views/layout/' . $devSlug . '/history/production',
+                '../app/Views/layout/' . $devSlug . '/history/startup',
+                '../app/Views/layout/' . $devSlug . '/input',
+                '../app/Views/layout/' . $devSlug . '/input/foregoing',
+                '../app/Views/layout/' . $devSlug . '/input/production',
+                '../app/Views/layout/' . $devSlug . '/input/startup',
+                '../app/Views/layout/' . $devSlug . '/note',
+            ];
+            foreach ($dirs as $dir) {
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0777, true);
+                }
+            }
             return "Berhasil menambahkan data";
         } else {
             return "Gagal menambahklan data";
